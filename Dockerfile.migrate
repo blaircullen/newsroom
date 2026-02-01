@@ -14,4 +14,5 @@ RUN npm install -D typescript ts-node @types/node --legacy-peer-deps
 
 COPY tsconfig.json ./
 
-CMD ["sh", "-c", "npx prisma db push --accept-data-loss && npx prisma db seed"]
+# Use migrate deploy (safe, non-destructive) instead of db push --accept-data-loss
+CMD ["sh", "-c", "npx prisma migrate deploy && npx prisma db seed"]
