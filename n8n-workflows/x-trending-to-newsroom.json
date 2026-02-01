@@ -43,7 +43,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Parse trending topics from trends24.in HTML\nconst html = $input.first().json.data;\n\n// Extract trend names from the trend cards\n// trends24.in uses <a> tags with class \"trend-link\" or within trend-card elements\nconst trendPattern = /<a[^>]*class=\"[^\"]*trend-link[^\"]*\"[^>]*>([^<]+)<\\/a>/gi;\nconst trends = [];\nlet match;\n\nwhile ((match = trendPattern.exec(html)) !== null && trends.length < 10) {\n  const name = match[1].trim();\n  if (name && !trends.find(t => t.name === name)) {\n    trends.push({\n      name: name,\n      url: `https://x.com/search?q=${encodeURIComponent(name)}`,\n      tweet_volume: null\n    });\n  }\n}\n\n// Fallback: try extracting from list items if the above pattern doesn't match\nif (trends.length === 0) {\n  const listPattern = /<li[^>]*>\\s*<a[^>]*href=\"[^\"]*\\/search[^\"]*\"[^>]*>\\s*([^<]+)\\s*<\\/a>/gi;\n  while ((match = listPattern.exec(html)) !== null && trends.length < 10) {\n    const name = match[1].trim();\n    if (name && name.length > 1 && !trends.find(t => t.name === name)) {\n      trends.push({\n        name: name,\n        url: `https://x.com/search?q=${encodeURIComponent(name)}`,\n        tweet_volume: null\n      });\n    }\n  }\n}\n\n// Second fallback: extract any hashtags or trending text patterns\nif (trends.length === 0) {\n  const hashPattern = /(#[A-Za-z0-9_]+)/g;\n  while ((match = hashPattern.exec(html)) !== null && trends.length < 10) {\n    const name = match[1].trim();\n    if (name && !trends.find(t => t.name === name)) {\n      trends.push({\n        name: name,\n        url: `https://x.com/search?q=${encodeURIComponent(name)}`,\n        tweet_volume: null\n      });\n    }\n  }\n}\n\nreturn [{\n  json: {\n    location: \"United States\",\n    trends: trends.slice(0, 5)\n  }\n}];"
+        "jsCode": "// Parse trending topics from trends24.in\n// The page has ordered lists (<ol>) grouped by time period.\n// Each <li> contains an <a> linking to twitter.com/search with the trend name as text.\n// We grab the FIRST <ol> block (most recent time period) and extract top 5.\n\nconst html = $input.first().json.data;\nconst trends = [];\n\n// Match all <a> tags that link to twitter.com/search\n// These appear inside <ol><li> blocks on the page\nconst pattern = /<li[^>]*>\\s*<a[^>]*href=\"https?:\\/\\/twitter\\.com\\/search\\?q=([^\"]*)\"[^>]*>([^<]+)<\\/a>/gi;\n\nlet match;\nwhile ((match = pattern.exec(html)) !== null && trends.length < 5) {\n  const name = match[2].trim();\n  const query = match[1];\n  if (name && !trends.find(t => t.name === name)) {\n    trends.push({\n      name: name,\n      url: `https://x.com/search?q=${query}`,\n      tweet_volume: null\n    });\n  }\n}\n\n// Fallback: if the <li><a> pattern doesn't match, try a broader pattern\n// trends24 sometimes uses different markup\nif (trends.length === 0) {\n  const fallback = /<a[^>]*href=\"https?:\\/\\/(twitter|x)\\.com\\/search\\?q=([^\"]*)\"[^>]*>([^<]+)<\\/a>/gi;\n  while ((match = fallback.exec(html)) !== null && trends.length < 5) {\n    const name = match[3].trim();\n    const query = match[2];\n    if (name && name.length > 1 && !trends.find(t => t.name === name)) {\n      trends.push({\n        name: name,\n        url: `https://x.com/search?q=${query}`,\n        tweet_volume: null\n      });\n    }\n  }\n}\n\nreturn [{\n  json: {\n    location: 'United States',\n    trends: trends\n  }\n}];"
       },
       "id": "parse-trends",
       "name": "Parse Trending Topics",
@@ -108,12 +108,9 @@
       "position": [1100, 220]
     },
     {
-      "parameters": {
-        "content": "=⚠️ No trending topics found from scraping. The HTML structure may have changed.\n\nTimestamp: {{ $now.toISO() }}",
-        "options": {}
-      },
+      "parameters": {},
       "id": "no-trends-alert",
-      "name": "Log: No Trends Found",
+      "name": "No Trends Found",
       "type": "n8n-nodes-base.noOp",
       "typeVersion": 1,
       "position": [1100, 420]
@@ -138,7 +135,7 @@
     "Has Trends?": {
       "main": [
         [{ "node": "Push to Newsroom API", "type": "main", "index": 0 }],
-        [{ "node": "Log: No Trends Found", "type": "main", "index": 0 }]
+        [{ "node": "No Trends Found", "type": "main", "index": 0 }]
       ]
     }
   },
