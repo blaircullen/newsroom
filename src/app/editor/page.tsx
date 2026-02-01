@@ -29,6 +29,7 @@ export default function NewEditorPage() {
   const [featuredImage, setFeaturedImage] = useState<string | null>(null);
   const [featuredImageId, setFeaturedImageId] = useState<string | null>(null);
   const [featuredImageName, setFeaturedImageName] = useState<string | null>(null);
+  const [imageCredit, setImageCredit] = useState('');
   const [showImagePicker, setShowImagePicker] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -62,6 +63,7 @@ export default function NewEditorPage() {
           bodyHtml,
           featuredImage,
           featuredImageId,
+          imageCredit: imageCredit.trim() || null,
           tags,
         }),
       });
@@ -160,6 +162,7 @@ export default function NewEditorPage() {
                       setFeaturedImage(null);
                       setFeaturedImageId(null);
                       setFeaturedImageName(null);
+                      setImageCredit('');
                     }}
                     className="p-2 bg-white rounded-lg text-ink-700 shadow-lg"
                   >
@@ -188,6 +191,18 @@ export default function NewEditorPage() {
                 Browse the shared library or upload your own
               </span>
             </button>
+          )}
+          {/* Image Credit / Attribution */}
+          {featuredImage && (
+            <div className="mt-2">
+              <input
+                type="text"
+                value={imageCredit}
+                onChange={(e) => setImageCredit(e.target.value)}
+                placeholder="Image credit (e.g. Photo: Getty Images / John Smith)"
+                className="w-full px-3 py-2 rounded-lg border border-ink-200 text-sm text-ink-600 placeholder-ink-300 focus:outline-none focus:border-press-500 bg-paper-50"
+              />
+            </div>
           )}
         </div>
 

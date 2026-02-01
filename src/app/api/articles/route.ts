@@ -70,7 +70,7 @@ export async function POST(request: NextRequest) {
   }
 
   const body = await request.json();
-  const { headline, subHeadline, bodyContent, bodyHtml, featuredImage, featuredImageId, tags } = body;
+  const { headline, subHeadline, bodyContent, bodyHtml, featuredImage, featuredImageId, imageCredit, tags } = body;
 
   if (!headline || !bodyContent) {
     return NextResponse.json(
@@ -106,6 +106,7 @@ export async function POST(request: NextRequest) {
       slug,
       featuredImage: featuredImage || null,
       featuredImageId: featuredImageId || null,
+      imageCredit: imageCredit || null,
       status: 'DRAFT',
       authorId: session.user.id,
       tags: {
