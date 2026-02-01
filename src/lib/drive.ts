@@ -1,4 +1,5 @@
 import { google } from 'googleapis';
+import { Readable } from 'stream';
 
 function getAuth() {
   const serviceAccountKey = process.env.GOOGLE_SERVICE_ACCOUNT_KEY;
@@ -6,7 +7,7 @@ function getAuth() {
   const credentials = JSON.parse(serviceAccountKey);
   return new google.auth.GoogleAuth({
     credentials,
-    scopes: ['https://www.googleapis.com/auth/drive.readonly'],
+    scopes: ['https://www.googleapis.com/auth/drive.file', 'https://www.googleapis.com/auth/drive'],
   });
 }
 
@@ -60,4 +61,46 @@ export async function searchDriveImages(
 
 export async function getDriveImageUrl(fileId: string): Promise<string> {
   return '/api/drive-images/' + fileId + '/raw';
+}
+
+export async function uploadImageToDrive(
+  buffer: Buffer,
+  fileName: string,
+  mimeType: string
+): Promise<DriveImage> {
+  const auth = getAuth();
+  const drive = google.drive({ version: 'v3', auth });
+  const folderId = process.env.GOOGLE_DRIVE_FOLDER_ID;
+  if (!folderId) throw new Error('GOOGLE_DRIVE_FOLDER_ID is not configured');
+
+  // Create a readable stream from the buffer
+  const stream = new Readable();
+  stream.push(buffer);
+  stream.push(null);
+
+  const response = await drive.files.create({
+    requestBody: {
+      name: fileName,
+      mimeType,
+      parents: [folderId],
+    },
+    media: {
+      mimeType,
+      body: stream,
+    },
+    fields: 'id, name, mimeType, thumbnailLink, webViewLink, size, createdTime',
+  });
+
+  const file = response.data;
+
+  return {
+    id: file.id!,
+    name: file.name!,
+    mimeType: file.mimeType!,
+    thumbnailUrl: '/api/drive-images/' + file.id + '/raw',
+    webViewUrl: file.webViewLink || '',
+    directUrl: '/api/drive-images/' + file.id + '/raw',
+    size: file.size || '0',
+    createdTime: file.createdTime || '',
+  };
 }
