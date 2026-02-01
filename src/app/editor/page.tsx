@@ -15,12 +15,29 @@ import {
   HiOutlinePaperAirplane,
   HiOutlineDocumentText,
   HiOutlineXMark,
+  HiOutlineLink,
+  HiOutlinePencilSquare,
+  HiOutlineSparkles,
+  HiOutlineArrowPath,
 } from 'react-icons/hi2';
+
+type EditorMode = 'manual' | 'import';
 
 export default function NewEditorPage() {
   const { data: session } = useSession();
   const router = useRouter();
 
+  const isAdmin = session?.user?.role === 'ADMIN';
+
+  // Editor mode (admin only)
+  const [mode, setMode] = useState<EditorMode>('manual');
+
+  // Import state
+  const [importUrl, setImportUrl] = useState('');
+  const [isImporting, setIsImporting] = useState(false);
+  const [importedFromUrl, setImportedFromUrl] = useState<string | null>(null);
+
+  // Article fields
   const [headline, setHeadline] = useState('');
   const [subHeadline, setSubHeadline] = useState('');
   const [bodyContent, setBodyContent] = useState('');
@@ -34,10 +51,67 @@ export default function NewEditorPage() {
   const [isSaving, setIsSaving] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  // Tracks whether the editor was populated by AI import (for re-render)
+  const [editorKey, setEditorKey] = useState(0);
+
   const handleContentChange = useCallback((text: string, html: string) => {
     setBodyContent(text);
     setBodyHtml(html);
   }, []);
+
+  // AI Import handler
+  const handleImport = async () => {
+    if (!importUrl.trim()) {
+      toast.error('Please enter a URL');
+      return;
+    }
+
+    // Basic URL validation
+    try {
+      new URL(importUrl.trim());
+    } catch {
+      toast.error('Please enter a valid URL (e.g. https://example.com/article)');
+      return;
+    }
+
+    setIsImporting(true);
+
+    try {
+      const res = await fetch('/api/articles/import', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url: importUrl.trim() }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.error || 'Failed to import article');
+      }
+
+      // Populate the editor fields
+      setHeadline(data.headline);
+      setSubHeadline(data.subHeadline || '');
+      setBodyHtml(data.bodyHtml);
+      setBodyContent(data.bodyText || '');
+      setImportedFromUrl(importUrl.trim());
+
+      // Force RichEditor to re-render with new content
+      setEditorKey((prev) => prev + 1);
+
+      // Switch to manual mode so the user can edit
+      setMode('manual');
+
+      toast.success('Article imported! Review and edit before saving.', {
+        duration: 5000,
+        icon: '✨',
+      });
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to import article');
+    } finally {
+      setIsImporting(false);
+    }
+  };
 
   const saveArticle = async (submit = false) => {
     if (!headline.trim()) {
@@ -115,7 +189,9 @@ export default function NewEditorPage() {
                 New Story
               </h1>
               <p className="text-ink-400 text-sm">
-                Write and submit your article
+                {importedFromUrl
+                  ? 'AI-generated — review and edit before saving'
+                  : 'Write and submit your article'}
               </p>
             </div>
           </div>
@@ -139,6 +215,126 @@ export default function NewEditorPage() {
             </button>
           </div>
         </div>
+
+        {/* Mode Toggle — Admin Only */}
+        {isAdmin && (
+          <div className="mb-6">
+            <div className="flex items-center gap-1 bg-white rounded-xl border border-ink-100 p-1.5 w-fit">
+              <button
+                onClick={() => setMode('manual')}
+                className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                  mode === 'manual'
+                    ? 'bg-ink-950 text-paper-100'
+                    : 'text-ink-500 hover:bg-ink-50 hover:text-ink-700'
+                }`}
+              >
+                <HiOutlinePencilSquare className="w-4 h-4" />
+                Write Manually
+              </button>
+              <button
+                onClick={() => setMode('import')}
+                className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                  mode === 'import'
+                    ? 'bg-ink-950 text-paper-100'
+                    : 'text-ink-500 hover:bg-ink-50 hover:text-ink-700'
+                }`}
+              >
+                <HiOutlineSparkles className="w-4 h-4" />
+                Import from URL
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* AI Import Panel */}
+        {isAdmin && mode === 'import' && (
+          <div className="mb-6 bg-gradient-to-br from-ink-950 to-ink-800 rounded-2xl border border-ink-700 p-6 text-white">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 rounded-xl bg-press-500/20 flex items-center justify-center">
+                <HiOutlineSparkles className="w-5 h-5 text-press-400" />
+              </div>
+              <div>
+                <h2 className="font-display font-semibold text-lg">
+                  AI Article Import
+                </h2>
+                <p className="text-ink-300 text-sm">
+                  Paste a URL and let AI rewrite the article with a compelling headline
+                </p>
+              </div>
+            </div>
+
+            <div className="flex gap-3">
+              <div className="flex-1 relative">
+                <HiOutlineLink className="absolute left-3.5 top-1/2 -translate-y-1/2 w-5 h-5 text-ink-400" />
+                <input
+                  type="url"
+                  value={importUrl}
+                  onChange={(e) => setImportUrl(e.target.value)}
+                  placeholder="https://example.com/article-to-import"
+                  className="w-full pl-11 pr-4 py-3 rounded-xl bg-white/10 border border-white/20 text-white placeholder-ink-400 focus:outline-none focus:border-press-500 focus:bg-white/15 transition-all text-sm"
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && !isImporting) handleImport();
+                  }}
+                  disabled={isImporting}
+                />
+              </div>
+              <button
+                onClick={handleImport}
+                disabled={isImporting || !importUrl.trim()}
+                className="flex items-center gap-2 px-6 py-3 bg-press-500 text-white rounded-xl font-semibold text-sm hover:bg-press-600 disabled:opacity-50 disabled:cursor-not-allowed transition-all active:scale-[0.98]"
+              >
+                {isImporting ? (
+                  <>
+                    <HiOutlineArrowPath className="w-4 h-4 animate-spin" />
+                    Generating...
+                  </>
+                ) : (
+                  <>
+                    <HiOutlineSparkles className="w-4 h-4" />
+                    Generate Article
+                  </>
+                )}
+              </button>
+            </div>
+
+            {isImporting && (
+              <div className="mt-4 flex items-center gap-3 text-sm text-ink-300">
+                <div className="flex gap-1">
+                  <span className="w-1.5 h-1.5 bg-press-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+                  <span className="w-1.5 h-1.5 bg-press-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+                  <span className="w-1.5 h-1.5 bg-press-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+                </div>
+                Fetching article and generating rewrite — this may take 15-30 seconds...
+              </div>
+            )}
+
+            <p className="mt-3 text-xs text-ink-400">
+              The AI will rewrite the article in 4-5 paragraphs with a new headline and sub-headline. You can edit everything before publishing.
+            </p>
+          </div>
+        )}
+
+        {/* Imported Source Banner */}
+        {importedFromUrl && mode === 'manual' && (
+          <div className="mb-4 flex items-center gap-2 px-4 py-2.5 bg-press-50 border border-press-200 rounded-xl text-sm">
+            <HiOutlineSparkles className="w-4 h-4 text-press-600 flex-shrink-0" />
+            <span className="text-press-700 font-medium">AI-generated from:</span>
+            <a
+              href={importedFromUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-press-600 hover:text-press-800 truncate underline"
+            >
+              {importedFromUrl}
+            </a>
+            <button
+              onClick={() => setImportedFromUrl(null)}
+              className="ml-auto text-press-400 hover:text-press-600"
+            >
+              <HiOutlineXMark className="w-4 h-4" />
+            </button>
+          </div>
+        )}
 
         {/* Featured Image */}
         <div className="mb-6">
@@ -239,7 +435,8 @@ export default function NewEditorPage() {
           {/* Body editor */}
           <div className="px-8 pb-4">
             <RichEditor
-              content=""
+              key={editorKey}
+              content={bodyHtml}
               onChange={handleContentChange}
               placeholder="Tell your story..."
             />
