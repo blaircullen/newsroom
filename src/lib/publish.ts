@@ -19,22 +19,167 @@ function transformTweetEmbeds(html: string): string {
   );
 }
 
+// Generate a Ghost Admin API JWT token
+function generateGhostToken(apiKey: string): string {
+  const [id, secret] = apiKey.split(':');
+  const iat = Math.floor(Date.now() / 1000);
+  const header = Buffer.from(JSON.stringify({ alg: 'HS256', typ: 'JWT', kid: id })).toString('base64url');
+  const payload = Buffer.from(JSON.stringify({
+    iat,
+    exp: iat + 300,
+    aud: '/admin/',
+  })).toString('base64url');
+
+  const signature = crypto
+    .createHmac('sha256', Buffer.from(secret, 'hex'))
+    .update(`${header}.${payload}`)
+    .digest('base64url');
+
+  return `${header}.${payload}.${signature}`;
+}
+
+// Download an image from a URL and return the buffer + metadata
+async function downloadImage(imageUrl: string): Promise<{ buffer: Buffer; contentType: string; ext: string } | null> {
+  try {
+    console.log(`[Image Download] Fetching: ${imageUrl}`);
+    const response = await fetch(imageUrl);
+    if (!response.ok) {
+      console.error(`[Image Download] Failed: ${response.status}`);
+      return null;
+    }
+
+    const buffer = Buffer.from(await response.arrayBuffer());
+    const contentType = response.headers.get('content-type') || 'image/jpeg';
+    const ext = contentType.includes('png') ? 'png' : contentType.includes('gif') ? 'gif' : contentType.includes('webp') ? 'webp' : 'jpg';
+
+    console.log(`[Image Download] Success: ${buffer.length} bytes, ${contentType}`);
+    return { buffer, contentType, ext };
+  } catch (error: any) {
+    console.error(`[Image Download] Error:`, error.message);
+    return null;
+  }
+}
+
+// Upload an image to Ghost and return the hosted URL
+async function uploadImageToGhost(
+  imageUrl: string,
+  token: string,
+  ghostUrl: string,
+  filename?: string
+): Promise<string | null> {
+  try {
+    const image = await downloadImage(imageUrl);
+    if (!image) return null;
+
+    const name = filename || `featured-image.${image.ext}`;
+    const boundary = '----FormBoundary' + crypto.randomUUID().replace(/-/g, '');
+
+    const headerPart = Buffer.from(
+      `--${boundary}\r\nContent-Disposition: form-data; name="file"; filename="${name}"\r\nContent-Type: ${image.contentType}\r\n\r\n`
+    );
+    const footerPart = Buffer.from(`\r\n--${boundary}--\r\n`);
+    const body = Buffer.concat([headerPart, image.buffer, footerPart]);
+
+    console.log(`[Ghost Image Upload] Uploading ${name} (${image.buffer.length} bytes)`);
+
+    const uploadResponse = await fetch(`${ghostUrl}/ghost/api/admin/images/upload/`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Ghost ${token}`,
+        'Content-Type': `multipart/form-data; boundary=${boundary}`,
+        'Content-Length': String(body.length),
+      },
+      body: body,
+    });
+
+    if (!uploadResponse.ok) {
+      const errText = await uploadResponse.text().catch(() => '');
+      console.error(`[Ghost Image Upload] Failed: ${uploadResponse.status} - ${errText}`);
+      return null;
+    }
+
+    const data = await uploadResponse.json();
+    const hostedUrl = data.images?.[0]?.url || null;
+    console.log(`[Ghost Image Upload] Success: ${hostedUrl}`);
+    return hostedUrl;
+  } catch (error: any) {
+    console.error(`[Ghost Image Upload] Error:`, error.message);
+    return null;
+  }
+}
+
+// Upload an image to WordPress media library and return the media ID
+async function uploadImageToWordPress(
+  imageUrl: string,
+  auth: string,
+  wpUrl: string,
+  filename?: string,
+  caption?: string
+): Promise<number | null> {
+  try {
+    const image = await downloadImage(imageUrl);
+    if (!image) return null;
+
+    const name = filename || `featured-image.${image.ext}`;
+
+    console.log(`[WP Image Upload] Uploading ${name} (${image.buffer.length} bytes)`);
+
+    const uploadResponse = await fetch(`${wpUrl}/wp-json/wp/v2/media`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Basic ${auth}`,
+        'Content-Type': image.contentType,
+        'Content-Disposition': `attachment; filename="${name}"`,
+      },
+      body: image.buffer,
+    });
+
+    if (!uploadResponse.ok) {
+      const errText = await uploadResponse.text().catch(() => '');
+      console.error(`[WP Image Upload] Failed: ${uploadResponse.status} - ${errText}`);
+      return null;
+    }
+
+    const mediaData = await uploadResponse.json();
+    const mediaId = mediaData.id;
+    console.log(`[WP Image Upload] Success: media ID ${mediaId}, URL: ${mediaData.source_url}`);
+
+    // Set caption on the media item if provided
+    if (caption && mediaId) {
+      await fetch(`${wpUrl}/wp-json/wp/v2/media/${mediaId}`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Basic ${auth}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ caption: caption }),
+      }).catch((err) => console.error('[WP Image Caption] Error:', err.message));
+    }
+
+    return mediaId;
+  } catch (error: any) {
+    console.error(`[WP Image Upload] Error:`, error.message);
+    return null;
+  }
+}
+
 // Prepare article HTML for Ghost publishing
-// Uses <!--kg-card-begin: html--> wrapper to prevent Ghost from stripping styles
+// Subheadline is NOT included — it goes in custom_excerpt only
 function prepareGhostHtml(
   bodyHtml: string | null | undefined,
   body: string,
-  subHeadline: string | null | undefined
+  imageCredit: string | null | undefined
 ): string {
   let html = bodyHtml || body;
 
-  if (subHeadline && subHeadline.trim()) {
-    const subBlock = [
+  // Add image credit at the top of body (also set as feature_image_caption)
+  if (imageCredit && imageCredit.trim()) {
+    const creditBlock = [
       '<!--kg-card-begin: html-->',
-      `<p class="subheadline" style="font-size: 1.25em; color: #555; font-style: italic; margin-bottom: 1.5em; line-height: 1.4;">${subHeadline}</p>`,
+      `<p style="font-size: 0.85em; color: #666; text-align: center; font-style: italic; margin-bottom: 1.5em;">${imageCredit}</p>`,
       '<!--kg-card-end: html-->',
     ].join('\n');
-    html = subBlock + '\n' + html;
+    html = creditBlock + '\n' + html;
   }
 
   html = transformTweetEmbeds(html);
@@ -42,28 +187,18 @@ function prepareGhostHtml(
 }
 
 // Prepare article HTML for WordPress publishing
+// Subheadline and featured image are NOT included —
+// subheadline goes in meta field, image goes as featured_media
 function prepareWordPressHtml(
   bodyHtml: string | null | undefined,
   body: string,
-  subHeadline: string | null | undefined,
-  featuredImage: string | null | undefined,
   imageCredit: string | null | undefined
 ): string {
   let html = bodyHtml || body;
 
-  // Prepend featured image with caption if available
-  if (featuredImage && featuredImage.trim()) {
-    let figureHtml = `<figure class="wp-block-image size-large" style="margin-bottom: 1.5em;">`;
-    figureHtml += `<img src="${featuredImage}" alt="" style="width: 100%; height: auto;" />`;
-    if (imageCredit && imageCredit.trim()) {
-      figureHtml += `<figcaption style="font-size: 0.85em; color: #666; text-align: center; margin-top: 0.5em; font-style: italic;">${imageCredit}</figcaption>`;
-    }
-    figureHtml += `</figure>`;
-    html = figureHtml + '\n' + html;
-  }
-
-  if (subHeadline && subHeadline.trim()) {
-    html = `<p class="subheadline" style="font-size: 1.25em; color: #555; font-style: italic; margin-bottom: 1.5em; line-height: 1.4;">${subHeadline}</p>\n${html}`;
+  // Add image credit at the top of body content
+  if (imageCredit && imageCredit.trim()) {
+    html = `<p style="font-size: 0.85em; color: #666; text-align: center; font-style: italic; margin-bottom: 1.5em;">${imageCredit}</p>\n${html}`;
   }
 
   html = transformTweetEmbeds(html);
@@ -92,36 +227,37 @@ async function publishToGhost(
       return { success: false, error: 'Ghost API key not configured' };
     }
 
-    const [id, secret] = target.apiKey.split(':');
+    const token = generateGhostToken(target.apiKey);
 
-    const iat = Math.floor(Date.now() / 1000);
-    const header = Buffer.from(JSON.stringify({ alg: 'HS256', typ: 'JWT', kid: id })).toString('base64url');
-    const payload = Buffer.from(JSON.stringify({
-      iat,
-      exp: iat + 300,
-      aud: '/admin/',
-    })).toString('base64url');
+    // Upload featured image to Ghost if present
+    let featureImageUrl: string | undefined;
+    if (article.featuredImage) {
+      const ghostImageUrl = await uploadImageToGhost(
+        article.featuredImage,
+        token,
+        target.url,
+        article.slug ? `${article.slug}.jpg` : undefined
+      );
+      if (ghostImageUrl) {
+        featureImageUrl = ghostImageUrl;
+      } else {
+        // Fallback: try the original URL directly
+        console.log('[Publish Ghost] Image upload failed, trying original URL as fallback');
+        featureImageUrl = article.featuredImage;
+      }
+    }
 
-    const signature = crypto
-      .createHmac('sha256', Buffer.from(secret, 'hex'))
-      .update(`${header}.${payload}`)
-      .digest('base64url');
-
-    const token = `${header}.${payload}.${signature}`;
-
-    const processedHtml = prepareGhostHtml(article.bodyHtml, article.body, article.subHeadline);
+    const processedHtml = prepareGhostHtml(article.bodyHtml, article.body, article.imageCredit);
 
     console.log(`[Publish Ghost] Target: ${target.url}`);
-    console.log(`[Publish Ghost] SubHeadline value: "${article.subHeadline || '(empty)'}"`);
-    console.log(`[Publish Ghost] ImageCredit value: "${article.imageCredit || '(empty)'}"`);
-    console.log(`[Publish Ghost] HTML preview (first 400 chars): ${processedHtml.substring(0, 400)}`);
+    console.log(`[Publish Ghost] Feature image: ${featureImageUrl || '(none)'}`);
 
     const ghostPost: any = {
       posts: [{
         title: article.headline,
         custom_excerpt: article.subHeadline || undefined,
         html: processedHtml,
-        feature_image: article.featuredImage || undefined,
+        feature_image: featureImageUrl || undefined,
         feature_image_caption: article.imageCredit || undefined,
         slug: article.slug || undefined,
         status: 'published',
@@ -149,8 +285,6 @@ async function publishToGhost(
     const data = await response.json();
     const post = data.posts[0];
     console.log(`[Publish Ghost] Success: ${post.url}`);
-    console.log(`[Publish Ghost] Response custom_excerpt: "${post.custom_excerpt || '(empty)'}"`);
-    console.log(`[Publish Ghost] Response feature_image_caption: "${post.feature_image_caption || '(empty)'}"`);
 
     return {
       success: true,
@@ -187,6 +321,7 @@ async function publishToWordPress(
 
     const auth = Buffer.from(`${target.username}:${target.password}`).toString('base64');
 
+    // Handle tags
     const tagIds: number[] = [];
     for (const t of article.tags) {
       const tagResponse = await fetch(`${target.url}/wp-json/wp/v2/tags?search=${encodeURIComponent(t.tag.name)}`, {
@@ -212,21 +347,42 @@ async function publishToWordPress(
       }
     }
 
-    const processedHtml = prepareWordPressHtml(article.bodyHtml, article.body, article.subHeadline, article.featuredImage, article.imageCredit);
+    // Upload featured image to WordPress media library
+    let featuredMediaId: number | undefined;
+    if (article.featuredImage) {
+      const mediaId = await uploadImageToWordPress(
+        article.featuredImage,
+        auth,
+        target.url,
+        article.slug ? `${article.slug}.jpg` : undefined,
+        article.imageCredit || undefined
+      );
+      if (mediaId) {
+        featuredMediaId = mediaId;
+      }
+    }
+
+    const processedHtml = prepareWordPressHtml(article.bodyHtml, article.body, article.imageCredit);
 
     console.log(`[Publish WP] Target: ${target.url}`);
-    console.log(`[Publish WP] SubHeadline value: "${article.subHeadline || '(empty)'}"`);
-    console.log(`[Publish WP] ImageCredit value: "${article.imageCredit || '(empty)'}"`);
-    console.log(`[Publish WP] HTML preview (first 400 chars): ${processedHtml.substring(0, 400)}`);
+    console.log(`[Publish WP] Featured media ID: ${featuredMediaId || '(none)'}`);
 
-    const wpPost = {
+    const wpPost: any = {
       title: article.headline,
       content: processedHtml,
       excerpt: article.subHeadline || '',
       slug: article.slug || undefined,
       status: 'publish',
       tags: tagIds,
+      meta: {
+        sub_headline: article.subHeadline || '',
+      },
     };
+
+    // Set featured image if uploaded successfully
+    if (featuredMediaId) {
+      wpPost.featured_media = featuredMediaId;
+    }
 
     const response = await fetch(`${target.url}/wp-json/wp/v2/posts`, {
       method: 'POST',
@@ -286,8 +442,6 @@ export async function publishArticle(
   }
 
   console.log(`[Publish] Article "${article.headline}" -> ${target.name} (${target.type})`);
-  console.log(`[Publish] Article subHeadline: "${article.subHeadline || '(null/empty)'}"`);
-  console.log(`[Publish] Article imageCredit: "${article.imageCredit || '(null/empty)'}"`);
 
   let result: PublishResult;
 
