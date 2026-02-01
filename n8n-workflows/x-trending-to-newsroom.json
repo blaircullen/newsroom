@@ -1,0 +1,152 @@
+{
+  "name": "X Trending Topics → Newsroom",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 30
+            }
+          ]
+        }
+      },
+      "id": "schedule-trigger",
+      "name": "Every 30 Minutes",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [220, 300]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "https://trends24.in/united-states/",
+        "options": {
+          "redirect": {
+            "redirect": {
+              "followRedirects": true
+            }
+          },
+          "response": {
+            "response": {
+              "responseFormat": "text"
+            }
+          }
+        }
+      },
+      "id": "fetch-trends-page",
+      "name": "Fetch Trends Page",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [440, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Parse trending topics from trends24.in HTML\nconst html = $input.first().json.data;\n\n// Extract trend names from the trend cards\n// trends24.in uses <a> tags with class \"trend-link\" or within trend-card elements\nconst trendPattern = /<a[^>]*class=\"[^\"]*trend-link[^\"]*\"[^>]*>([^<]+)<\\/a>/gi;\nconst trends = [];\nlet match;\n\nwhile ((match = trendPattern.exec(html)) !== null && trends.length < 10) {\n  const name = match[1].trim();\n  if (name && !trends.find(t => t.name === name)) {\n    trends.push({\n      name: name,\n      url: `https://x.com/search?q=${encodeURIComponent(name)}`,\n      tweet_volume: null\n    });\n  }\n}\n\n// Fallback: try extracting from list items if the above pattern doesn't match\nif (trends.length === 0) {\n  const listPattern = /<li[^>]*>\\s*<a[^>]*href=\"[^\"]*\\/search[^\"]*\"[^>]*>\\s*([^<]+)\\s*<\\/a>/gi;\n  while ((match = listPattern.exec(html)) !== null && trends.length < 10) {\n    const name = match[1].trim();\n    if (name && name.length > 1 && !trends.find(t => t.name === name)) {\n      trends.push({\n        name: name,\n        url: `https://x.com/search?q=${encodeURIComponent(name)}`,\n        tweet_volume: null\n      });\n    }\n  }\n}\n\n// Second fallback: extract any hashtags or trending text patterns\nif (trends.length === 0) {\n  const hashPattern = /(#[A-Za-z0-9_]+)/g;\n  while ((match = hashPattern.exec(html)) !== null && trends.length < 10) {\n    const name = match[1].trim();\n    if (name && !trends.find(t => t.name === name)) {\n      trends.push({\n        name: name,\n        url: `https://x.com/search?q=${encodeURIComponent(name)}`,\n        tweet_volume: null\n      });\n    }\n  }\n}\n\nreturn [{\n  json: {\n    location: \"United States\",\n    trends: trends.slice(0, 5)\n  }\n}];"
+      },
+      "id": "parse-trends",
+      "name": "Parse Trending Topics",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [660, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "check-trends-exist",
+              "leftValue": "={{ $json.trends.length }}",
+              "rightValue": "0",
+              "operator": {
+                "type": "number",
+                "operation": "gt"
+              }
+            }
+          ],
+          "combinator": "and"
+        }
+      },
+      "id": "check-has-trends",
+      "name": "Has Trends?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [880, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.NEWSROOM_URL }}/api/trending",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "x-api-key",
+              "value": "={{ $env.TRENDING_API_KEY }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json) }}",
+        "options": {}
+      },
+      "id": "push-to-newsroom",
+      "name": "Push to Newsroom API",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1100, 220]
+    },
+    {
+      "parameters": {
+        "content": "=⚠️ No trending topics found from scraping. The HTML structure may have changed.\n\nTimestamp: {{ $now.toISO() }}",
+        "options": {}
+      },
+      "id": "no-trends-alert",
+      "name": "Log: No Trends Found",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [1100, 420]
+    }
+  ],
+  "connections": {
+    "Every 30 Minutes": {
+      "main": [
+        [{ "node": "Fetch Trends Page", "type": "main", "index": 0 }]
+      ]
+    },
+    "Fetch Trends Page": {
+      "main": [
+        [{ "node": "Parse Trending Topics", "type": "main", "index": 0 }]
+      ]
+    },
+    "Parse Trending Topics": {
+      "main": [
+        [{ "node": "Has Trends?", "type": "main", "index": 0 }]
+      ]
+    },
+    "Has Trends?": {
+      "main": [
+        [{ "node": "Push to Newsroom API", "type": "main", "index": 0 }],
+        [{ "node": "Log: No Trends Found", "type": "main", "index": 0 }]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "tags": [
+    { "name": "newsroom" },
+    { "name": "trending" }
+  ]
+}
