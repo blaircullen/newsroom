@@ -28,11 +28,15 @@ export async function GET(
     const auth = getAuth();
     const drive = google.drive({ version: 'v3', auth });
 
-    const meta = await drive.files.get({ fileId, fields: 'mimeType' });
+    const meta = await drive.files.get({
+      fileId,
+      fields: 'mimeType',
+      supportsAllDrives: true,
+    });
     const mimeType = meta.data.mimeType || 'image/jpeg';
 
     const response = await drive.files.get(
-      { fileId, alt: 'media' },
+      { fileId, alt: 'media', supportsAllDrives: true },
       { responseType: 'arraybuffer' }
     );
 
