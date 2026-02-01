@@ -80,7 +80,7 @@ export async function PUT(
   }
 
   const body = await request.json();
-  const { headline, subHeadline, bodyContent, bodyHtml, featuredImage, featuredImageId, tags } = body;
+  const { headline, subHeadline, bodyContent, bodyHtml, featuredImage, featuredImageId, imageCredit, tags } = body;
 
   const updateData: any = {};
 
@@ -93,6 +93,7 @@ export async function PUT(
   if (bodyHtml !== undefined) updateData.bodyHtml = bodyHtml;
   if (featuredImage !== undefined) updateData.featuredImage = featuredImage;
   if (featuredImageId !== undefined) updateData.featuredImageId = featuredImageId;
+  if (imageCredit !== undefined) updateData.imageCredit = imageCredit;
 
   // Update tags if provided
   if (tags && Array.isArray(tags)) {
