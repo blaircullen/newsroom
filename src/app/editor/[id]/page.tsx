@@ -45,6 +45,7 @@ export default function EditArticlePage() {
   const [tags, setTags] = useState<string[]>([]);
   const [featuredImage, setFeaturedImage] = useState<string | null>(null);
   const [featuredImageId, setFeaturedImageId] = useState<string | null>(null);
+  const [imageCredit, setImageCredit] = useState('');
   const [showImagePicker, setShowImagePicker] = useState(false);
   const [showPublishModal, setShowPublishModal] = useState(false);
   const [showReviewPanel, setShowReviewPanel] = useState(false);
@@ -80,6 +81,7 @@ export default function EditArticlePage() {
         setTags(data.tags.map((t: any) => t.tag.name));
         setFeaturedImage(data.featuredImage);
         setFeaturedImageId(data.featuredImageId);
+        setImageCredit(data.imageCredit || '');
       } catch (error) {
         toast.error('Article not found');
         router.push('/dashboard');
@@ -119,6 +121,7 @@ export default function EditArticlePage() {
           bodyHtml,
           featuredImage,
           featuredImageId,
+          imageCredit: imageCredit.trim() || null,
           tags,
         }),
       });
@@ -134,7 +137,7 @@ export default function EditArticlePage() {
     } catch {
       setAutoSaveStatus('error');
     }
-  }, [articleId, headline, subHeadline, bodyContent, bodyHtml, featuredImage, featuredImageId, tags]);
+  }, [articleId, headline, subHeadline, bodyContent, bodyHtml, featuredImage, featuredImageId, imageCredit, tags]);
 
   const scheduleAutoSave = useCallback(() => {
     if (isInitialLoad.current) return;
@@ -148,7 +151,7 @@ export default function EditArticlePage() {
     if (isInitialLoad.current) return;
     if (!canEdit) return;
     scheduleAutoSave();
-  }, [headline, subHeadline, bodyContent, tags, featuredImage, scheduleAutoSave, canEdit]);
+  }, [headline, subHeadline, bodyContent, tags, featuredImage, imageCredit, scheduleAutoSave, canEdit]);
 
   useEffect(() => {
     return () => { if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current); };
@@ -168,6 +171,7 @@ export default function EditArticlePage() {
           bodyHtml,
           featuredImage,
           featuredImageId,
+          imageCredit: imageCredit.trim() || null,
           tags,
         }),
       });
@@ -320,7 +324,7 @@ export default function EditArticlePage() {
                 <div className="absolute inset-0 bg-ink-950/0 group-hover:bg-ink-950/30 transition-all flex items-center justify-center">
                   <div className="opacity-0 group-hover:opacity-100 transition-opacity flex gap-2">
                     <button onClick={() => setShowImagePicker(true)} className="px-4 py-2 bg-white rounded-lg text-sm font-medium text-ink-700 shadow-lg">Change</button>
-                    <button onClick={() => { setFeaturedImage(null); setFeaturedImageId(null); }} className="p-2 bg-white rounded-lg text-ink-700 shadow-lg"><HiOutlineXMark className="w-5 h-5" /></button>
+                    <button onClick={() => { setFeaturedImage(null); setFeaturedImageId(null); setImageCredit(''); }} className="p-2 bg-white rounded-lg text-ink-700 shadow-lg"><HiOutlineXMark className="w-5 h-5" /></button>
                   </div>
                 </div>
               )}
@@ -332,6 +336,22 @@ export default function EditArticlePage() {
               <span className="text-sm font-medium">Choose Featured Image</span>
             </button>
           ) : null}
+
+          {/* Image Credit / Attribution */}
+          {featuredImage && canEdit && (
+            <div className="mt-2">
+              <input
+                type="text"
+                value={imageCredit}
+                onChange={(e) => setImageCredit(e.target.value)}
+                placeholder="Image credit (e.g. Photo: Getty Images / John Smith)"
+                className="w-full px-3 py-2 rounded-lg border border-ink-200 text-sm text-ink-600 placeholder-ink-300 focus:outline-none focus:border-press-500 bg-paper-50"
+              />
+            </div>
+          )}
+          {featuredImage && !canEdit && imageCredit && (
+            <p className="mt-2 text-xs text-ink-400 italic">{imageCredit}</p>
+          )}
         </div>
 
         <div className="bg-white rounded-2xl border border-ink-100 shadow-card overflow-hidden">
