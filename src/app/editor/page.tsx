@@ -182,10 +182,10 @@ export default function NewEditorPage() {
             >
               <HiOutlinePhoto className="w-8 h-8 group-hover:scale-110 transition-transform" />
               <span className="text-sm font-medium">
-                Choose Featured Image from Drive
+                Choose Featured Image
               </span>
               <span className="text-xs text-ink-300">
-                Select from the shared image library
+                Browse the shared library or upload your own
               </span>
             </button>
           )}
