@@ -13,6 +13,10 @@ const ALLOWED_TYPES = [
 
 const MAX_FILE_SIZE = 20 * 1024 * 1024; // 20MB
 
+// Increase body size limit for file uploads
+export const runtime = 'nodejs';
+export const maxDuration = 60;
+
 export async function POST(request: NextRequest) {
   const session = await getServerSession(authOptions);
   if (!session) {
@@ -41,6 +45,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    console.log(`[Upload API] Processing: ${file.name} (${file.type}, ${file.size} bytes)`);
+
     const arrayBuffer = await file.arrayBuffer();
     const buffer = Buffer.from(arrayBuffer);
 
@@ -51,10 +57,20 @@ export async function POST(request: NextRequest) {
       image: driveImage,
     });
   } catch (error: any) {
-    console.error('Image upload error:', error);
+    console.error('[Upload API] Error:', error);
+
+    // Extract meaningful error details from Drive API errors
+    const driveError = error.response?.data?.error;
+    const errorMessage = driveError?.message || error.message || 'Unknown error';
+    const errorCode = driveError?.code || error.code || error.status || 500;
+
     return NextResponse.json(
-      { error: 'Failed to upload image', details: error.message },
-      { status: 500 }
+      {
+        error: `Upload failed: ${errorMessage}`,
+        code: errorCode,
+        details: driveError?.errors || error.errors || null,
+      },
+      { status: typeof errorCode === 'number' && errorCode >= 400 ? errorCode : 500 }
     );
   }
 }
