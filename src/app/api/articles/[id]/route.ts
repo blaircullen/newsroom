@@ -151,16 +151,19 @@ export async function DELETE(
     return NextResponse.json({ error: 'Article not found' }, { status: 404 });
   }
 
-  // Only admins or the author can delete drafts
-  if (session.user.role === 'WRITER' && article.authorId !== session.user.id) {
-    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-  }
+  const isAdmin = session.user.role === 'ADMIN' || session.user.role === 'EDITOR';
 
-  if (article.status === 'PUBLISHED') {
-    return NextResponse.json(
-      { error: 'Cannot delete published articles' },
-      { status: 400 }
-    );
+  // Writers can only delete their own non-published articles
+  if (!isAdmin) {
+    if (article.authorId !== session.user.id) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+    if (article.status === 'PUBLISHED') {
+      return NextResponse.json(
+        { error: 'Cannot delete published articles' },
+        { status: 400 }
+      );
+    }
   }
 
   await prisma.article.delete({ where: { id: params.id } });
