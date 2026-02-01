@@ -44,6 +44,7 @@ jobs:
           passphrase: ${{ secrets.HETZNER_SSH_PASSPHRASE }}
           script: |
             cd /opt/newsroom
+            git pull origin main
 
             # Pull latest image
             docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
