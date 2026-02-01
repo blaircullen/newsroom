@@ -29,6 +29,7 @@ export default function NewEditorPage() {
   const [featuredImage, setFeaturedImage] = useState<string | null>(null);
   const [featuredImageId, setFeaturedImageId] = useState<string | null>(null);
   const [featuredImageName, setFeaturedImageName] = useState<string | null>(null);
+  const [featuredImageCaption, setFeaturedImageCaption] = useState('');
   const [showImagePicker, setShowImagePicker] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -62,6 +63,7 @@ export default function NewEditorPage() {
           bodyHtml,
           featuredImage,
           featuredImageId,
+          featuredImageCaption: featuredImageCaption.trim() || null,
           tags,
         }),
       });
@@ -141,39 +143,49 @@ export default function NewEditorPage() {
         {/* Featured Image */}
         <div className="mb-6">
           {featuredImage ? (
-            <div className="relative rounded-xl overflow-hidden border border-ink-100 group">
-              <img
-                src={featuredImage}
-                alt="Featured"
-                className="w-full h-64 object-cover"
-              />
-              <div className="absolute inset-0 bg-ink-950/0 group-hover:bg-ink-950/30 transition-all flex items-center justify-center">
-                <div className="opacity-0 group-hover:opacity-100 transition-opacity flex gap-2">
-                  <button
-                    onClick={() => setShowImagePicker(true)}
-                    className="px-4 py-2 bg-white rounded-lg text-sm font-medium text-ink-700 shadow-lg"
-                  >
-                    Change Image
-                  </button>
-                  <button
-                    onClick={() => {
-                      setFeaturedImage(null);
-                      setFeaturedImageId(null);
-                      setFeaturedImageName(null);
-                    }}
-                    className="p-2 bg-white rounded-lg text-ink-700 shadow-lg"
-                  >
-                    <HiOutlineXMark className="w-5 h-5" />
-                  </button>
+            <div>
+              <div className="relative rounded-xl overflow-hidden border border-ink-100 group">
+                <img
+                  src={featuredImage}
+                  alt="Featured"
+                  className="w-full h-64 object-cover"
+                />
+                <div className="absolute inset-0 bg-ink-950/0 group-hover:bg-ink-950/30 transition-all flex items-center justify-center">
+                  <div className="opacity-0 group-hover:opacity-100 transition-opacity flex gap-2">
+                    <button
+                      onClick={() => setShowImagePicker(true)}
+                      className="px-4 py-2 bg-white rounded-lg text-sm font-medium text-ink-700 shadow-lg"
+                    >
+                      Change Image
+                    </button>
+                    <button
+                      onClick={() => {
+                        setFeaturedImage(null);
+                        setFeaturedImageId(null);
+                        setFeaturedImageName(null);
+                        setFeaturedImageCaption('');
+                      }}
+                      className="p-2 bg-white rounded-lg text-ink-700 shadow-lg"
+                    >
+                      <HiOutlineXMark className="w-5 h-5" />
+                    </button>
+                  </div>
                 </div>
+                {featuredImageName && (
+                  <div className="absolute bottom-3 left-3">
+                    <span className="text-xs bg-ink-950/70 text-paper-100 px-2 py-1 rounded backdrop-blur-sm">
+                      {featuredImageName}
+                    </span>
+                  </div>
+                )}
               </div>
-              {featuredImageName && (
-                <div className="absolute bottom-3 left-3">
-                  <span className="text-xs bg-ink-950/70 text-paper-100 px-2 py-1 rounded backdrop-blur-sm">
-                    {featuredImageName}
-                  </span>
-                </div>
-              )}
+              <input
+                type="text"
+                value={featuredImageCaption}
+                onChange={(e) => setFeaturedImageCaption(e.target.value)}
+                placeholder="Image credit / caption (e.g. Photo by John Smith / Getty Images)"
+                className="w-full mt-2 px-3 py-2 text-sm text-ink-500 placeholder-ink-300 border border-ink-100 rounded-lg focus:outline-none focus:border-press-300 bg-paper-50"
+              />
             </div>
           ) : (
             <button
