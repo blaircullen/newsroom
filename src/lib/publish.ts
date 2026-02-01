@@ -41,6 +41,11 @@ function generateGhostToken(apiKey: string): string {
 // Download an image from a URL and return the buffer + metadata
 async function downloadImage(imageUrl: string): Promise<{ buffer: Buffer; contentType: string; ext: string } | null> {
   try {
+    // Resolve relative URLs (e.g. /api/drive-images/xxx/raw) to absolute
+    if (imageUrl.startsWith('/')) {
+      const baseUrl = process.env.NEXTAUTH_URL || 'http://localhost:3000';
+      imageUrl = `${baseUrl}${imageUrl}`;
+    }
     console.log(`[Image Download] Fetching: ${imageUrl}`);
     const response = await fetch(imageUrl);
     if (!response.ok) {
@@ -164,24 +169,14 @@ async function uploadImageToWordPress(
 }
 
 // Prepare article HTML for Ghost publishing
-// Subheadline is NOT included — it goes in custom_excerpt only
+// Subheadline goes in custom_excerpt only
+// Image credit goes in feature_image_caption only (NOT in body)
 function prepareGhostHtml(
   bodyHtml: string | null | undefined,
   body: string,
   imageCredit: string | null | undefined
 ): string {
   let html = bodyHtml || body;
-
-  // Add image credit at the top of body (also set as feature_image_caption)
-  if (imageCredit && imageCredit.trim()) {
-    const creditBlock = [
-      '<!--kg-card-begin: html-->',
-      `<p style="font-size: 0.85em; color: #666; text-align: center; font-style: italic; margin-bottom: 1.5em;">${imageCredit}</p>`,
-      '<!--kg-card-end: html-->',
-    ].join('\n');
-    html = creditBlock + '\n' + html;
-  }
-
   html = transformTweetEmbeds(html);
   return html;
 }
