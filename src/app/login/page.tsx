@@ -3,7 +3,6 @@
 import { useState, FormEvent } from 'react';
 import { signIn } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
-import Image from 'next/image';
 import toast from 'react-hot-toast';
 
 export default function LoginPage() {
@@ -39,35 +38,28 @@ export default function LoginPage() {
     <div className="min-h-screen flex">
       {/* Left: Form */}
       <div className="flex-1 flex items-center justify-center px-8 bg-white">
-        <div className="w-full max-w-md">
-          {/* Logo */}
-          <div className="mb-10">
-            <Image
-              src="/newsroom-logo.jpeg"
-              alt="NewsRoom"
-              width={240}
-              height={65}
-              className="h-16 w-auto"
-              priority
-            />
+        <div className="w-full max-w-[380px] text-center animate-[fadeUp_0.8s_ease_both]">
+
+          {/* Large centered NR mark */}
+          <div className="inline-flex items-start justify-center gap-0 mb-8">
+            <span className="font-black text-[72px] leading-none tracking-[-4px] text-[#111c30]">N</span>
+            <span className="font-black text-[72px] leading-none tracking-[-4px] text-press-500">R</span>
+            <svg width="24" height="24" viewBox="0 0 20 20" fill="none" className="ml-1 -mt-0.5">
+              <path d="M10 0l2.5 6.9H20l-6 4.6 2.3 7L10 13.8l-6.3 4.7 2.3-7-6-4.6h7.5z" fill="#D42B2B"/>
+            </svg>
           </div>
 
-          <div className="mb-8">
-            <h2 className="font-display text-display-md text-ink-950 mb-2">
-              Welcome back
-            </h2>
-            <p className="text-ink-400 text-base">
-              Sign in to access the newsroom
-            </p>
-          </div>
+          <h2 className="font-display text-[22px] font-medium text-[#111c30] mb-1.5 tracking-[-0.3px]">
+            Sign into the M3 Newsroom
+          </h2>
+          <p className="text-[#8892a4] text-sm mb-10">
+            Enter your credentials to continue
+          </p>
 
-          <form onSubmit={handleSubmit} className="space-y-5">
+          <form onSubmit={handleSubmit} className="space-y-5 text-left">
             <div>
-              <label
-                htmlFor="email"
-                className="block text-sm font-medium text-ink-700 mb-1.5"
-              >
-                Email address
+              <label htmlFor="email" className="block text-[11px] font-semibold uppercase tracking-[0.8px] text-[#8892a4] mb-2">
+                Email
               </label>
               <input
                 id="email"
@@ -75,18 +67,15 @@ export default function LoginPage() {
                 required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="w-full px-4 py-3 rounded-lg border border-ink-200 bg-white text-ink-900 
-                          placeholder-ink-300 focus:outline-none focus:ring-2 focus:ring-ink-900/10 
-                          focus:border-ink-900 transition-all text-base"
+                className="w-full px-4 py-3.5 rounded-lg border-[1.5px] border-[#e8eaed] bg-white text-[#111c30] 
+                          text-[15px] placeholder-[#c4c9d2] focus:outline-none focus:border-[#111c30] 
+                          focus:shadow-[0_0_0_3px_rgba(17,28,48,0.06)] transition-all"
                 placeholder="you@m3media.com"
               />
             </div>
 
             <div>
-              <label
-                htmlFor="password"
-                className="block text-sm font-medium text-ink-700 mb-1.5"
-              >
+              <label htmlFor="password" className="block text-[11px] font-semibold uppercase tracking-[0.8px] text-[#8892a4] mb-2">
                 Password
               </label>
               <input
@@ -95,9 +84,9 @@ export default function LoginPage() {
                 required
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="w-full px-4 py-3 rounded-lg border border-ink-200 bg-white text-ink-900 
-                          placeholder-ink-300 focus:outline-none focus:ring-2 focus:ring-ink-900/10 
-                          focus:border-ink-900 transition-all text-base"
+                className="w-full px-4 py-3.5 rounded-lg border-[1.5px] border-[#e8eaed] bg-white text-[#111c30] 
+                          text-[15px] placeholder-[#c4c9d2] focus:outline-none focus:border-[#111c30] 
+                          focus:shadow-[0_0_0_3px_rgba(17,28,48,0.06)] transition-all"
                 placeholder="••••••••"
               />
             </div>
@@ -105,10 +94,10 @@ export default function LoginPage() {
             <button
               type="submit"
               disabled={isLoading}
-              className="w-full py-3 px-4 bg-ink-950 text-white rounded-lg font-semibold text-base
-                        hover:bg-ink-800 focus:outline-none focus:ring-2 focus:ring-ink-900/20 
-                        disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200
-                        active:scale-[0.98]"
+              className="w-full py-3.5 px-4 bg-[#111c30] text-white rounded-lg font-semibold text-[15px] tracking-[0.3px]
+                        hover:bg-[#1a2a44] hover:-translate-y-px hover:shadow-[0_4px_12px_rgba(17,28,48,0.2)]
+                        focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed 
+                        transition-all duration-200 active:scale-[0.98] mt-2"
             >
               {isLoading ? (
                 <span className="flex items-center justify-center gap-2">
@@ -124,54 +113,50 @@ export default function LoginPage() {
             </button>
           </form>
 
-          <p className="text-center text-ink-400 text-xs mt-8">
-            M3 Media &middot; Digital Newsroom
+          <p className="text-center text-[#c4c9d2] text-[11px] mt-10 tracking-[2px] uppercase font-medium">
+            &copy; 2026 M3 MEDIA | NEWSROOM
           </p>
         </div>
       </div>
 
-      {/* Right: Hero visual — deep navy with the logo and crimson accents */}
+      {/* Right: Hero */}
       <div className="hidden lg:flex flex-1 items-center justify-center relative overflow-hidden"
-           style={{ background: 'linear-gradient(160deg, #111c30 0%, #192842 50%, #213050 100%)' }}>
-        {/* Subtle geometric pattern overlay */}
-        <div className="absolute inset-0 opacity-[0.03]" style={{
-          backgroundImage: `
-            repeating-linear-gradient(0deg, transparent, transparent 59px, rgba(255,255,255,0.5) 59px, rgba(255,255,255,0.5) 60px),
-            repeating-linear-gradient(90deg, transparent, transparent 59px, rgba(255,255,255,0.5) 59px, rgba(255,255,255,0.5) 60px)
-          `
+           style={{ background: 'linear-gradient(160deg, #0d1520 0%, #152244 40%, #1a2d52 100%)' }}>
+
+        {/* Dot grid */}
+        <div className="absolute inset-0 opacity-100" style={{
+          backgroundImage: 'radial-gradient(rgba(255,255,255,0.06) 1px, transparent 1px)',
+          backgroundSize: '32px 32px'
         }} />
 
-        {/* Star watermark */}
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 opacity-[0.04]">
-          <svg width="600" height="600" viewBox="0 0 24 24" fill="white">
-            <polygon points="12,2 15.09,8.26 22,9.27 17,14.14 18.18,21.02 12,17.77 5.82,21.02 7,14.14 2,9.27 8.91,8.26" />
-          </svg>
-        </div>
+        {/* Crimson glow */}
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] rounded-full"
+             style={{ background: 'radial-gradient(circle, rgba(212,43,43,0.12) 0%, transparent 70%)' }} />
 
-        <div className="relative z-10 text-center max-w-lg px-12">
-          {/* Logo on white card */}
-          <div className="bg-white rounded-2xl p-8 mb-10 shadow-2xl inline-block">
-            <Image
-              src="/newsroom-logo.jpeg"
-              alt="NewsRoom"
-              width={320}
-              height={85}
-              className="h-20 w-auto"
-              priority
-            />
+        <div className="relative z-10 text-center max-w-[460px] px-8 animate-[fadeUp_1s_ease_0.2s_both]">
+          {/* Large NR */}
+          <div className="inline-flex items-start mb-4">
+            <span className="font-black text-[100px] leading-none tracking-[-5px] text-white">N</span>
+            <span className="font-black text-[100px] leading-none tracking-[-5px] text-press-500">R</span>
+            <svg width="34" height="34" viewBox="0 0 20 20" fill="none" className="ml-1.5 -mt-1">
+              <path d="M10 0l2.5 6.9H20l-6 4.6 2.3 7L10 13.8l-6.3 4.7 2.3-7-6-4.6h7.5z" fill="#D42B2B"/>
+            </svg>
           </div>
-          <h2 className="font-display text-display-lg text-white mb-4">
+
+          <h2 className="font-display text-4xl font-medium text-white mb-4 tracking-[-0.5px] leading-tight">
             Your stories,<br />
-            <span className="text-press-400">amplified.</span>
+            <span className="italic text-press-400">amplified.</span>
           </h2>
-          <p className="text-ink-300 text-lg leading-relaxed">
-            Write, submit, and publish from a single newsroom. 
+          <p className="text-white/40 text-base leading-relaxed font-light">
+            Write, edit, and publish from a single newsroom.<br />
             Every great story starts here.
           </p>
         </div>
 
-        {/* Bottom accent stripe — crimson red from the logo */}
-        <div className="absolute bottom-0 left-0 right-0 h-1.5 bg-gradient-to-r from-press-600 via-press-500 to-press-600" />
+        {/* Bottom accent */}
+        <div className="absolute bottom-0 left-0 right-0 h-[3px]"
+             style={{ background: 'linear-gradient(90deg, transparent 0%, #D42B2B 50%, transparent 100%)' }} />
+
       </div>
     </div>
   );

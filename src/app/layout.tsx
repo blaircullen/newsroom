@@ -7,7 +7,7 @@ export const metadata: Metadata = {
   title: 'NewsRoom',
   description: 'The digital newsroom for M3 Media writers and editors',
   icons: {
-    icon: '/favicon.ico',
+    icon: '/favicon.svg',
   },
 };
 

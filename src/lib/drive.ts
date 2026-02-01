@@ -39,11 +39,10 @@ export async function searchDriveImages(
     throw new Error('GOOGLE_DRIVE_FOLDER_ID is not configured');
   }
 
-  // Build query: only images in the shared folder
-  let q = `'${folderId}' in parents and trashed = false and (mimeType contains 'image/')`;
+  let q = "'" + folderId + "' in parents and trashed = false and (mimeType contains 'image/')";
   
   if (query) {
-    q += ` and name contains '${query.replace(/'/g, "\\'")}'`;
+    q += " and name contains '" + query.replace(/'/g, "\\'") + "'";
   }
 
   const response = await drive.files.list({
@@ -58,9 +57,9 @@ export async function searchDriveImages(
     id: file.id!,
     name: file.name!,
     mimeType: file.mimeType!,
-    thumbnailUrl: file.thumbnailLink || '',
+    thumbnailUrl: '/api/drive-images/' + file.id + '/raw?w=400',
     webViewUrl: file.webViewLink || '',
-    directUrl: `https://drive.google.com/uc?export=view&id=${file.id}`,
+    directUrl: '/api/drive-images/' + file.id + '/raw',
     size: file.size || '0',
     createdTime: file.createdTime || '',
   }));
@@ -72,6 +71,5 @@ export async function searchDriveImages(
 }
 
 export async function getDriveImageUrl(fileId: string): Promise<string> {
-  // Returns a direct-access URL for embedding
-  return `https://drive.google.com/uc?export=view&id=${fileId}`;
+  return '/api/drive-images/' + fileId + '/raw';
 }

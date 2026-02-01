@@ -1,12 +1,13 @@
 # ---- Base ----
 FROM node:20-alpine AS base
+RUN apk add --no-cache openssl
 WORKDIR /app
 
 # ---- Dependencies ----
 FROM base AS deps
 COPY package.json package-lock.json* ./
 COPY prisma ./prisma/
-RUN npm ci
+RUN npm ci --legacy-peer-deps
 
 # ---- Build ----
 FROM base AS builder

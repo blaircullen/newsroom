@@ -1,4 +1,5 @@
 'use client';
+export const dynamic = 'force-dynamic';
 
 import { useState, useCallback } from 'react';
 import { useSession } from 'next-auth/react';
@@ -199,7 +200,7 @@ export default function NewEditorPage() {
               value={headline}
               onChange={(e) => setHeadline(e.target.value)}
               placeholder="Write your headline..."
-              className="w-full text-display-lg font-display text-ink-950 placeholder-ink-200 focus:outline-none bg-transparent"
+              className="w-full text-2xl font-display font-semibold text-ink-950 placeholder-ink-200 focus:outline-none bg-transparent"
               required
             />
           </div>

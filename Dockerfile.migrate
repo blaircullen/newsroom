@@ -1,15 +1,16 @@
 # Lightweight image for running migrations + seed
 FROM node:20-alpine
+RUN apk add --no-cache openssl
 WORKDIR /app
 
 COPY package.json package-lock.json* ./
 COPY prisma ./prisma/
 
-RUN npm ci --ignore-scripts
+RUN npm ci --legacy-peer-deps --ignore-scripts
 RUN npx prisma generate
 
 # Install ts-node for seed script
-RUN npm install -D typescript ts-node @types/node
+RUN npm install -D typescript ts-node @types/node --legacy-peer-deps
 
 COPY tsconfig.json ./
 

@@ -18,12 +18,16 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+    container_name: newsroom-app
     restart: unless-stopped
     depends_on:
       db:
         condition: service_healthy
     ports:
       - "3000:3000"
+    networks:
+      - default
+      - caddy-net
     environment:
       DATABASE_URL: postgresql://newsroom:${DB_PASSWORD}@db:5432/m3newsroom?schema=public
       NEXTAUTH_URL: ${NEXTAUTH_URL}
@@ -51,3 +55,7 @@ services:
 
 volumes:
   postgres_data:
+
+networks:
+  caddy-net:
+    external: true

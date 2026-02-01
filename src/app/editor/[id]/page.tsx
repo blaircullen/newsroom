@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter, useParams } from 'next/navigation';
 import toast from 'react-hot-toast';
@@ -18,6 +18,7 @@ import {
   HiOutlineCheckCircle,
   HiOutlineExclamationTriangle,
   HiOutlineGlobeAlt,
+  HiOutlineCheck,
 } from 'react-icons/hi2';
 
 const STATUS_CONFIG: Record<string, { label: string; class: string }> = {
@@ -51,6 +52,10 @@ export default function EditArticlePage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [autoSaveStatus, setAutoSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
+  const autoSaveTimer = useRef<NodeJS.Timeout | null>(null);
+  const hasUnsavedChanges = useRef(false);
+  const isInitialLoad = useRef(true);
 
   const isAdmin = session?.user?.role === 'ADMIN' || session?.user?.role === 'EDITOR';
   const canEdit = article && (
@@ -80,6 +85,7 @@ export default function EditArticlePage() {
         router.push('/dashboard');
       } finally {
         setIsLoading(false);
+        setTimeout(() => { isInitialLoad.current = false; }, 500);
       }
     }
     fetchArticle();
@@ -90,14 +96,18 @@ export default function EditArticlePage() {
     setBodyHtml(html);
   }, []);
 
-  const saveArticle = async (submit = false) => {
-    if (!headline.trim()) {
-      toast.error('Headline is required');
-      return;
-    }
+  const generatedSubHeadline = (() => {
+    if (subHeadline.trim()) return '';
+    if (!bodyContent.trim()) return '';
+    const match = bodyContent.match(/^(.+?[.!?])\s/);
+    if (match && match[1].length <= 200) return match[1];
+    const words = bodyContent.split(/\s+/).slice(0, 20).join(' ');
+    return words.length < bodyContent.length ? words + '...' : words;
+  })();
 
-    submit ? setIsSubmitting(true) : setIsSaving(true);
-
+  const autoSave = useCallback(async () => {
+    if (!hasUnsavedChanges.current || !headline.trim()) return;
+    setAutoSaveStatus('saving');
     try {
       const res = await fetch(`/api/articles/${articleId}`, {
         method: 'PUT',
@@ -112,13 +122,58 @@ export default function EditArticlePage() {
           tags,
         }),
       });
+      if (res.ok) {
+        const updated = await res.json();
+        setArticle(updated);
+        hasUnsavedChanges.current = false;
+        setAutoSaveStatus('saved');
+        setTimeout(() => setAutoSaveStatus('idle'), 3000);
+      } else {
+        setAutoSaveStatus('error');
+      }
+    } catch {
+      setAutoSaveStatus('error');
+    }
+  }, [articleId, headline, subHeadline, bodyContent, bodyHtml, featuredImage, featuredImageId, tags]);
 
+  const scheduleAutoSave = useCallback(() => {
+    if (isInitialLoad.current) return;
+    hasUnsavedChanges.current = true;
+    setAutoSaveStatus('idle');
+    if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current);
+    autoSaveTimer.current = setTimeout(() => { autoSave(); }, 3000);
+  }, [autoSave]);
+
+  useEffect(() => {
+    if (isInitialLoad.current) return;
+    if (!canEdit) return;
+    scheduleAutoSave();
+  }, [headline, subHeadline, bodyContent, tags, featuredImage, scheduleAutoSave, canEdit]);
+
+  useEffect(() => {
+    return () => { if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current); };
+  }, []);
+
+  const saveArticle = async (submit = false) => {
+    if (!headline.trim()) { toast.error('Headline is required'); return; }
+    submit ? setIsSubmitting(true) : setIsSaving(true);
+    try {
+      const res = await fetch(`/api/articles/${articleId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          headline: headline.trim(),
+          subHeadline: subHeadline.trim() || generatedSubHeadline || null,
+          bodyContent: bodyContent.trim(),
+          bodyHtml,
+          featuredImage,
+          featuredImageId,
+          tags,
+        }),
+      });
       if (!res.ok) throw new Error('Failed to save');
-
       if (submit) {
-        const submitRes = await fetch(`/api/articles/${articleId}/submit`, {
-          method: 'POST',
-        });
+        const submitRes = await fetch(`/api/articles/${articleId}/submit`, { method: 'POST' });
         if (!submitRes.ok) throw new Error('Failed to submit');
         toast.success('Story submitted for review!');
         router.push('/dashboard');
@@ -126,6 +181,8 @@ export default function EditArticlePage() {
         toast.success('Changes saved');
         const updated = await res.json();
         setArticle(updated);
+        hasUnsavedChanges.current = false;
+        setAutoSaveStatus('saved');
       }
     } catch (error: any) {
       toast.error(error.message);
@@ -142,17 +199,14 @@ export default function EditArticlePage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ decision, notes: reviewNotes }),
       });
-
       if (!res.ok) throw new Error('Failed to submit review');
-
       const updated = await res.json();
       setArticle(updated);
       setShowReviewPanel(false);
       setReviewNotes('');
-
       const messages: Record<string, string> = {
         approved: 'Article approved!',
-        revision_requested: 'Revision requested — writer notified.',
+        revision_requested: 'Revision requested.',
         rejected: 'Article rejected.',
       };
       toast.success(messages[decision] || 'Review submitted');
@@ -172,13 +226,11 @@ export default function EditArticlePage() {
   }
 
   if (!article) return null;
-
   const statusConfig = STATUS_CONFIG[article.status] || STATUS_CONFIG.DRAFT;
 
   return (
     <AppShell>
       <div className="max-w-4xl mx-auto">
-        {/* Header */}
         <div className="flex items-center justify-between mb-8">
           <div className="flex items-center gap-3">
             <div className="w-9 h-9 rounded-lg bg-press-50 flex items-center justify-center">
@@ -186,62 +238,35 @@ export default function EditArticlePage() {
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h1 className="font-display text-xl font-semibold text-ink-900">
-                  Edit Story
-                </h1>
-                <span className={`status-badge ${statusConfig.class}`}>
-                  {statusConfig.label}
-                </span>
+                <h1 className="font-display text-xl font-semibold text-ink-900">Edit Story</h1>
+                <span className={`status-badge ${statusConfig.class}`}>{statusConfig.label}</span>
               </div>
-              <p className="text-ink-400 text-sm">
-                By {article.author.name}
-              </p>
+              <p className="text-ink-400 text-sm">By {article.author.name}</p>
             </div>
           </div>
-
           <div className="flex items-center gap-3">
-            {/* Admin review actions */}
             {canReview && (
-              <button
-                onClick={() => setShowReviewPanel(!showReviewPanel)}
-                className="flex items-center gap-2 px-4 py-2.5 text-sm font-medium text-press-700 bg-press-50 border border-press-200 rounded-lg hover:bg-press-100 transition-all"
-              >
-                <HiOutlineCheckCircle className="w-4 h-4" />
-                Review
+              <button onClick={() => setShowReviewPanel(!showReviewPanel)}
+                className="flex items-center gap-2 px-4 py-2.5 text-sm font-medium text-press-700 bg-press-50 border border-press-200 rounded-lg hover:bg-press-100 transition-all">
+                <HiOutlineCheckCircle className="w-4 h-4" /> Review
               </button>
             )}
-
-            {/* Publish button */}
             {canPublish && (
-              <button
-                onClick={() => setShowPublishModal(true)}
-                className="flex items-center gap-2 px-4 py-2.5 text-sm font-semibold text-paper-100 bg-emerald-600 rounded-lg hover:bg-emerald-700 transition-all"
-              >
-                <HiOutlineGlobeAlt className="w-4 h-4" />
-                Publish
+              <button onClick={() => setShowPublishModal(true)}
+                className="flex items-center gap-2 px-4 py-2.5 text-sm font-semibold text-paper-100 bg-emerald-600 rounded-lg hover:bg-emerald-700 transition-all">
+                <HiOutlineGlobeAlt className="w-4 h-4" /> Publish
               </button>
             )}
-
-            {/* Save/Submit buttons */}
             {canEdit && (
               <>
-                <button
-                  onClick={() => saveArticle(false)}
-                  disabled={isSaving || isSubmitting}
-                  className="flex items-center gap-2 px-4 py-2.5 text-sm font-medium text-ink-700 bg-white border border-ink-200 rounded-lg hover:bg-ink-50 disabled:opacity-50 transition-all"
-                >
-                  <HiOutlineCloudArrowUp className="w-4 h-4" />
-                  {isSaving ? 'Saving...' : 'Save'}
+                <button onClick={() => saveArticle(false)} disabled={isSaving || isSubmitting}
+                  className="flex items-center gap-2 px-4 py-2.5 text-sm font-medium text-ink-700 bg-white border border-ink-200 rounded-lg hover:bg-ink-50 disabled:opacity-50 transition-all">
+                  <HiOutlineCloudArrowUp className="w-4 h-4" /> {isSaving ? 'Saving...' : 'Save'}
                 </button>
-
                 {canSubmit && (
-                  <button
-                    onClick={() => saveArticle(true)}
-                    disabled={isSaving || isSubmitting}
-                    className="flex items-center gap-2 px-5 py-2.5 text-sm font-semibold text-paper-100 bg-ink-950 rounded-lg hover:bg-ink-800 disabled:opacity-50 transition-all"
-                  >
-                    <HiOutlinePaperAirplane className="w-4 h-4" />
-                    {isSubmitting ? 'Submitting...' : 'Submit'}
+                  <button onClick={() => saveArticle(true)} disabled={isSaving || isSubmitting}
+                    className="flex items-center gap-2 px-5 py-2.5 text-sm font-semibold text-paper-100 bg-ink-950 rounded-lg hover:bg-ink-800 disabled:opacity-50 transition-all">
+                    <HiOutlinePaperAirplane className="w-4 h-4" /> {isSubmitting ? 'Submitting...' : 'Submit'}
                   </button>
                 )}
               </>
@@ -249,63 +274,37 @@ export default function EditArticlePage() {
           </div>
         </div>
 
-        {/* Review Panel */}
         {showReviewPanel && canReview && (
           <div className="mb-6 bg-white rounded-xl border border-press-200 p-5 shadow-card">
-            <h3 className="font-display font-semibold text-ink-900 mb-3">
-              Editorial Review
-            </h3>
-            <textarea
-              value={reviewNotes}
-              onChange={(e) => setReviewNotes(e.target.value)}
+            <h3 className="font-display font-semibold text-ink-900 mb-3">Editorial Review</h3>
+            <textarea value={reviewNotes} onChange={(e) => setReviewNotes(e.target.value)}
               placeholder="Add notes for the writer (optional)..."
-              className="w-full px-4 py-3 rounded-lg border border-ink-200 text-sm focus:outline-none focus:border-press-500 resize-none h-24 mb-4"
-            />
+              className="w-full px-4 py-3 rounded-lg border border-ink-200 text-sm focus:outline-none focus:border-press-500 resize-none h-24 mb-4" />
             <div className="flex items-center gap-3">
-              <button
-                onClick={() => handleReview('approved')}
-                className="px-4 py-2 text-sm font-semibold text-white bg-emerald-600 rounded-lg hover:bg-emerald-700 transition-all"
-              >
-                ✓ Approve
-              </button>
-              <button
-                onClick={() => handleReview('revision_requested')}
-                className="px-4 py-2 text-sm font-medium text-amber-700 bg-amber-50 border border-amber-200 rounded-lg hover:bg-amber-100 transition-all"
-              >
-                Request Revision
-              </button>
-              <button
-                onClick={() => handleReview('rejected')}
-                className="px-4 py-2 text-sm font-medium text-red-700 bg-red-50 border border-red-200 rounded-lg hover:bg-red-100 transition-all"
-              >
-                Reject
-              </button>
+              <button onClick={() => handleReview('approved')}
+                className="px-4 py-2 text-sm font-semibold text-white bg-emerald-600 rounded-lg hover:bg-emerald-700 transition-all">Approve</button>
+              <button onClick={() => handleReview('revision_requested')}
+                className="px-4 py-2 text-sm font-medium text-amber-700 bg-amber-50 border border-amber-200 rounded-lg hover:bg-amber-100 transition-all">Request Revision</button>
+              <button onClick={() => handleReview('rejected')}
+                className="px-4 py-2 text-sm font-medium text-red-700 bg-red-50 border border-red-200 rounded-lg hover:bg-red-100 transition-all">Reject</button>
             </div>
           </div>
         )}
 
-        {/* Review History */}
         {article.reviews && article.reviews.length > 0 && (
           <div className="mb-6 bg-paper-50 rounded-xl border border-ink-100 p-5">
-            <h3 className="font-display font-semibold text-ink-900 mb-3 text-sm">
-              Review History
-            </h3>
+            <h3 className="font-display font-semibold text-ink-900 mb-3 text-sm">Review History</h3>
             <div className="space-y-3">
               {article.reviews.slice(0, 3).map((review: any) => (
                 <div key={review.id} className="flex items-start gap-3 text-sm">
                   <div className={`mt-0.5 w-2 h-2 rounded-full ${
                     review.decision === 'approved' ? 'bg-emerald-500' :
-                    review.decision === 'revision_requested' ? 'bg-amber-500' : 'bg-red-500'
-                  }`} />
+                    review.decision === 'revision_requested' ? 'bg-amber-500' : 'bg-red-500'}`} />
                   <div>
                     <span className="font-medium text-ink-700">{review.reviewer.name}</span>
                     <span className="text-ink-400"> — {review.decision.replace('_', ' ')}</span>
-                    {review.notes && (
-                      <p className="text-ink-500 mt-1">{review.notes}</p>
-                    )}
-                    <p className="text-ink-300 text-xs mt-0.5">
-                      {new Date(review.createdAt).toLocaleString()}
-                    </p>
+                    {review.notes && <p className="text-ink-500 mt-1">{review.notes}</p>}
+                    <p className="text-ink-300 text-xs mt-0.5">{new Date(review.createdAt).toLocaleString()}</p>
                   </div>
                 </div>
               ))}
@@ -313,7 +312,6 @@ export default function EditArticlePage() {
           </div>
         )}
 
-        {/* Featured Image */}
         <div className="mb-6">
           {featuredImage ? (
             <div className="relative rounded-xl overflow-hidden border border-ink-100 group">
@@ -328,85 +326,56 @@ export default function EditArticlePage() {
               )}
             </div>
           ) : canEdit ? (
-            <button
-              onClick={() => setShowImagePicker(true)}
-              className="w-full h-48 rounded-xl border-2 border-dashed border-ink-200 flex flex-col items-center justify-center gap-2 text-ink-400 hover:border-press-300 hover:text-press-500 transition-all"
-            >
+            <button onClick={() => setShowImagePicker(true)}
+              className="w-full h-48 rounded-xl border-2 border-dashed border-ink-200 flex flex-col items-center justify-center gap-2 text-ink-400 hover:border-press-300 hover:text-press-500 transition-all">
               <HiOutlinePhoto className="w-8 h-8" />
               <span className="text-sm font-medium">Choose Featured Image</span>
             </button>
           ) : null}
         </div>
 
-        {/* Article form */}
         <div className="bg-white rounded-2xl border border-ink-100 shadow-card overflow-hidden">
           <div className="px-8 pt-8">
-            <input
-              type="text"
-              value={headline}
-              onChange={(e) => setHeadline(e.target.value)}
+            <input type="text" value={headline} onChange={(e) => setHeadline(e.target.value)}
               placeholder="Write your headline..."
-              className="w-full text-display-lg font-display text-ink-950 placeholder-ink-200 focus:outline-none bg-transparent"
-              readOnly={!canEdit}
-            />
+              className="w-full text-2xl font-display font-semibold text-ink-950 placeholder-ink-200 focus:outline-none bg-transparent"
+              readOnly={!canEdit} />
           </div>
-
           <div className="px-8 pt-3">
-            <input
-              type="text"
-              value={subHeadline}
-              onChange={(e) => setSubHeadline(e.target.value)}
-              placeholder="Add a sub-headline (optional)"
-              className="w-full text-lg text-ink-500 placeholder-ink-200 focus:outline-none bg-transparent"
-              readOnly={!canEdit}
-            />
+            <input type="text" value={subHeadline} onChange={(e) => setSubHeadline(e.target.value)}
+              placeholder={generatedSubHeadline || "Add a sub-headline (optional)"}
+              className="w-full text-base text-ink-500 placeholder-ink-300 focus:outline-none bg-transparent"
+              readOnly={!canEdit} />
+            {!subHeadline.trim() && generatedSubHeadline && (
+              <p className="text-xs text-ink-300 mt-1">Auto-generated from body — type to override</p>
+            )}
           </div>
-
-          <div className="mx-8 my-4">
-            <div className="h-px bg-ink-100" />
-          </div>
-
+          <div className="mx-8 my-4"><div className="h-px bg-ink-100" /></div>
           <div className="px-8 pb-4">
-            <RichEditor
-              content={bodyHtml || bodyContent}
-              onChange={handleContentChange}
-              placeholder="Tell your story..."
-            />
+            <RichEditor content={bodyHtml || bodyContent} onChange={handleContentChange} placeholder="Tell your story..." />
           </div>
-
           <div className="px-8 py-5 border-t border-ink-50 bg-paper-50">
             <TagInput tags={tags} onChange={setTags} />
           </div>
         </div>
 
-        <div className="mt-4 text-right">
-          <span className="text-xs text-ink-400">
-            {bodyContent.split(/\s+/).filter(Boolean).length} words
-          </span>
+        <div className="mt-4 flex items-center justify-between">
+          <div className="flex items-center gap-2 text-xs text-ink-400">
+            {autoSaveStatus === 'saving' && (<><div className="animate-spin w-3 h-3 border border-ink-300 border-t-press-500 rounded-full" /><span>Saving...</span></>)}
+            {autoSaveStatus === 'saved' && (<><HiOutlineCheck className="w-3.5 h-3.5 text-emerald-500" /><span className="text-emerald-600">All changes saved</span></>)}
+            {autoSaveStatus === 'error' && (<><HiOutlineExclamationTriangle className="w-3.5 h-3.5 text-red-500" /><span className="text-red-500">Auto-save failed</span></>)}
+          </div>
+          <span className="text-xs text-ink-400">{bodyContent.split(/\s+/).filter(Boolean).length} words</span>
         </div>
       </div>
 
-      <ImagePicker
-        isOpen={showImagePicker}
-        onClose={() => setShowImagePicker(false)}
-        onSelect={(image) => {
-          setFeaturedImage(image.directUrl);
-          setFeaturedImageId(image.id);
-          setShowImagePicker(false);
-        }}
-        selectedImageId={featuredImageId}
-      />
+      <ImagePicker isOpen={showImagePicker} onClose={() => setShowImagePicker(false)}
+        onSelect={(image) => { setFeaturedImage(image.directUrl); setFeaturedImageId(image.id); setShowImagePicker(false); }}
+        selectedImageId={featuredImageId} />
 
       {showPublishModal && (
-        <PublishModal
-          articleId={articleId}
-          onClose={() => setShowPublishModal(false)}
-          onPublished={(url) => {
-            setShowPublishModal(false);
-            setArticle({ ...article, status: 'PUBLISHED', publishedUrl: url });
-            toast.success('Published successfully!');
-          }}
-        />
+        <PublishModal articleId={articleId} onClose={() => setShowPublishModal(false)}
+          onPublished={(url) => { setShowPublishModal(false); setArticle({ ...article, status: 'PUBLISHED', publishedUrl: url }); toast.success('Published successfully!'); }} />
       )}
     </AppShell>
   );
