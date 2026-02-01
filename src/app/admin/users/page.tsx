@@ -9,7 +9,7 @@ import {
   HiOutlineUserGroup,
   HiOutlinePlusCircle,
   HiOutlineXMark,
-  HiOutlinePencil,
+  HiOutlineKey,
 } from 'react-icons/hi2';
 
 interface User {
@@ -30,6 +30,9 @@ export default function AdminUsersPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [editingUser, setEditingUser] = useState<string | null>(null);
+  const [resetPasswordUser, setResetPasswordUser] = useState<User | null>(null);
+  const [newPassword, setNewPassword] = useState('');
+  const [isResetting, setIsResetting] = useState(false);
 
   // Form state
   const [formName, setFormName] = useState('');
@@ -115,6 +118,40 @@ export default function AdminUsersPage() {
       fetchUsers();
     } catch (error) {
       toast.error('Failed to update role');
+    }
+  }
+
+  async function handleResetPassword() {
+    if (!resetPasswordUser || !newPassword) return;
+
+    if (newPassword.length < 6) {
+      toast.error('Password must be at least 6 characters');
+      return;
+    }
+
+    setIsResetting(true);
+    try {
+      const res = await fetch('/api/users', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: resetPasswordUser.id,
+          password: newPassword,
+        }),
+      });
+
+      if (!res.ok) {
+        const error = await res.json();
+        throw new Error(error.error || 'Failed to reset password');
+      }
+
+      toast.success(`Password reset for ${resetPasswordUser.name}`);
+      setResetPasswordUser(null);
+      setNewPassword('');
+    } catch (error: any) {
+      toast.error(error.message);
+    } finally {
+      setIsResetting(false);
     }
   }
 
@@ -207,6 +244,57 @@ export default function AdminUsersPage() {
           </div>
         )}
 
+        {/* Reset Password Modal */}
+        {resetPasswordUser && (
+          <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
+            <div className="bg-white rounded-xl border border-ink-200 p-6 w-full max-w-md shadow-xl">
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-2">
+                  <HiOutlineKey className="w-5 h-5 text-press-600" />
+                  <h3 className="font-display font-semibold text-ink-900">Reset Password</h3>
+                </div>
+                <button
+                  onClick={() => { setResetPasswordUser(null); setNewPassword(''); }}
+                  className="p-1 text-ink-400 hover:text-ink-600"
+                >
+                  <HiOutlineXMark className="w-5 h-5" />
+                </button>
+              </div>
+              <p className="text-sm text-ink-500 mb-4">
+                Set a new password for <strong className="text-ink-800">{resetPasswordUser.name}</strong> ({resetPasswordUser.email})
+              </p>
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-ink-600 mb-1">New Password</label>
+                <input
+                  type="text"
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === 'Enter' && !isResetting) handleResetPassword(); }}
+                  className="w-full px-3 py-2.5 rounded-lg border border-ink-200 text-sm focus:outline-none focus:border-press-500"
+                  placeholder="Enter new password"
+                  autoFocus
+                />
+                <p className="text-xs text-ink-400 mt-1">Minimum 6 characters. Share this with the writer securely.</p>
+              </div>
+              <div className="flex gap-3 justify-end">
+                <button
+                  onClick={() => { setResetPasswordUser(null); setNewPassword(''); }}
+                  className="px-4 py-2 text-sm font-medium text-ink-600 hover:text-ink-800"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleResetPassword}
+                  disabled={isResetting || newPassword.length < 6}
+                  className="px-5 py-2 bg-press-600 text-white rounded-lg font-semibold text-sm hover:bg-press-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {isResetting ? 'Resetting...' : 'Reset Password'}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Users Table */}
         {isLoading ? (
           <div className="flex items-center justify-center py-20">
@@ -272,16 +360,25 @@ export default function AdminUsersPage() {
                       </span>
                     </td>
                     <td className="px-5 py-4 text-right">
-                      <button
-                        onClick={() => toggleUserActive(user.id, user.isActive)}
-                        className={`text-xs font-medium ${
-                          user.isActive
-                            ? 'text-red-600 hover:text-red-700'
-                            : 'text-emerald-600 hover:text-emerald-700'
-                        }`}
-                      >
-                        {user.isActive ? 'Deactivate' : 'Activate'}
-                      </button>
+                      <div className="flex items-center justify-end gap-3">
+                        <button
+                          onClick={() => setResetPasswordUser(user)}
+                          className="text-xs font-medium text-press-600 hover:text-press-700"
+                          title="Reset password"
+                        >
+                          Reset Password
+                        </button>
+                        <button
+                          onClick={() => toggleUserActive(user.id, user.isActive)}
+                          className={`text-xs font-medium ${
+                            user.isActive
+                              ? 'text-red-600 hover:text-red-700'
+                              : 'text-emerald-600 hover:text-emerald-700'
+                          }`}
+                        >
+                          {user.isActive ? 'Deactivate' : 'Activate'}
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}
