@@ -85,7 +85,88 @@
     @apply bg-transparent p-0;
   }
 
-  /* Embedded tweet placeholder */
+  /* Tweet Embed Styles */
+  .tweet-embed-wrapper {
+    @apply my-6;
+  }
+
+  .tweet-embed-container {
+    @apply border border-ink-200 rounded-xl overflow-hidden bg-white shadow-sm;
+    max-width: 550px;
+    margin: 0 auto;
+  }
+
+  .tweet-embed-header {
+    @apply flex items-center justify-between px-4 py-2.5 bg-ink-50 border-b border-ink-100;
+  }
+
+  .tweet-embed-header-left {
+    @apply flex items-center gap-2;
+  }
+
+  .tweet-embed-icon {
+    @apply w-4 h-4 text-ink-600;
+  }
+
+  .tweet-embed-label {
+    @apply text-xs font-medium text-ink-500 uppercase tracking-wide;
+  }
+
+  .tweet-embed-actions {
+    @apply flex items-center gap-1;
+  }
+
+  .tweet-embed-link {
+    @apply p-1.5 rounded-md text-ink-400 hover:text-ink-700 hover:bg-ink-100 transition-colors;
+  }
+
+  .tweet-embed-delete {
+    @apply p-1.5 rounded-md text-ink-400 hover:text-red-600 hover:bg-red-50 transition-colors;
+  }
+
+  .tweet-embed-action-icon {
+    @apply w-3.5 h-3.5;
+  }
+
+  .tweet-embed-body {
+    @apply relative;
+    min-height: 200px;
+  }
+
+  .tweet-embed-loading {
+    @apply absolute inset-0 flex flex-col items-center justify-center gap-3 text-ink-400 text-sm;
+  }
+
+  .tweet-embed-spinner {
+    @apply w-6 h-6 border-2 border-ink-200 border-t-ink-500 rounded-full animate-spin;
+  }
+
+  .tweet-embed-iframe {
+    @apply w-full border-0 opacity-0 transition-opacity duration-300;
+    height: 400px;
+  }
+
+  .tweet-embed-iframe-loaded {
+    @apply opacity-100;
+  }
+
+  .tweet-embed-fallback {
+    @apply flex flex-col items-center justify-center gap-2 py-10 px-6 text-center;
+  }
+
+  .tweet-embed-fallback-icon {
+    @apply w-8 h-8 text-ink-300;
+  }
+
+  .tweet-embed-fallback-text {
+    @apply text-sm text-ink-400;
+  }
+
+  .tweet-embed-fallback-link {
+    @apply text-sm text-press-600 hover:text-press-700 font-medium;
+  }
+
+  /* Legacy tweet embed placeholder (backwards compat) */
   .tiptap-editor .tweet-embed {
     @apply border border-ink-200 rounded-xl p-4 my-4 bg-white;
   }

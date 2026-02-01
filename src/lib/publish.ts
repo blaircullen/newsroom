@@ -7,6 +7,21 @@ interface PublishResult {
   error?: string;
 }
 
+// Transform tweet embed placeholders into standard Twitter blockquote format
+// TipTap stores: <figure class="tweet-embed" data-tweet-id="ID" data-tweet-url="URL"></figure>
+// Output: Standard Twitter embed blockquote recognized by Ghost, WordPress, and browsers
+function transformTweetEmbeds(html: string): string {
+  if (!html) return html;
+
+  // Match figure or div elements with data-tweet-id and data-tweet-url attributes
+  return html.replace(
+    /<(?:figure|div)[^>]*data-tweet-id="([^"]*)"[^>]*data-tweet-url="([^"]*)"[^>]*>(?:.*?)<\/(?:figure|div)>/gi,
+    (match, tweetId, tweetUrl) => {
+      return `<blockquote class="twitter-tweet"><a href="${tweetUrl}">${tweetUrl}</a></blockquote>\n<script async src="https://platform.twitter.com/widgets.js" charset="utf-8"></script>`;
+    }
+  );
+}
+
 // Ghost CMS Publishing
 async function publishToGhost(
   article: {
@@ -47,11 +62,14 @@ async function publishToGhost(
     
     const token = `${header}.${payload}.${signature}`;
 
+    // Transform tweet embeds before publishing
+    const processedHtml = transformTweetEmbeds(article.bodyHtml || article.body);
+
     const ghostPost = {
       posts: [{
         title: article.headline,
         custom_excerpt: article.subHeadline || undefined,
-        html: article.bodyHtml || article.body,
+        html: processedHtml,
         feature_image: article.featuredImage || undefined,
         slug: article.slug || undefined,
         status: 'published',
@@ -136,9 +154,12 @@ async function publishToWordPress(
       }
     }
 
+    // Transform tweet embeds before publishing
+    const processedHtml = transformTweetEmbeds(article.bodyHtml || article.body);
+
     const wpPost = {
       title: article.headline,
-      content: article.bodyHtml || article.body,
+      content: processedHtml,
       excerpt: article.subHeadline || '',
       slug: article.slug || undefined,
       status: 'publish',
