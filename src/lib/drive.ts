@@ -2,13 +2,8 @@ import { google } from 'googleapis';
 
 function getAuth() {
   const serviceAccountKey = process.env.GOOGLE_SERVICE_ACCOUNT_KEY;
-  
-  if (!serviceAccountKey) {
-    throw new Error('GOOGLE_SERVICE_ACCOUNT_KEY is not configured');
-  }
-
+  if (!serviceAccountKey) throw new Error('GOOGLE_SERVICE_ACCOUNT_KEY is not configured');
   const credentials = JSON.parse(serviceAccountKey);
-  
   return new google.auth.GoogleAuth({
     credentials,
     scopes: ['https://www.googleapis.com/auth/drive.readonly'],
@@ -34,13 +29,9 @@ export async function searchDriveImages(
   const auth = getAuth();
   const drive = google.drive({ version: 'v3', auth });
   const folderId = process.env.GOOGLE_DRIVE_FOLDER_ID;
-
-  if (!folderId) {
-    throw new Error('GOOGLE_DRIVE_FOLDER_ID is not configured');
-  }
+  if (!folderId) throw new Error('GOOGLE_DRIVE_FOLDER_ID is not configured');
 
   let q = "'" + folderId + "' in parents and trashed = false and (mimeType contains 'image/')";
-  
   if (query) {
     q += " and name contains '" + query.replace(/'/g, "\\'") + "'";
   }
@@ -57,17 +48,14 @@ export async function searchDriveImages(
     id: file.id!,
     name: file.name!,
     mimeType: file.mimeType!,
-    thumbnailUrl: '/api/drive-images/' + file.id + '/raw?w=400',
+    thumbnailUrl: '/api/drive-images/' + file.id + '/raw',
     webViewUrl: file.webViewLink || '',
     directUrl: '/api/drive-images/' + file.id + '/raw',
     size: file.size || '0',
     createdTime: file.createdTime || '',
   }));
 
-  return {
-    images,
-    nextPageToken: response.data.nextPageToken || undefined,
-  };
+  return { images, nextPageToken: response.data.nextPageToken || undefined };
 }
 
 export async function getDriveImageUrl(fileId: string): Promise<string> {

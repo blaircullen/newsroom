@@ -5,9 +5,7 @@ import { google } from 'googleapis';
 
 function getAuth() {
   const serviceAccountKey = process.env.GOOGLE_SERVICE_ACCOUNT_KEY;
-  if (!serviceAccountKey) {
-    throw new Error('GOOGLE_SERVICE_ACCOUNT_KEY is not configured');
-  }
+  if (!serviceAccountKey) throw new Error('GOOGLE_SERVICE_ACCOUNT_KEY is not configured');
   const credentials = JSON.parse(serviceAccountKey);
   return new google.auth.GoogleAuth({
     credentials,
@@ -30,7 +28,7 @@ export async function GET(
     const auth = getAuth();
     const drive = google.drive({ version: 'v3', auth });
 
-    const meta = await drive.files.get({ fileId, fields: 'mimeType, size' });
+    const meta = await drive.files.get({ fileId, fields: 'mimeType' });
     const mimeType = meta.data.mimeType || 'image/jpeg';
 
     const response = await drive.files.get(
@@ -50,9 +48,6 @@ export async function GET(
     });
   } catch (error: any) {
     console.error('Drive image proxy error:', error.message);
-    return NextResponse.json(
-      { error: 'Failed to load image' },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: 'Failed to load image' }, { status: 500 });
   }
 }
