@@ -78,7 +78,7 @@ async function uploadImageToGhost(
       `--${boundary}\r\nContent-Disposition: form-data; name="file"; filename="${name}"\r\nContent-Type: ${image.contentType}\r\n\r\n`
     );
     const footerPart = Buffer.from(`\r\n--${boundary}--\r\n`);
-    const body = Buffer.concat([headerPart, image.buffer, footerPart]);
+    const bodyBuffer = Buffer.concat([headerPart, image.buffer, footerPart]);
 
     console.log(`[Ghost Image Upload] Uploading ${name} (${image.buffer.length} bytes)`);
 
@@ -87,9 +87,9 @@ async function uploadImageToGhost(
       headers: {
         Authorization: `Ghost ${token}`,
         'Content-Type': `multipart/form-data; boundary=${boundary}`,
-        'Content-Length': String(body.length),
+        'Content-Length': String(bodyBuffer.length),
       },
-      body: body,
+      body: new Uint8Array(bodyBuffer),
     });
 
     if (!uploadResponse.ok) {
@@ -131,7 +131,7 @@ async function uploadImageToWordPress(
         'Content-Type': image.contentType,
         'Content-Disposition': `attachment; filename="${name}"`,
       },
-      body: image.buffer,
+      body: new Uint8Array(image.buffer),
     });
 
     if (!uploadResponse.ok) {
