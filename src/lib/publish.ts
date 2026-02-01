@@ -45,9 +45,22 @@ function prepareGhostHtml(
 function prepareWordPressHtml(
   bodyHtml: string | null | undefined,
   body: string,
-  subHeadline: string | null | undefined
+  subHeadline: string | null | undefined,
+  featuredImage: string | null | undefined,
+  imageCredit: string | null | undefined
 ): string {
   let html = bodyHtml || body;
+
+  // Prepend featured image with caption if available
+  if (featuredImage && featuredImage.trim()) {
+    let figureHtml = `<figure class="wp-block-image size-large" style="margin-bottom: 1.5em;">`;
+    figureHtml += `<img src="${featuredImage}" alt="" style="width: 100%; height: auto;" />`;
+    if (imageCredit && imageCredit.trim()) {
+      figureHtml += `<figcaption style="font-size: 0.85em; color: #666; text-align: center; margin-top: 0.5em; font-style: italic;">${imageCredit}</figcaption>`;
+    }
+    figureHtml += `</figure>`;
+    html = figureHtml + '\n' + html;
+  }
 
   if (subHeadline && subHeadline.trim()) {
     html = `<p class="subheadline" style="font-size: 1.25em; color: #555; font-style: italic; margin-bottom: 1.5em; line-height: 1.4;">${subHeadline}</p>\n${html}`;
@@ -65,6 +78,7 @@ async function publishToGhost(
     bodyHtml?: string | null;
     body: string;
     featuredImage?: string | null;
+    imageCredit?: string | null;
     slug?: string | null;
     tags: { tag: { name: string } }[];
   },
@@ -99,14 +113,16 @@ async function publishToGhost(
 
     console.log(`[Publish Ghost] Target: ${target.url}`);
     console.log(`[Publish Ghost] SubHeadline value: "${article.subHeadline || '(empty)'}"`);
+    console.log(`[Publish Ghost] ImageCredit value: "${article.imageCredit || '(empty)'}"`);
     console.log(`[Publish Ghost] HTML preview (first 400 chars): ${processedHtml.substring(0, 400)}`);
 
-    const ghostPost = {
+    const ghostPost: any = {
       posts: [{
         title: article.headline,
         custom_excerpt: article.subHeadline || undefined,
         html: processedHtml,
         feature_image: article.featuredImage || undefined,
+        feature_image_caption: article.imageCredit || undefined,
         slug: article.slug || undefined,
         status: 'published',
         tags: article.tags.map(t => ({ name: t.tag.name })),
@@ -134,6 +150,7 @@ async function publishToGhost(
     const post = data.posts[0];
     console.log(`[Publish Ghost] Success: ${post.url}`);
     console.log(`[Publish Ghost] Response custom_excerpt: "${post.custom_excerpt || '(empty)'}"`);
+    console.log(`[Publish Ghost] Response feature_image_caption: "${post.feature_image_caption || '(empty)'}"`);
 
     return {
       success: true,
@@ -153,6 +170,7 @@ async function publishToWordPress(
     bodyHtml?: string | null;
     body: string;
     featuredImage?: string | null;
+    imageCredit?: string | null;
     slug?: string | null;
     tags: { tag: { name: string } }[];
   },
@@ -194,10 +212,11 @@ async function publishToWordPress(
       }
     }
 
-    const processedHtml = prepareWordPressHtml(article.bodyHtml, article.body, article.subHeadline);
+    const processedHtml = prepareWordPressHtml(article.bodyHtml, article.body, article.subHeadline, article.featuredImage, article.imageCredit);
 
     console.log(`[Publish WP] Target: ${target.url}`);
     console.log(`[Publish WP] SubHeadline value: "${article.subHeadline || '(empty)'}"`);
+    console.log(`[Publish WP] ImageCredit value: "${article.imageCredit || '(empty)'}"`);
     console.log(`[Publish WP] HTML preview (first 400 chars): ${processedHtml.substring(0, 400)}`);
 
     const wpPost = {
@@ -268,6 +287,7 @@ export async function publishArticle(
 
   console.log(`[Publish] Article "${article.headline}" -> ${target.name} (${target.type})`);
   console.log(`[Publish] Article subHeadline: "${article.subHeadline || '(null/empty)'}"`);
+  console.log(`[Publish] Article imageCredit: "${article.imageCredit || '(null/empty)'}"`);
 
   let result: PublishResult;
 
