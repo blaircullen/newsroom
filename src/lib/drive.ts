@@ -43,6 +43,8 @@ export async function searchDriveImages(
     pageToken: pageToken || undefined,
     fields: 'nextPageToken, files(id, name, mimeType, thumbnailLink, webViewLink, size, createdTime)',
     orderBy: 'createdTime desc',
+    supportsAllDrives: true,
+    includeItemsFromAllDrives: true,
   });
 
   const images: DriveImage[] = (response.data.files || []).map((file) => ({
@@ -73,34 +75,47 @@ export async function uploadImageToDrive(
   const folderId = process.env.GOOGLE_DRIVE_FOLDER_ID;
   if (!folderId) throw new Error('GOOGLE_DRIVE_FOLDER_ID is not configured');
 
-  // Create a readable stream from the buffer
-  const stream = new Readable();
-  stream.push(buffer);
-  stream.push(null);
+  console.log(`[Drive Upload] Starting upload: ${fileName} (${mimeType}, ${buffer.length} bytes) to folder ${folderId}`);
 
-  const response = await drive.files.create({
-    requestBody: {
-      name: fileName,
-      mimeType,
-      parents: [folderId],
-    },
-    media: {
-      mimeType,
-      body: stream,
-    },
-    fields: 'id, name, mimeType, thumbnailLink, webViewLink, size, createdTime',
-  });
+  // Use Readable.from() for reliable stream creation
+  const stream = Readable.from(buffer);
 
-  const file = response.data;
+  try {
+    const response = await drive.files.create({
+      requestBody: {
+        name: fileName,
+        mimeType,
+        parents: [folderId],
+      },
+      media: {
+        mimeType,
+        body: stream,
+      },
+      fields: 'id, name, mimeType, thumbnailLink, webViewLink, size, createdTime',
+      supportsAllDrives: true,
+    });
 
-  return {
-    id: file.id!,
-    name: file.name!,
-    mimeType: file.mimeType!,
-    thumbnailUrl: '/api/drive-images/' + file.id + '/raw',
-    webViewUrl: file.webViewLink || '',
-    directUrl: '/api/drive-images/' + file.id + '/raw',
-    size: file.size || '0',
-    createdTime: file.createdTime || '',
-  };
+    const file = response.data;
+    console.log(`[Drive Upload] Success: file ID ${file.id}`);
+
+    return {
+      id: file.id!,
+      name: file.name!,
+      mimeType: file.mimeType!,
+      thumbnailUrl: '/api/drive-images/' + file.id + '/raw',
+      webViewUrl: file.webViewLink || '',
+      directUrl: '/api/drive-images/' + file.id + '/raw',
+      size: file.size || '0',
+      createdTime: file.createdTime || '',
+    };
+  } catch (error: any) {
+    console.error(`[Drive Upload] Failed:`, {
+      message: error.message,
+      code: error.code,
+      status: error.status,
+      errors: error.errors,
+      response: error.response?.data,
+    });
+    throw error;
+  }
 }
