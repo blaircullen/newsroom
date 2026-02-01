@@ -93,7 +93,8 @@ export default function NewEditorPage() {
       setHeadline(data.headline);
       setSubHeadline(data.subHeadline || '');
       // Append source attribution link to the article body
-      const sourceLink = `<p><em>Source: <a href="${importUrl.trim()}" target="_blank" rel="noopener noreferrer">${importUrl.trim()}</a></em></p>`;
+      const sourceDomain = new URL(importUrl.trim()).hostname.replace(/^www\./, '');
+      const sourceLink = `<p><em>Source: <a href="${importUrl.trim()}" target="_blank" rel="noopener noreferrer">${sourceDomain}</a></em></p>`;
       setBodyHtml(data.bodyHtml + sourceLink);
       setBodyContent(data.bodyText || '');
       setImportedFromUrl(importUrl.trim());
@@ -473,4 +474,5 @@ export default function NewEditorPage() {
     </AppShell>
   );
 }
+
 
