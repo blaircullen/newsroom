@@ -227,8 +227,9 @@ function extractArticleText(html: string): string {
 
   // Extract text from paragraphs for cleaner results
   const paragraphs: string[] = [];
-  const pMatches = articleHtml.matchAll(/<p[^>]*>([\s\S]*?)<\/p>/gi);
-  for (const m of pMatches) {
+  const pRegex = /<p[^>]*>([\s\S]*?)<\/p>/gi;
+  let m: RegExpExecArray | null;
+  while ((m = pRegex.exec(articleHtml)) !== null) {
     const text = stripHtml(m[1]).trim();
     if (text.length > 30) {
       paragraphs.push(text);
@@ -262,3 +263,4 @@ function stripHtml(html: string): string {
     .replace(/\n{3,}/g, '\n\n')
     .trim();
 }
+
