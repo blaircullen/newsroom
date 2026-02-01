@@ -6,6 +6,7 @@ import Link from '@tiptap/extension-link';
 import Image from '@tiptap/extension-image';
 import Underline from '@tiptap/extension-underline';
 import Placeholder from '@tiptap/extension-placeholder';
+import { TweetEmbed } from './extensions/TweetEmbed';
 import { useCallback, useState } from 'react';
 import {
   HiOutlineBold,
@@ -31,6 +32,7 @@ export default function RichEditor({ content, onChange, placeholder }: RichEdito
   const [linkUrl, setLinkUrl] = useState('');
   const [showTweetInput, setShowTweetInput] = useState(false);
   const [tweetUrl, setTweetUrl] = useState('');
+  const [tweetError, setTweetError] = useState('');
 
   const editor = useEditor({
     extensions: [
@@ -54,6 +56,7 @@ export default function RichEditor({ content, onChange, placeholder }: RichEdito
       Placeholder.configure({
         placeholder: placeholder || 'Start writing your story...',
       }),
+      TweetEmbed,
     ],
     content,
     onUpdate: ({ editor }) => {
@@ -88,25 +91,22 @@ export default function RichEditor({ content, onChange, placeholder }: RichEdito
 
   const insertTweet = useCallback(() => {
     if (!editor || !tweetUrl) return;
+    setTweetError('');
 
-    // Extract tweet ID from URL
-    const tweetMatch = tweetUrl.match(/status\/(\d+)/);
-    if (tweetMatch) {
-      const tweetId = tweetMatch[1];
-      // Insert tweet embed as HTML block
-      editor
-        .chain()
-        .focus()
-        .insertContent(
-          `<div class="tweet-embed" data-tweet-id="${tweetId}">
-            <blockquote>
-              <p>🐦 Embedded Tweet</p>
-              <a href="${tweetUrl}" target="_blank" rel="noopener noreferrer">${tweetUrl}</a>
-            </blockquote>
-          </div><p></p>`
-        )
-        .run();
+    // Support twitter.com and x.com URLs
+    const tweetMatch = tweetUrl.match(/(?:twitter\.com|x\.com)\/\w+\/status\/(\d+)/);
+    if (!tweetMatch) {
+      setTweetError('Please enter a valid X/Twitter post URL (e.g. https://x.com/user/status/123...)');
+      return;
     }
+
+    const tweetId = tweetMatch[1];
+
+    // Use the custom TipTap command from our TweetEmbed extension
+    (editor.commands as any).insertTweet({
+      tweetId,
+      tweetUrl: tweetUrl.trim(),
+    });
 
     setTweetUrl('');
     setShowTweetInput(false);
@@ -261,8 +261,9 @@ export default function RichEditor({ content, onChange, placeholder }: RichEdito
             onClick={() => {
               setShowTweetInput(!showTweetInput);
               setShowLinkInput(false);
+              setTweetError('');
             }}
-            title="Embed Tweet"
+            title="Embed Post from X"
           >
             <RiTwitterXLine className="w-4 h-4" />
           </ToolbarButton>
@@ -299,30 +300,35 @@ export default function RichEditor({ content, onChange, placeholder }: RichEdito
 
         {/* Tweet input bar */}
         {showTweetInput && (
-          <div className="flex items-center gap-2 mt-2 p-2 bg-ink-50 rounded-lg">
-            <input
-              type="url"
-              value={tweetUrl}
-              onChange={(e) => setTweetUrl(e.target.value)}
-              placeholder="https://x.com/user/status/123456789"
-              className="flex-1 px-3 py-1.5 text-sm rounded-md border border-ink-200 focus:outline-none focus:border-press-500"
-              onKeyDown={(e) => e.key === 'Enter' && insertTweet()}
-              autoFocus
-            />
-            <button
-              type="button"
-              onClick={insertTweet}
-              className="px-3 py-1.5 text-sm bg-ink-950 text-paper-100 rounded-md hover:bg-ink-800"
-            >
-              Embed
-            </button>
-            <button
-              type="button"
-              onClick={() => setShowTweetInput(false)}
-              className="px-3 py-1.5 text-sm text-ink-500 hover:text-ink-700"
-            >
-              Cancel
-            </button>
+          <div className="mt-2 p-2 bg-ink-50 rounded-lg">
+            <div className="flex items-center gap-2">
+              <input
+                type="url"
+                value={tweetUrl}
+                onChange={(e) => { setTweetUrl(e.target.value); setTweetError(''); }}
+                placeholder="https://x.com/user/status/123456789"
+                className="flex-1 px-3 py-1.5 text-sm rounded-md border border-ink-200 focus:outline-none focus:border-press-500"
+                onKeyDown={(e) => e.key === 'Enter' && insertTweet()}
+                autoFocus
+              />
+              <button
+                type="button"
+                onClick={insertTweet}
+                className="px-3 py-1.5 text-sm bg-ink-950 text-paper-100 rounded-md hover:bg-ink-800"
+              >
+                Embed
+              </button>
+              <button
+                type="button"
+                onClick={() => { setShowTweetInput(false); setTweetError(''); }}
+                className="px-3 py-1.5 text-sm text-ink-500 hover:text-ink-700"
+              >
+                Cancel
+              </button>
+            </div>
+            {tweetError && (
+              <p className="mt-1.5 text-xs text-red-600">{tweetError}</p>
+            )}
           </div>
         )}
       </div>
