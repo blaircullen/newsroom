@@ -8,12 +8,9 @@ interface PublishResult {
 }
 
 // Transform tweet embed placeholders into standard Twitter blockquote format
-// TipTap stores: <figure class="tweet-embed" data-tweet-id="ID" data-tweet-url="URL"></figure>
-// Output: Standard Twitter embed blockquote recognized by Ghost, WordPress, and browsers
 function transformTweetEmbeds(html: string): string {
   if (!html) return html;
 
-  // Match figure or div elements with data-tweet-id and data-tweet-url attributes
   return html.replace(
     /<(?:figure|div)[^>]*data-tweet-id="([^"]*)"[^>]*data-tweet-url="([^"]*)"[^>]*>(?:.*?)<\/(?:figure|div)>/gi,
     (match, tweetId, tweetUrl) => {
@@ -22,22 +19,41 @@ function transformTweetEmbeds(html: string): string {
   );
 }
 
-// Prepare article HTML for publishing: add subheadline and transform embeds
-function prepareHtml(
+// Prepare article HTML for Ghost publishing
+// Uses <!--kg-card-begin: html--> wrapper to prevent Ghost from stripping styles
+function prepareGhostHtml(
   bodyHtml: string | null | undefined,
   body: string,
   subHeadline: string | null | undefined
 ): string {
   let html = bodyHtml || body;
 
-  // Prepend subheadline as a visible element in the article body
+  if (subHeadline && subHeadline.trim()) {
+    const subBlock = [
+      '<!--kg-card-begin: html-->',
+      `<p class="subheadline" style="font-size: 1.25em; color: #555; font-style: italic; margin-bottom: 1.5em; line-height: 1.4;">${subHeadline}</p>`,
+      '<!--kg-card-end: html-->',
+    ].join('\n');
+    html = subBlock + '\n' + html;
+  }
+
+  html = transformTweetEmbeds(html);
+  return html;
+}
+
+// Prepare article HTML for WordPress publishing
+function prepareWordPressHtml(
+  bodyHtml: string | null | undefined,
+  body: string,
+  subHeadline: string | null | undefined
+): string {
+  let html = bodyHtml || body;
+
   if (subHeadline && subHeadline.trim()) {
     html = `<p class="subheadline" style="font-size: 1.25em; color: #555; font-style: italic; margin-bottom: 1.5em; line-height: 1.4;">${subHeadline}</p>\n${html}`;
   }
 
-  // Transform tweet embeds
   html = transformTweetEmbeds(html);
-
   return html;
 }
 
@@ -62,10 +78,8 @@ async function publishToGhost(
       return { success: false, error: 'Ghost API key not configured' };
     }
 
-    // Ghost Admin API key format: {id}:{secret}
     const [id, secret] = target.apiKey.split(':');
-    
-    // Create JWT token for Ghost Admin API
+
     const iat = Math.floor(Date.now() / 1000);
     const header = Buffer.from(JSON.stringify({ alg: 'HS256', typ: 'JWT', kid: id })).toString('base64url');
     const payload = Buffer.from(JSON.stringify({
@@ -73,16 +87,19 @@ async function publishToGhost(
       exp: iat + 300,
       aud: '/admin/',
     })).toString('base64url');
-    
+
     const signature = crypto
       .createHmac('sha256', Buffer.from(secret, 'hex'))
       .update(`${header}.${payload}`)
       .digest('base64url');
-    
+
     const token = `${header}.${payload}.${signature}`;
 
-    // Prepare HTML with subheadline and tweet embeds
-    const processedHtml = prepareHtml(article.bodyHtml, article.body, article.subHeadline);
+    const processedHtml = prepareGhostHtml(article.bodyHtml, article.body, article.subHeadline);
+
+    console.log(`[Publish Ghost] Target: ${target.url}`);
+    console.log(`[Publish Ghost] SubHeadline value: "${article.subHeadline || '(empty)'}"`);
+    console.log(`[Publish Ghost] HTML preview (first 400 chars): ${processedHtml.substring(0, 400)}`);
 
     const ghostPost = {
       posts: [{
@@ -107,18 +124,23 @@ async function publishToGhost(
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
-      return { 
-        success: false, 
-        error: `Ghost API error: ${response.status} - ${JSON.stringify(errorData)}` 
+      return {
+        success: false,
+        error: `Ghost API error: ${response.status} - ${JSON.stringify(errorData)}`,
       };
     }
 
     const data = await response.json();
+    const post = data.posts[0];
+    console.log(`[Publish Ghost] Success: ${post.url}`);
+    console.log(`[Publish Ghost] Response custom_excerpt: "${post.custom_excerpt || '(empty)'}"`);
+
     return {
       success: true,
-      url: data.posts[0].url,
+      url: post.url,
     };
   } catch (error: any) {
+    console.error(`[Publish Ghost] Error:`, error.message);
     return { success: false, error: error.message };
   }
 }
@@ -147,14 +169,13 @@ async function publishToWordPress(
 
     const auth = Buffer.from(`${target.username}:${target.password}`).toString('base64');
 
-    // First, ensure tags exist in WordPress
     const tagIds: number[] = [];
     for (const t of article.tags) {
       const tagResponse = await fetch(`${target.url}/wp-json/wp/v2/tags?search=${encodeURIComponent(t.tag.name)}`, {
         headers: { Authorization: `Basic ${auth}` },
       });
       const existingTags = await tagResponse.json();
-      
+
       if (existingTags.length > 0) {
         tagIds.push(existingTags[0].id);
       } else {
@@ -173,8 +194,11 @@ async function publishToWordPress(
       }
     }
 
-    // Prepare HTML with subheadline and tweet embeds
-    const processedHtml = prepareHtml(article.bodyHtml, article.body, article.subHeadline);
+    const processedHtml = prepareWordPressHtml(article.bodyHtml, article.body, article.subHeadline);
+
+    console.log(`[Publish WP] Target: ${target.url}`);
+    console.log(`[Publish WP] SubHeadline value: "${article.subHeadline || '(empty)'}"`);
+    console.log(`[Publish WP] HTML preview (first 400 chars): ${processedHtml.substring(0, 400)}`);
 
     const wpPost = {
       title: article.headline,
@@ -203,11 +227,14 @@ async function publishToWordPress(
     }
 
     const data = await response.json();
+    console.log(`[Publish WP] Success: ${data.link}`);
+
     return {
       success: true,
       url: data.link,
     };
   } catch (error: any) {
+    console.error(`[Publish WP] Error:`, error.message);
     return { success: false, error: error.message };
   }
 }
@@ -239,6 +266,9 @@ export async function publishArticle(
     return { success: false, error: 'Publish target not found or inactive' };
   }
 
+  console.log(`[Publish] Article "${article.headline}" -> ${target.name} (${target.type})`);
+  console.log(`[Publish] Article subHeadline: "${article.subHeadline || '(null/empty)'}"`);
+
   let result: PublishResult;
 
   switch (target.type) {
@@ -252,7 +282,6 @@ export async function publishArticle(
       result = { success: false, error: `Unknown target type: ${target.type}` };
   }
 
-  // Update article status if successful
   if (result.success) {
     const current = await prisma.article.findUnique({
       where: { id: articleId },
