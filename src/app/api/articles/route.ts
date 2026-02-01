@@ -4,105 +4,86 @@ import { authOptions } from '@/lib/auth';
 import prisma from '@/lib/prisma';
 import slugify from 'slugify';
 
-// GET /api/articles/[id]
-export async function GET(
-  request: NextRequest,
-  { params }: { params: { id: string } }
-) {
+// GET /api/articles - List articles
+export async function GET(request: NextRequest) {
   const session = await getServerSession(authOptions);
   if (!session) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
-  const article = await prisma.article.findUnique({
-    where: { id: params.id },
-    include: {
-      author: {
-        select: { id: true, name: true, email: true, avatarUrl: true },
-      },
-      tags: { include: { tag: true } },
-      reviews: {
-        include: {
-          reviewer: { select: { id: true, name: true } },
-        },
-        orderBy: { createdAt: 'desc' },
-      },
-      comments: {
-        include: {
-          user: { select: { id: true, name: true, avatarUrl: true } },
-        },
-        orderBy: { createdAt: 'desc' },
-      },
-    },
-  });
+  const { searchParams } = new URL(request.url);
+  const status = searchParams.get('status');
+  const authorId = searchParams.get('authorId');
+  const page = parseInt(searchParams.get('page') || '1');
+  const limit = parseInt(searchParams.get('limit') || '20');
 
-  if (!article) {
-    return NextResponse.json({ error: 'Article not found' }, { status: 404 });
-  }
+  const where: any = {};
 
   // Writers can only see their own articles
-  if (session.user.role === 'WRITER' && article.authorId !== session.user.id) {
-    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  if (session.user.role === 'WRITER') {
+    where.authorId = session.user.id;
+  } else if (authorId) {
+    where.authorId = authorId;
   }
 
-  return NextResponse.json(article);
+  if (status) {
+    where.status = status;
+  }
+
+  const [articles, total] = await Promise.all([
+    prisma.article.findMany({
+      where,
+      include: {
+        author: {
+          select: { id: true, name: true, email: true, avatarUrl: true },
+        },
+        tags: {
+          include: { tag: true },
+        },
+        _count: {
+          select: { comments: true, reviews: true },
+        },
+      },
+      orderBy: { updatedAt: 'desc' },
+      skip: (page - 1) * limit,
+      take: limit,
+    }),
+    prisma.article.count({ where }),
+  ]);
+
+  return NextResponse.json({
+    articles,
+    pagination: {
+      page,
+      limit,
+      total,
+      pages: Math.ceil(total / limit),
+    },
+  });
 }
 
-// PUT /api/articles/[id]
-export async function PUT(
-  request: NextRequest,
-  { params }: { params: { id: string } }
-) {
+// POST /api/articles - Create new article
+export async function POST(request: NextRequest) {
   const session = await getServerSession(authOptions);
   if (!session) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
-
-  const article = await prisma.article.findUnique({
-    where: { id: params.id },
-  });
-
-  if (!article) {
-    return NextResponse.json({ error: 'Article not found' }, { status: 404 });
-  }
-
-  // Writers can only edit their own drafts or revision-requested articles
-  if (session.user.role === 'WRITER') {
-    if (article.authorId !== session.user.id) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-    }
-    if (!['DRAFT', 'REVISION_REQUESTED'].includes(article.status)) {
-      return NextResponse.json(
-        { error: 'Cannot edit an article in this status' },
-        { status: 400 }
-      );
-    }
   }
 
   const body = await request.json();
   const { headline, subHeadline, bodyContent, bodyHtml, featuredImage, featuredImageId, imageCredit, tags } = body;
 
-  const updateData: any = {};
-
-  if (headline !== undefined) {
-    updateData.headline = headline;
-    updateData.slug = slugify(headline, { lower: true, strict: true });
+  if (!headline || !bodyContent) {
+    return NextResponse.json(
+      { error: 'Headline and body are required' },
+      { status: 400 }
+    );
   }
-  if (subHeadline !== undefined) updateData.subHeadline = subHeadline;
-  if (bodyContent !== undefined) updateData.body = bodyContent;
-  if (bodyHtml !== undefined) updateData.bodyHtml = bodyHtml;
-  if (featuredImage !== undefined) updateData.featuredImage = featuredImage;
-  if (featuredImageId !== undefined) updateData.featuredImageId = featuredImageId;
-  if (imageCredit !== undefined) updateData.imageCredit = imageCredit;
 
-  // Update tags if provided
+  const slug = slugify(headline, { lower: true, strict: true });
+
+  // Create or connect tags
+  const tagConnections = [];
   if (tags && Array.isArray(tags)) {
-    // Remove existing tags
-    await prisma.articleTag.deleteMany({
-      where: { articleId: params.id },
-    });
-
-    // Create new tags
     for (const tagName of tags) {
       const tagSlug = slugify(tagName, { lower: true, strict: true });
       const tag = await prisma.tag.upsert({
@@ -110,18 +91,30 @@ export async function PUT(
         update: {},
         create: { name: tagName, slug: tagSlug },
       });
-      await prisma.articleTag.create({
-        data: {
-          articleId: params.id,
-          tagId: tag.id,
-        },
+      tagConnections.push({
+        tag: { connect: { id: tag.id } },
       });
     }
   }
 
-  const updated = await prisma.article.update({
-    where: { id: params.id },
-    data: updateData,
+  const article = await prisma.article.create({
+    data: {
+      headline,
+      subHeadline: subHeadline || null,
+      body: bodyContent,
+      bodyHtml: bodyHtml || null,
+      slug,
+      featuredImage: featuredImage || null,
+      featuredImageId: featuredImageId || null,
+      imageCredit: imageCredit || null,
+      status: 'DRAFT',
+      authorId: session.user.id,
+      tags: {
+        create: tagConnections.map((tc) => ({
+          tag: tc.tag,
+        })),
+      },
+    },
     include: {
       author: {
         select: { id: true, name: true, email: true, avatarUrl: true },
@@ -130,42 +123,5 @@ export async function PUT(
     },
   });
 
-  return NextResponse.json(updated);
-}
-
-// DELETE /api/articles/[id]
-export async function DELETE(
-  request: NextRequest,
-  { params }: { params: { id: string } }
-) {
-  const session = await getServerSession(authOptions);
-  if (!session) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
-
-  const article = await prisma.article.findUnique({
-    where: { id: params.id },
-  });
-
-  if (!article) {
-    return NextResponse.json({ error: 'Article not found' }, { status: 404 });
-  }
-
-  const isAdmin = session.user.role === 'ADMIN' || session.user.role === 'EDITOR';
-
-  // Writers can only delete their own non-published articles
-  if (!isAdmin) {
-    if (article.authorId !== session.user.id) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-    }
-    if (article.status === 'PUBLISHED') {
-      return NextResponse.json(
-        { error: 'Cannot delete published articles' },
-        { status: 400 }
-      );
-    }
-  }
-
-  await prisma.article.delete({ where: { id: params.id } });
-  return NextResponse.json({ success: true });
+  return NextResponse.json(article, { status: 201 });
 }
