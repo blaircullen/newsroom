@@ -9,7 +9,7 @@ function getAuth() {
   const credentials = JSON.parse(serviceAccountKey);
   return new google.auth.GoogleAuth({
     credentials,
-    scopes: ['https://www.googleapis.com/auth/drive.readonly'],
+    scopes: ['https://www.googleapis.com/auth/drive.file', 'https://www.googleapis.com/auth/drive'],
   });
 }
 
