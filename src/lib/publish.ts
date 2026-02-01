@@ -413,8 +413,8 @@ async function publishToWordPress(
       slug: article.slug || undefined,
       status: 'publish',
       tags: tagIds,
-      meta: {
-        sub_headline: article.subHeadline || '',
+      acf: {
+        mod_mantle_subtitle: article.subHeadline || '',
       },
     };
 
