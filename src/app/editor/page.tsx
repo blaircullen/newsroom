@@ -92,7 +92,9 @@ export default function NewEditorPage() {
       // Populate the editor fields
       setHeadline(data.headline);
       setSubHeadline(data.subHeadline || '');
-      setBodyHtml(data.bodyHtml);
+      // Append source attribution link to the article body
+      const sourceLink = `<p><em>Source: <a href="${importUrl.trim()}" target="_blank" rel="noopener noreferrer">${importUrl.trim()}</a></em></p>`;
+      setBodyHtml(data.bodyHtml + sourceLink);
       setBodyContent(data.bodyText || '');
       setImportedFromUrl(importUrl.trim());
 
@@ -471,3 +473,4 @@ export default function NewEditorPage() {
     </AppShell>
   );
 }
+
