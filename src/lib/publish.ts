@@ -22,6 +22,25 @@ function transformTweetEmbeds(html: string): string {
   );
 }
 
+// Prepare article HTML for publishing: add subheadline and transform embeds
+function prepareHtml(
+  bodyHtml: string | null | undefined,
+  body: string,
+  subHeadline: string | null | undefined
+): string {
+  let html = bodyHtml || body;
+
+  // Prepend subheadline as a visible element in the article body
+  if (subHeadline && subHeadline.trim()) {
+    html = `<p class="subheadline" style="font-size: 1.25em; color: #555; font-style: italic; margin-bottom: 1.5em; line-height: 1.4;">${subHeadline}</p>\n${html}`;
+  }
+
+  // Transform tweet embeds
+  html = transformTweetEmbeds(html);
+
+  return html;
+}
+
 // Ghost CMS Publishing
 async function publishToGhost(
   article: {
@@ -62,8 +81,8 @@ async function publishToGhost(
     
     const token = `${header}.${payload}.${signature}`;
 
-    // Transform tweet embeds before publishing
-    const processedHtml = transformTweetEmbeds(article.bodyHtml || article.body);
+    // Prepare HTML with subheadline and tweet embeds
+    const processedHtml = prepareHtml(article.bodyHtml, article.body, article.subHeadline);
 
     const ghostPost = {
       posts: [{
@@ -154,8 +173,8 @@ async function publishToWordPress(
       }
     }
 
-    // Transform tweet embeds before publishing
-    const processedHtml = transformTweetEmbeds(article.bodyHtml || article.body);
+    // Prepare HTML with subheadline and tweet embeds
+    const processedHtml = prepareHtml(article.bodyHtml, article.body, article.subHeadline);
 
     const wpPost = {
       title: article.headline,
