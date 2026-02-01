@@ -38,10 +38,19 @@ function generateGhostToken(apiKey: string): string {
   return `${header}.${payload}.${signature}`;
 }
 
-// Download an image from a URL and return the buffer + metadata
+// Download an image — if it's a Drive proxy URL, fetch directly from Google Drive API
+// This avoids the auth-protected proxy route which can't be called server-side
 async function downloadImage(imageUrl: string): Promise<{ buffer: Buffer; contentType: string; ext: string } | null> {
   try {
-    // Resolve relative URLs (e.g. /api/drive-images/xxx/raw) to absolute
+    // Check if this is a drive-images proxy URL and extract the file ID
+    const driveMatch = imageUrl.match(/\/api\/drive-images\/([^/]+)\/raw/);
+    if (driveMatch) {
+      const fileId = driveMatch[1];
+      console.log(`[Image Download] Detected Drive image, fetching directly via API: ${fileId}`);
+      return await downloadFromDrive(fileId);
+    }
+
+    // For non-Drive URLs, fetch normally
     if (imageUrl.startsWith('/')) {
       const baseUrl = process.env.NEXTAUTH_URL || 'http://localhost:3000';
       imageUrl = `${baseUrl}${imageUrl}`;
@@ -61,6 +70,46 @@ async function downloadImage(imageUrl: string): Promise<{ buffer: Buffer; conten
     return { buffer, contentType, ext };
   } catch (error: any) {
     console.error(`[Image Download] Error:`, error.message);
+    return null;
+  }
+}
+
+// Download image directly from Google Drive using the service account
+async function downloadFromDrive(fileId: string): Promise<{ buffer: Buffer; contentType: string; ext: string } | null> {
+  try {
+    const { google } = require('googleapis');
+    const serviceAccountKey = process.env.GOOGLE_SERVICE_ACCOUNT_KEY;
+    if (!serviceAccountKey) {
+      console.error('[Drive Download] GOOGLE_SERVICE_ACCOUNT_KEY not configured');
+      return null;
+    }
+    const credentials = JSON.parse(serviceAccountKey);
+    const auth = new google.auth.GoogleAuth({
+      credentials,
+      scopes: ['https://www.googleapis.com/auth/drive'],
+    });
+    const drive = google.drive({ version: 'v3', auth });
+
+    // Get file metadata for mime type
+    const meta = await drive.files.get({
+      fileId,
+      fields: 'mimeType',
+      supportsAllDrives: true,
+    });
+    const contentType = meta.data.mimeType || 'image/jpeg';
+    const ext = contentType.includes('png') ? 'png' : contentType.includes('gif') ? 'gif' : contentType.includes('webp') ? 'webp' : 'jpg';
+
+    // Download file content
+    const response = await drive.files.get(
+      { fileId, alt: 'media', supportsAllDrives: true },
+      { responseType: 'arraybuffer' }
+    );
+
+    const buffer = Buffer.from(response.data as ArrayBuffer);
+    console.log(`[Drive Download] Success: ${buffer.length} bytes, ${contentType}`);
+    return { buffer, contentType, ext };
+  } catch (error: any) {
+    console.error(`[Drive Download] Error:`, error.message);
     return null;
   }
 }
