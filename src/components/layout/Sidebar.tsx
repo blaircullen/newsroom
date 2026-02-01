@@ -101,27 +101,41 @@ function SidebarTrending() {
       {/* Trend Items */}
       <div className="space-y-0.5">
         {data.trends.map((trend) => (
-          <a
+          <div
             key={trend.rank}
-            href={trend.url}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex items-center gap-2.5 px-2 py-1.5 rounded-md hover:bg-white/5 transition-all duration-150 group cursor-pointer"
+            className="flex items-center gap-2.5 px-2 py-1.5 rounded-md hover:bg-white/5 transition-all duration-150 group"
           >
             <span className="text-[10px] font-mono text-ink-500 w-3 text-right flex-shrink-0">
               {trend.rank}
             </span>
-            <div className="flex-1 min-w-0">
+            <a
+              href={`https://news.google.com/search?q=${encodeURIComponent(trend.name)}&hl=en-US&gl=US&ceid=US:en`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex-1 min-w-0 cursor-pointer"
+              title="Read news sources"
+            >
               <p className="text-xs font-medium text-ink-300 group-hover:text-white truncate transition-colors">
                 {trend.name}
               </p>
-            </div>
-            {trend.tweet_volume && (
-              <span className="text-[10px] text-ink-500 flex-shrink-0">
-                {formatVolume(trend.tweet_volume)}
-              </span>
-            )}
-          </a>
+              {trend.tweet_volume && (
+                <p className="text-[10px] text-ink-500 leading-tight">
+                  {formatVolume(trend.tweet_volume)} posts
+                </p>
+              )}
+            </a>
+            <a
+              href={trend.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="p-1 rounded opacity-0 group-hover:opacity-100 hover:bg-white/10 transition-all flex-shrink-0"
+              title="View on X"
+            >
+              <svg className="w-3 h-3 text-ink-400 hover:text-press-400 transition-colors" viewBox="0 0 1200 1227" fill="currentColor">
+                <path d="M714.163 519.284L1160.89 0H1055.03L667.137 450.887L357.328 0H0L468.492 681.821L0 1226.37H105.866L515.491 750.218L842.672 1226.37H1200L714.137 519.284H714.163ZM569.165 687.828L521.697 619.934L144.011 79.6944H306.615L611.412 515.685L658.88 583.579L1055.08 1150.3H892.476L569.165 687.854V687.828Z"/>
+              </svg>
+            </a>
+          </div>
         ))}
       </div>
 
