@@ -300,6 +300,7 @@ async function publishToGhost(
       posts: [{
         title: article.headline,
         custom_excerpt: article.subHeadline || undefined,
+        custom_template: 'custom-post-with-sidebar',
         html: processedHtml,
         feature_image: featureImageUrl || undefined,
         feature_image_caption: article.imageCredit || undefined,
