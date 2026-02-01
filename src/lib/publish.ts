@@ -231,20 +231,14 @@ function prepareGhostHtml(
 }
 
 // Prepare article HTML for WordPress publishing
-// Subheadline and featured image are NOT included —
-// subheadline goes in meta field, image goes as featured_media
+// Subheadline goes in meta field, image goes as featured_media
+// Image credit is set as the media caption — NOT included in body
 function prepareWordPressHtml(
   bodyHtml: string | null | undefined,
   body: string,
   imageCredit: string | null | undefined
 ): string {
   let html = bodyHtml || body;
-
-  // Add image credit at the top of body content
-  if (imageCredit && imageCredit.trim()) {
-    html = `<p style="font-size: 0.85em; color: #666; text-align: center; font-style: italic; margin-bottom: 1.5em;">${imageCredit}</p>\n${html}`;
-  }
-
   html = transformTweetEmbeds(html);
   return html;
 }
@@ -530,3 +524,4 @@ export async function getPublishTargets() {
     orderBy: { name: 'asc' },
   });
 }
+
