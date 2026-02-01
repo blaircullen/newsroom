@@ -1,0 +1,165 @@
+@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;0,600;0,700;0,800;1,400;1,500;1,600&family=Source+Sans+3:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400;1,500&family=JetBrains+Mono:wght@400;500&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+  
+  body {
+    @apply bg-paper-100 text-ink-900 font-body;
+  }
+
+  ::selection {
+    @apply bg-press-100 text-press-900;
+  }
+}
+
+@layer components {
+  /* TipTap Editor Styles */
+  .tiptap-editor {
+    @apply prose prose-lg max-w-none;
+  }
+
+  .tiptap-editor:focus {
+    @apply outline-none;
+  }
+
+  .tiptap-editor h1 {
+    @apply font-display text-display-lg text-ink-950 mb-4;
+  }
+
+  .tiptap-editor h2 {
+    @apply font-display text-display-md text-ink-900 mb-3;
+  }
+
+  .tiptap-editor h3 {
+    @apply font-display text-xl text-ink-800 mb-2;
+  }
+
+  .tiptap-editor p {
+    @apply text-ink-800 leading-relaxed mb-4 text-lg;
+  }
+
+  .tiptap-editor a {
+    @apply text-press-600 underline underline-offset-2 decoration-press-300 hover:decoration-press-600 transition-colors;
+  }
+
+  .tiptap-editor blockquote {
+    @apply border-l-4 border-press-500 pl-6 italic text-ink-600 my-6;
+  }
+
+  .tiptap-editor ul {
+    @apply list-disc pl-6 mb-4;
+  }
+
+  .tiptap-editor ol {
+    @apply list-decimal pl-6 mb-4;
+  }
+
+  .tiptap-editor li {
+    @apply mb-2 text-ink-800;
+  }
+
+  .tiptap-editor img {
+    @apply rounded-lg my-6 max-w-full;
+  }
+
+  .tiptap-editor hr {
+    @apply border-ink-200 my-8;
+  }
+
+  .tiptap-editor code {
+    @apply font-mono bg-ink-100 px-1.5 py-0.5 rounded text-sm text-ink-800;
+  }
+
+  .tiptap-editor pre {
+    @apply bg-ink-950 text-ink-100 rounded-lg p-4 my-6 overflow-x-auto;
+  }
+
+  .tiptap-editor pre code {
+    @apply bg-transparent p-0;
+  }
+
+  /* Embedded tweet placeholder */
+  .tiptap-editor .tweet-embed {
+    @apply border border-ink-200 rounded-xl p-4 my-4 bg-white;
+  }
+
+  /* Placeholder styles */
+  .tiptap-editor .is-editor-empty:first-child::before {
+    @apply text-ink-300 pointer-events-none float-left h-0;
+    content: attr(data-placeholder);
+  }
+
+  .tiptap-editor p.is-editor-empty:first-child::before {
+    @apply text-ink-300;
+    content: attr(data-placeholder);
+  }
+
+  /* Status badges */
+  .status-badge {
+    @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium tracking-wide uppercase;
+  }
+
+  .status-draft {
+    @apply bg-ink-100 text-ink-600;
+  }
+
+  .status-submitted {
+    @apply bg-blue-50 text-blue-700;
+  }
+
+  .status-in-review {
+    @apply bg-amber-50 text-amber-700;
+  }
+
+  .status-revision-requested {
+    @apply bg-orange-50 text-orange-700;
+  }
+
+  .status-approved {
+    @apply bg-emerald-50 text-emerald-700;
+  }
+
+  .status-published {
+    @apply bg-press-50 text-press-700;
+  }
+
+  .status-rejected {
+    @apply bg-red-50 text-red-700;
+  }
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  @apply bg-ink-200 rounded-full;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  @apply bg-ink-300;
+}
+
+/* Smooth page transitions */
+.page-enter {
+  opacity: 0;
+  transform: translateY(8px);
+}
+
+.page-enter-active {
+  opacity: 1;
+  transform: translateY(0);
+  transition: opacity 300ms ease-out, transform 300ms ease-out;
+}

@@ -1,0 +1,146 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  WRITER
+  EDITOR
+  ADMIN
+}
+
+enum ArticleStatus {
+  DRAFT
+  SUBMITTED
+  IN_REVIEW
+  REVISION_REQUESTED
+  APPROVED
+  PUBLISHED
+  REJECTED
+}
+
+model User {
+  id             String    @id @default(cuid())
+  email          String    @unique
+  name           String
+  passwordHash   String    @map("password_hash")
+  role           Role      @default(WRITER)
+  avatarUrl      String?   @map("avatar_url")
+  bio            String?
+  isActive       Boolean   @default(true) @map("is_active")
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @updatedAt @map("updated_at")
+  lastLoginAt    DateTime? @map("last_login_at")
+
+  // Relations
+  articles       Article[]  @relation("AuthoredArticles")
+  reviews        Review[]
+  comments       Comment[]
+
+  @@map("users")
+}
+
+model Article {
+  id              String        @id @default(cuid())
+  headline        String
+  subHeadline     String?       @map("sub_headline")
+  body            String        @db.Text
+  bodyHtml        String?       @db.Text @map("body_html")
+  slug            String?
+  featuredImage   String?       @map("featured_image")
+  featuredImageId String?       @map("featured_image_id")
+  status          ArticleStatus @default(DRAFT)
+  
+  // Author
+  authorId        String        @map("author_id")
+  author          User          @relation("AuthoredArticles", fields: [authorId], references: [id])
+
+  // Publishing
+  publishedUrl    String?       @map("published_url")
+  publishedSite   String?       @map("published_site")
+  publishedAt     DateTime?     @map("published_at")
+
+  // Timestamps
+  submittedAt     DateTime?     @map("submitted_at")
+  createdAt       DateTime      @default(now()) @map("created_at")
+  updatedAt       DateTime      @updatedAt @map("updated_at")
+
+  // Relations
+  tags            ArticleTag[]
+  reviews         Review[]
+  comments        Comment[]
+
+  @@index([authorId])
+  @@index([status])
+  @@index([createdAt])
+  @@map("articles")
+}
+
+model Tag {
+  id        String       @id @default(cuid())
+  name      String       @unique
+  slug      String       @unique
+  createdAt DateTime     @default(now()) @map("created_at")
+  articles  ArticleTag[]
+
+  @@map("tags")
+}
+
+model ArticleTag {
+  articleId String  @map("article_id")
+  tagId     String  @map("tag_id")
+  article   Article @relation(fields: [articleId], references: [id], onDelete: Cascade)
+  tag       Tag     @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([articleId, tagId])
+  @@map("article_tags")
+}
+
+model Review {
+  id         String   @id @default(cuid())
+  articleId  String   @map("article_id")
+  reviewerId String   @map("reviewer_id")
+  notes      String?  @db.Text
+  decision   String   // approved, revision_requested, rejected
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  article    Article  @relation(fields: [articleId], references: [id], onDelete: Cascade)
+  reviewer   User     @relation(fields: [reviewerId], references: [id])
+
+  @@index([articleId])
+  @@map("reviews")
+}
+
+model Comment {
+  id        String   @id @default(cuid())
+  articleId String   @map("article_id")
+  userId    String   @map("user_id")
+  content   String   @db.Text
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  article   Article  @relation(fields: [articleId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id])
+
+  @@index([articleId])
+  @@map("comments")
+}
+
+model PublishTarget {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  type      String   // "ghost" or "wordpress"
+  url       String
+  apiKey    String?  @map("api_key")
+  username  String?
+  password  String?
+  isActive  Boolean  @default(true) @map("is_active")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("publish_targets")
+}

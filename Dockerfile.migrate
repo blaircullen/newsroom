@@ -1,0 +1,16 @@
+# Lightweight image for running migrations + seed
+FROM node:20-alpine
+WORKDIR /app
+
+COPY package.json package-lock.json* ./
+COPY prisma ./prisma/
+
+RUN npm ci --ignore-scripts
+RUN npx prisma generate
+
+# Install ts-node for seed script
+RUN npm install -D typescript ts-node @types/node
+
+COPY tsconfig.json ./
+
+CMD ["sh", "-c", "npx prisma db push --accept-data-loss && npx prisma db seed"]
