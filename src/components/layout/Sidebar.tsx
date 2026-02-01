@@ -1,5 +1,6 @@
 'use client';
 
+import { useState, useEffect } from 'react';
 import { useSession, signOut } from 'next-auth/react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
@@ -11,7 +12,131 @@ import {
   HiOutlineGlobeAlt,
   HiOutlineArrowRightOnRectangle,
   HiOutlinePlusCircle,
+  HiOutlineArrowTrendingUp,
 } from 'react-icons/hi2';
+
+interface TrendingTopic {
+  rank: number;
+  name: string;
+  url: string;
+  tweet_volume: number | null;
+}
+
+interface TrendingData {
+  updated_at: string | null;
+  location: string;
+  trends: TrendingTopic[];
+}
+
+function formatVolume(volume: number | null): string {
+  if (!volume) return '';
+  if (volume >= 1_000_000) return `${(volume / 1_000_000).toFixed(1)}M`;
+  if (volume >= 1_000) return `${(volume / 1_000).toFixed(0)}K`;
+  return `${volume}`;
+}
+
+function timeAgo(dateString: string): string {
+  const seconds = Math.floor((Date.now() - new Date(dateString).getTime()) / 1000);
+  if (seconds < 60) return 'just now';
+  if (seconds < 3600) return `${Math.floor(seconds / 60)}m ago`;
+  if (seconds < 86400) return `${Math.floor(seconds / 3600)}h ago`;
+  return `${Math.floor(seconds / 86400)}d ago`;
+}
+
+function SidebarTrending() {
+  const [data, setData] = useState<TrendingData | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchTrending = async () => {
+      try {
+        const res = await fetch('/api/trending');
+        if (!res.ok) throw new Error();
+        setData(await res.json());
+      } catch {
+        setData(null);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchTrending();
+    const interval = setInterval(fetchTrending, 5 * 60 * 1000);
+    return () => clearInterval(interval);
+  }, []);
+
+  if (isLoading) {
+    return (
+      <div className="px-3 py-4 border-t border-white/10">
+        <div className="flex items-center gap-2 px-2 mb-3">
+          <div className="w-4 h-4 rounded bg-white/10 animate-pulse" />
+          <div className="h-3 w-20 rounded bg-white/10 animate-pulse" />
+        </div>
+        {[1, 2, 3].map((i) => (
+          <div key={i} className="h-7 rounded-md bg-white/5 animate-pulse mb-1.5" />
+        ))}
+      </div>
+    );
+  }
+
+  if (!data || data.trends.length === 0) return null;
+
+  return (
+    <div className="px-3 py-4 border-t border-white/10">
+      {/* Header */}
+      <div className="flex items-center justify-between px-2 mb-2">
+        <div className="flex items-center gap-1.5">
+          <HiOutlineArrowTrendingUp className="w-3.5 h-3.5 text-press-400" />
+          <span className="text-[11px] font-semibold text-ink-400 uppercase tracking-wider">
+            Trending on 𝕏
+          </span>
+        </div>
+        {data.updated_at && (
+          <span className="text-[10px] text-ink-500">
+            {timeAgo(data.updated_at)}
+          </span>
+        )}
+      </div>
+
+      {/* Trend Items */}
+      <div className="space-y-0.5">
+        {data.trends.map((trend) => (
+          <a
+            key={trend.rank}
+            href={trend.url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-2.5 px-2 py-1.5 rounded-md hover:bg-white/5 transition-all duration-150 group cursor-pointer"
+          >
+            <span className="text-[10px] font-mono text-ink-500 w-3 text-right flex-shrink-0">
+              {trend.rank}
+            </span>
+            <div className="flex-1 min-w-0">
+              <p className="text-xs font-medium text-ink-300 group-hover:text-white truncate transition-colors">
+                {trend.name}
+              </p>
+            </div>
+            {trend.tweet_volume && (
+              <span className="text-[10px] text-ink-500 flex-shrink-0">
+                {formatVolume(trend.tweet_volume)}
+              </span>
+            )}
+          </a>
+        ))}
+      </div>
+
+      {/* See all link */}
+      <a
+        href="https://x.com/explore/tabs/trending"
+        target="_blank"
+        rel="noopener noreferrer"
+        className="block px-2 mt-2 text-[11px] text-press-500/70 hover:text-press-400 transition-colors"
+      >
+        See all trends →
+      </a>
+    </div>
+  );
+}
 
 export default function Sidebar() {
   const { data: session } = useSession();
@@ -58,6 +183,9 @@ export default function Sidebar() {
           );
         })}
       </nav>
+
+      {/* Trending Topics */}
+      <SidebarTrending />
 
       {/* User Section */}
       <div className="p-4 border-t border-white/10">
