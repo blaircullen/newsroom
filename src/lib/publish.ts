@@ -273,8 +273,8 @@ export async function publishArticle(
     return { success: false, error: 'Article not found' };
   }
 
-  if (article.status !== 'APPROVED') {
-    return { success: false, error: 'Article must be approved before publishing' };
+  if (!['APPROVED', 'PUBLISHED'].includes(article.status)) {
+    return { success: false, error: 'Article must be approved or already published' };
   }
 
   const target = await prisma.publishTarget.findUnique({
