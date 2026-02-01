@@ -20,6 +20,7 @@ import {
   HiOutlineTrash,
   HiOutlineExclamationTriangle,
 } from 'react-icons/hi2';
+import TrendingTopics from '@/components/dashboard/TrendingTopics';
 
 const STATUS_CONFIG: Record<string, { label: string; class: string; icon: any }> = {
   DRAFT: { label: 'Draft', class: 'status-draft', icon: HiOutlineDocumentText },
@@ -161,6 +162,11 @@ export default function DashboardPage() {
           icon={HiOutlineGlobeAlt}
           color="press"
         />
+      </div>
+
+      {/* Trending on X */}
+      <div className="mb-8">
+        <TrendingTopics />
       </div>
 
       {/* Filter tabs */}
