@@ -42,19 +42,19 @@ jobs:
           username: ${{ secrets.HETZNER_USER }}
           key: ${{ secrets.HETZNER_SSH_KEY }}
           script: |
-            cd /opt/m3-newsroom
-            
+            cd /opt/newsroom
+
             # Pull latest image
             docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
-            
+
             # Update and restart
             docker compose down app
             docker compose up -d app
-            
+
             # Run database migrations
             docker compose exec -T app npx prisma migrate deploy
-            
+
             # Clean up old images
             docker image prune -f
-            
+
             echo "✅ Deployment complete!"
