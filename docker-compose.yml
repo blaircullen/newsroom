@@ -42,6 +42,7 @@ services:
       GOOGLE_DRIVE_FOLDER_ID: ${GOOGLE_DRIVE_FOLDER_ID:-}
       NODE_ENV: production
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      TRENDING_API_KEY: ${TRENDING_API_KEY:-}
 
   migrate:
     build:
