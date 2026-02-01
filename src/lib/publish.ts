@@ -214,12 +214,20 @@ export async function publishArticle(
 
   // Update article status if successful
   if (result.success) {
+    const current = await prisma.article.findUnique({
+      where: { id: articleId },
+      select: { publishedUrl: true, publishedSite: true },
+    });
+    const existingUrls = current?.publishedUrl ? current.publishedUrl.split(" | ") : [];
+    const existingSites = current?.publishedSite ? current.publishedSite.split(" | ") : [];
+    if (result.url && !existingUrls.includes(result.url)) existingUrls.push(result.url);
+    if (!existingSites.includes(target.name)) existingSites.push(target.name);
     await prisma.article.update({
       where: { id: articleId },
       data: {
-        status: 'PUBLISHED',
-        publishedUrl: result.url,
-        publishedSite: target.name,
+        status: "PUBLISHED",
+        publishedUrl: existingUrls.join(" | "),
+        publishedSite: existingSites.join(" | "),
         publishedAt: new Date(),
       },
     });
