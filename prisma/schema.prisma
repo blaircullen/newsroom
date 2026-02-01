@@ -54,6 +54,7 @@ model Article {
   slug            String?
   featuredImage   String?       @map("featured_image")
   featuredImageId String?       @map("featured_image_id")
+  imageCredit     String?       @map("image_credit")
   status          ArticleStatus @default(DRAFT)
   
   // Author
