@@ -74,28 +74,28 @@ async function fetchUmamiMetrics(
   config: WebsiteConfig,
   url: string
 ): Promise<UmamiMetrics> {
-  const { websiteId, token } = config;
+  const { token } = config;
   const baseUrl = process.env.UMAMI_URL;
 
   // Extract path from URL for filtering
   const urlObj = new URL(url);
   const path = urlObj.pathname;
 
-  // Fetch pageviews and visitors
-  const endDate = new Date().toISOString();
-  const startDate = new Date(0).toISOString(); // From beginning of time
+  // Fetch pageviews and visitors using share token endpoint
+  const endDate = Date.now();
+  const startDate = 0; // From beginning of time
 
   const params = new URLSearchParams({
-    startAt: new Date(startDate).getTime().toString(),
-    endAt: new Date(endDate).getTime().toString(),
+    startAt: startDate.toString(),
+    endAt: endDate.toString(),
     url: path
   });
 
   const response = await fetch(
-    `${baseUrl}/api/websites/${websiteId}/metrics?${params}`,
+    `${baseUrl}/api/share/${token}/stats?${params}`,
     {
       headers: {
-        'Authorization': `Bearer ${token}`,
+        'Accept': 'application/json',
       },
     }
   );
