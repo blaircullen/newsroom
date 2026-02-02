@@ -1,111 +1,80 @@
+interface WebsiteConfig {
+  websiteId: string;
+  username: string;
+  password: string;
+}
+
 interface UmamiMetrics {
   pageviews: { value: number };
   visitors: { value: number };
 }
 
-interface WebsiteConfig {
-  websiteId: string;
-  token: string;
-  urlPattern: string; // Domain pattern to match
-}
-
-const websites: Record<string, WebsiteConfig> = {
-  lizpeek: {
-    websiteId: process.env.UMAMI_LIZPEEK_WEBSITE_ID!,
-    token: process.env.UMAMI_LIZPEEK_TOKEN!,
-    urlPattern: 'lizpeek.com'
+const WEBSITE_CONFIGS: Record<string, WebsiteConfig> = {
+  'lizpeek.com': {
+    websiteId: process.env.UMAMI_LIZPEEK_WEBSITE_ID || '',
+    username: process.env.UMAMI_USERNAME || '',
+    password: process.env.UMAMI_PASSWORD || '',
   },
-  joepags: {
-    websiteId: process.env.UMAMI_JOEPAGS_WEBSITE_ID!,
-    token: process.env.UMAMI_JOEPAGS_TOKEN!,
-    urlPattern: 'joepags.com'
+  'joepags.com': {
+    websiteId: process.env.UMAMI_JOEPAGS_WEBSITE_ID || '',
+    username: process.env.UMAMI_USERNAME || '',
+    password: process.env.UMAMI_PASSWORD || '',
   },
-  roguerecap: {
-    websiteId: process.env.UMAMI_ROGUERECAP_WEBSITE_ID!,
-    token: process.env.UMAMI_ROGUERECAP_TOKEN!,
-    urlPattern: 'roguerecap.com'
-  }
+  'roguerecap.com': {
+    websiteId: process.env.UMAMI_ROGUERECAP_WEBSITE_ID || '',
+    username: process.env.UMAMI_USERNAME || '',
+    password: process.env.UMAMI_PASSWORD || '',
+  },
 };
 
-export async function getArticleAnalytics(publishedUrls: string[]): Promise<{
-  totalPageviews: number;
-  totalUniqueVisitors: number;
-}> {
-  let totalPageviews = 0;
-  let totalUniqueVisitors = 0;
-
-  // Group URLs by website
-  const urlsByWebsite: Record<string, string[]> = {};
-
-  for (const url of publishedUrls) {
-    for (const [key, config] of Object.entries(websites)) {
-      if (url.includes(config.urlPattern)) {
-        if (!urlsByWebsite[key]) urlsByWebsite[key] = [];
-        urlsByWebsite[key].push(url);
-        break;
-      }
-    }
-  }
-
-  // Fetch analytics for each website
-  const promises = Object.entries(urlsByWebsite).map(async ([websiteKey, urls]) => {
-    const config = websites[websiteKey];
-
-    for (const url of urls) {
-      try {
-        const metrics = await fetchUmamiMetrics(config, url);
-        totalPageviews += metrics.pageviews.value;
-        totalUniqueVisitors += metrics.visitors.value;
-      } catch (error) {
-        console.error(`Failed to fetch analytics for ${url}:`, error);
-      }
-    }
+async function getAuthToken(username: string, password: string): Promise<string> {
+  const baseUrl = process.env.UMAMI_URL;
+  
+  const response = await fetch(`${baseUrl}/api/auth/login`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ username, password }),
   });
 
-  await Promise.all(promises);
+  if (!response.ok) {
+    throw new Error(`Failed to authenticate with Umami: ${response.statusText}`);
+  }
 
-  return {
-    totalPageviews,
-    totalUniqueVisitors
-  };
+  const data = await response.json();
+  return data.token;
 }
 
 async function fetchUmamiMetrics(
   config: WebsiteConfig,
   url: string
 ): Promise<UmamiMetrics> {
-  const { websiteId, token } = config;
+  const { websiteId, username, password } = config;
   const baseUrl = process.env.UMAMI_URL;
 
   // Extract path from URL for filtering
   const urlObj = new URL(url);
   const path = urlObj.pathname;
 
-  // Step 1: Get JWT from share token
-  const shareResponse = await fetch(`${baseUrl}/api/share/${token}`);
-  if (!shareResponse.ok) {
-    throw new Error(`Failed to get share token: ${shareResponse.statusText}`);
-  }
-  const shareData = await shareResponse.json();
-  const jwtToken = shareData.token;
+  // Get authentication token
+  const token = await getAuthToken(username, password);
 
-  // Step 2: Fetch pageviews using JWT
+  // Fetch stats using authenticated endpoint with path filter
   const endDate = Date.now();
   const startDate = 0; // From beginning of time
 
   const params = new URLSearchParams({
     startAt: startDate.toString(),
     endAt: endDate.toString(),
-    unit: 'hour',
-    timezone: 'America/New_York',
-    url: path
+    path: path,
   });
 
   const response = await fetch(
-    `${baseUrl}/api/websites/${websiteId}/pageviews?${params}`,
+    `${baseUrl}/api/websites/${websiteId}/stats?${params}`,
     {
       headers: {
-        'X-Umami-Share-Token': jwtToken,
+        'Authorization': `Bearer ${token}`,
       },
     }
   );
@@ -115,13 +84,34 @@ async function fetchUmamiMetrics(
   }
 
   const data = await response.json();
-  
-  // Sum up pageviews and sessions (unique visitors) from the returned data
-  const pageviews = data.pageviews?.reduce((sum: number, item: any) => sum + (item.y || 0), 0) || 0;
-  const visitors = data.sessions?.reduce((sum: number, item: any) => sum + (item.y || 0), 0) || 0;
 
   return {
-    pageviews: { value: pageviews },
-    visitors: { value: visitors }
+    pageviews: { value: data.pageviews || 0 },
+    visitors: { value: data.visitors || 0 },
   };
+}
+
+export async function getArticleAnalytics(
+  url: string
+): Promise<{ pageviews: number; uniqueVisitors: number }> {
+  try {
+    const urlObj = new URL(url);
+    const hostname = urlObj.hostname;
+    const config = WEBSITE_CONFIGS[hostname];
+
+    if (!config) {
+      console.warn(`No Umami config found for ${hostname}`);
+      return { pageviews: 0, uniqueVisitors: 0 };
+    }
+
+    const metrics = await fetchUmamiMetrics(config, url);
+
+    return {
+      pageviews: metrics.pageviews.value,
+      uniqueVisitors: metrics.visitors.value,
+    };
+  } catch (error) {
+    console.error('Failed to fetch analytics:', error);
+    return { pageviews: 0, uniqueVisitors: 0 };
+  }
 }
