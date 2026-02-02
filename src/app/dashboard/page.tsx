@@ -19,6 +19,8 @@ import {
   HiOutlineFunnel,
   HiOutlineTrash,
   HiOutlineExclamationTriangle,
+  HiOutlineArrowPath,
+  HiOutlineChartBarSquare,
 } from 'react-icons/hi2';
 
 const STATUS_CONFIG: Record<string, { label: string; class: string; icon: any }> = {
@@ -52,6 +54,7 @@ export default function DashboardPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [deleteConfirm, setDeleteConfirm] = useState<{ id: string; headline: string } | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [isRefreshingAnalytics, setIsRefreshingAnalytics] = useState(false);
 
   const isAdmin = session?.user?.role === 'ADMIN' || session?.user?.role === 'EDITOR';
 
@@ -111,6 +114,30 @@ export default function DashboardPage() {
     }
   };
 
+  const handleRefreshAnalytics = async () => {
+    setIsRefreshingAnalytics(true);
+    try {
+      const res = await fetch('/api/analytics/refresh', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({})
+      });
+      
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || 'Failed to refresh analytics');
+      }
+      
+      const data = await res.json();
+      toast.success(data.message || 'Analytics refreshed');
+      fetchArticles();
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to refresh analytics');
+    } finally {
+      setIsRefreshingAnalytics(false);
+    }
+  };
+
   return (
     <AppShell>
       {/* Page Header */}
@@ -125,13 +152,25 @@ export default function DashboardPage() {
               : 'Write, edit, and track your stories'}
           </p>
         </div>
-        <Link
-          href="/editor"
-          className="flex items-center gap-2 px-5 py-2.5 bg-ink-950 text-paper-100 rounded-lg font-semibold text-sm hover:bg-ink-800 transition-all active:scale-[0.98]"
-        >
-          <HiOutlinePlusCircle className="w-5 h-5" />
-          New Story
-        </Link>
+        <div className="flex items-center gap-3">
+          {isAdmin && activeFilter === 'PUBLISHED' && (
+            <button
+              onClick={handleRefreshAnalytics}
+              disabled={isRefreshingAnalytics}
+              className="flex items-center gap-2 px-4 py-2.5 bg-white border border-ink-200 text-ink-700 rounded-lg font-semibold text-sm hover:bg-ink-50 transition-all active:scale-[0.98] disabled:opacity-50"
+            >
+              <HiOutlineArrowPath className={`w-5 h-5 ${isRefreshingAnalytics ? 'animate-spin' : ''}`} />
+              {isRefreshingAnalytics ? 'Refreshing...' : 'Refresh Analytics'}
+            </button>
+          )}
+          <Link
+            href="/editor"
+            className="flex items-center gap-2 px-5 py-2.5 bg-ink-950 text-paper-100 rounded-lg font-semibold text-sm hover:bg-ink-800 transition-all active:scale-[0.98]"
+          >
+            <HiOutlinePlusCircle className="w-5 h-5" />
+            New Story
+          </Link>
+        </div>
       </div>
 
       {/* Stats Cards */}
@@ -209,6 +248,8 @@ export default function DashboardPage() {
         <div className="space-y-3">
           {articles.map((article) => {
             const config = STATUS_CONFIG[article.status] || STATUS_CONFIG.DRAFT;
+            const hasAnalytics = article.status === 'PUBLISHED' && (article.totalPageviews > 0 || article.totalUniqueVisitors > 0);
+            
             return (
               <div
                 key={article.id}
@@ -282,6 +323,32 @@ export default function DashboardPage() {
                           </a>
                         )}
                       </div>
+
+                      {/* Analytics row */}
+                      {hasAnalytics && (
+                        <div className="flex items-center gap-4 mt-3 pt-3 border-t border-ink-100">
+                          <div className="flex items-center gap-1.5 text-xs">
+                            <HiOutlineChartBarSquare className="w-4 h-4 text-press-600" />
+                            <span className="font-semibold text-ink-900">{article.totalPageviews.toLocaleString()}</span>
+                            <span className="text-ink-400">pageviews</span>
+                          </div>
+                          <div className="flex items-center gap-1.5 text-xs">
+                            <HiOutlineEye className="w-4 h-4 text-blue-600" />
+                            <span className="font-semibold text-ink-900">{article.totalUniqueVisitors.toLocaleString()}</span>
+                            <span className="text-ink-400">unique visitors</span>
+                          </div>
+                          {article.analyticsUpdatedAt && (
+                            <span className="text-xs text-ink-300">
+                              Updated {new Date(article.analyticsUpdatedAt).toLocaleDateString('en-US', {
+                                month: 'short',
+                                day: 'numeric',
+                                hour: 'numeric',
+                                minute: '2-digit',
+                              })}
+                            </span>
+                          )}
+                        </div>
+                      )}
                     </div>
                   </div>
                 </Link>
