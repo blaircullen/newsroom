@@ -74,28 +74,38 @@ async function fetchUmamiMetrics(
   config: WebsiteConfig,
   url: string
 ): Promise<UmamiMetrics> {
-  const { token } = config;
+  const { websiteId, token } = config;
   const baseUrl = process.env.UMAMI_URL;
 
   // Extract path from URL for filtering
   const urlObj = new URL(url);
   const path = urlObj.pathname;
 
-  // Fetch pageviews and visitors using share token endpoint
+  // Step 1: Get JWT from share token
+  const shareResponse = await fetch(`${baseUrl}/api/share/${token}`);
+  if (!shareResponse.ok) {
+    throw new Error(`Failed to get share token: ${shareResponse.statusText}`);
+  }
+  const shareData = await shareResponse.json();
+  const jwtToken = shareData.token;
+
+  // Step 2: Fetch pageviews using JWT
   const endDate = Date.now();
   const startDate = 0; // From beginning of time
 
   const params = new URLSearchParams({
     startAt: startDate.toString(),
     endAt: endDate.toString(),
+    unit: 'hour',
+    timezone: 'America/New_York',
     url: path
   });
 
   const response = await fetch(
-    `${baseUrl}/api/share/${token}/stats?${params}`,
+    `${baseUrl}/api/websites/${websiteId}/pageviews?${params}`,
     {
       headers: {
-        'Accept': 'application/json',
+        'X-Umami-Share-Token': jwtToken,
       },
     }
   );
@@ -104,5 +114,14 @@ async function fetchUmamiMetrics(
     throw new Error(`Umami API error: ${response.statusText}`);
   }
 
-  return await response.json();
+  const data = await response.json();
+  
+  // Sum up pageviews and unique visitors from the returned data
+  const pageviews = data.pageviews?.reduce((sum: number, item: any) => sum + (item.y || 0), 0) || 0;
+  const visitors = data.visitors?.reduce((sum: number, item: any) => sum + (item.y || 0), 0) || 0;
+
+  return {
+    pageviews: { value: pageviews },
+    visitors: { value: visitors }
+  };
 }
