@@ -20,6 +20,9 @@ interface TrendingTopic {
   name: string;
   url: string;
   tweet_volume: number | null;
+  heat: number;
+  sources: string[];
+  velocity?: 'rising' | 'steady' | 'new';
 }
 
 interface TrendingData {
@@ -41,6 +44,62 @@ function timeAgo(dateString: string): string {
   if (seconds < 3600) return `${Math.floor(seconds / 60)}m ago`;
   if (seconds < 86400) return `${Math.floor(seconds / 3600)}h ago`;
   return `${Math.floor(seconds / 86400)}d ago`;
+}
+
+function getHeatLevel(heat: number): 'blazing' | 'hot' | 'warm' | 'normal' {
+  if (heat >= 80) return 'blazing';
+  if (heat >= 55) return 'hot';
+  if (heat >= 35) return 'warm';
+  return 'normal';
+}
+
+function FireIcon({ heat, className = '' }: { heat: number; className?: string }) {
+  const level = getHeatLevel(heat);
+  if (level === 'normal') return null;
+  
+  const colors = {
+    blazing: 'text-orange-400',
+    hot: 'text-orange-400/80',
+    warm: 'text-amber-500/60',
+  };
+  
+  return (
+    <svg
+      viewBox="0 0 16 16"
+      fill="currentColor"
+      className={`${colors[level]} ${className} ${level === 'blazing' ? 'animate-pulse' : ''}`}
+    >
+      <path d="M8 1.5c0 0-2.5 2.5-2.5 5.5 0 1.5.7 2.3 1.2 2.7-.2-.8 0-2.2 1.3-3.2 0 0 .2 2.5 1.8 3.8.5.4.7 1 .7 1.7h.1c1.4-.4 2.4-1.7 2.4-3.2C13 5 8 1.5 8 1.5z" />
+    </svg>
+  );
+}
+
+function SourceBadges({ sources }: { sources: string[] }) {
+  if (!sources || sources.length <= 1) return null;
+  
+  const badges: Record<string, { label: string; color: string }> = {
+    fox: { label: 'FOX', color: 'bg-blue-500/20 text-blue-300' },
+    cfp: { label: 'CFP', color: 'bg-emerald-500/20 text-emerald-300' },
+  };
+  
+  const newsSourceBadges = sources
+    .filter(s => s !== 'x' && badges[s])
+    .map(s => badges[s]);
+    
+  if (newsSourceBadges.length === 0) return null;
+  
+  return (
+    <span className="inline-flex gap-0.5 ml-1">
+      {newsSourceBadges.map((badge, i) => (
+        <span
+          key={i}
+          className={`text-[8px] font-bold px-1 py-px rounded ${badge.color} leading-none`}
+        >
+          {badge.label}
+        </span>
+      ))}
+    </span>
+  );
 }
 
 function SidebarTrending() {
@@ -88,7 +147,7 @@ function SidebarTrending() {
         <div className="flex items-center gap-1.5">
           <HiOutlineArrowTrendingUp className="w-3.5 h-3.5 text-press-400" />
           <span className="text-[11px] font-semibold text-ink-400 uppercase tracking-wider">
-            Trending on 𝕏
+            Trending Now
           </span>
         </div>
         {data.updated_at && (
@@ -100,43 +159,96 @@ function SidebarTrending() {
 
       {/* Trend Items */}
       <div className="space-y-0.5">
-        {data.trends.map((trend) => (
-          <div
-            key={trend.rank}
-            className="flex items-center gap-2.5 px-2 py-1.5 rounded-md hover:bg-white/5 transition-all duration-150 group"
-          >
-            <span className="text-[10px] font-mono text-ink-500 w-3 text-right flex-shrink-0">
-              {trend.rank}
-            </span>
-            <a
-              href={`https://news.google.com/search?q=${encodeURIComponent(trend.name)}&hl=en-US&gl=US&ceid=US:en`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex-1 min-w-0 cursor-pointer"
-              title="Read news sources"
-            >
-              <p className="text-xs font-medium text-ink-300 group-hover:text-white truncate transition-colors">
-                {trend.name}
-              </p>
-              {trend.tweet_volume && (
-                <p className="text-[10px] text-ink-500 leading-tight">
-                  {formatVolume(trend.tweet_volume)} posts
-                </p>
-              )}
-            </a>
-            <a
-              href={trend.url}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="p-1 rounded opacity-0 group-hover:opacity-100 hover:bg-white/10 transition-all flex-shrink-0"
-              title="View on X"
-            >
-              <svg className="w-3 h-3 text-ink-400 hover:text-press-400 transition-colors" viewBox="0 0 1200 1227" fill="currentColor">
-                <path d="M714.163 519.284L1160.89 0H1055.03L667.137 450.887L357.328 0H0L468.492 681.821L0 1226.37H105.866L515.491 750.218L842.672 1226.37H1200L714.137 519.284H714.163ZM569.165 687.828L521.697 619.934L144.011 79.6944H306.615L611.412 515.685L658.88 583.579L1055.08 1150.3H892.476L569.165 687.854V687.828Z"/>
-              </svg>
-            </a>
-          </div>
-        ))}
+        {data.trends.map((trend) => {
+          const heat = trend.heat || 0;
+          const heatLevel = getHeatLevel(heat);
+
+          // Dynamic styles based on heat
+          const rowStyle: React.CSSProperties = {};
+          let rowClassName = 'flex items-center gap-2 px-2 py-1.5 rounded-md transition-all duration-150 group';
+
+          if (heatLevel === 'blazing') {
+            rowClassName += ' hover:bg-white/10';
+            rowStyle.background = 'linear-gradient(135deg, rgba(239, 68, 68, 0.08), rgba(251, 146, 60, 0.06))';
+            rowStyle.boxShadow = 'inset 0 0 0 1px rgba(239, 68, 68, 0.15), 0 0 12px rgba(239, 68, 68, 0.08)';
+          } else if (heatLevel === 'hot') {
+            rowClassName += ' hover:bg-white/10';
+            rowStyle.background = 'linear-gradient(135deg, rgba(251, 146, 60, 0.06), transparent)';
+            rowStyle.boxShadow = 'inset 0 0 0 1px rgba(251, 146, 60, 0.1)';
+          } else if (heatLevel === 'warm') {
+            rowClassName += ' hover:bg-white/5';
+            rowStyle.background = 'rgba(251, 191, 36, 0.03)';
+          } else {
+            rowClassName += ' hover:bg-white/5';
+          }
+
+          return (
+            <div key={trend.rank} className={rowClassName} style={rowStyle}>
+              {/* Rank or Fire icon */}
+              <div className="w-4 flex-shrink-0 flex items-center justify-center">
+                {heatLevel !== 'normal' ? (
+                  <FireIcon heat={heat} className="w-3.5 h-3.5" />
+                ) : (
+                  <span className="text-[10px] font-mono text-ink-500 text-center">
+                    {trend.rank}
+                  </span>
+                )}
+              </div>
+
+              {/* Topic name + metadata */}
+              <a
+                href={`https://news.google.com/search?q=${encodeURIComponent(trend.name)}&hl=en-US&gl=US&ceid=US:en`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex-1 min-w-0 cursor-pointer"
+                title="Read news sources"
+              >
+                <div className="flex items-center gap-1">
+                  <p className={`text-xs font-medium truncate transition-colors ${
+                    heatLevel === 'blazing'
+                      ? 'text-orange-300 group-hover:text-orange-200'
+                      : heatLevel === 'hot'
+                      ? 'text-ink-200 group-hover:text-white'
+                      : 'text-ink-300 group-hover:text-white'
+                  }`}>
+                    {trend.name}
+                  </p>
+                  {trend.velocity === 'rising' && (
+                    <svg viewBox="0 0 8 8" className="w-2.5 h-2.5 text-emerald-400 flex-shrink-0">
+                      <path d="M4 1L7 5H1L4 1Z" fill="currentColor" />
+                    </svg>
+                  )}
+                  {trend.velocity === 'new' && (
+                    <span className="text-[8px] font-bold text-press-400 bg-press-500/15 px-1 rounded flex-shrink-0">
+                      NEW
+                    </span>
+                  )}
+                </div>
+                <div className="flex items-center gap-1">
+                  {trend.tweet_volume ? (
+                    <p className="text-[10px] text-ink-500 leading-tight">
+                      {formatVolume(trend.tweet_volume)} posts
+                    </p>
+                  ) : null}
+                  <SourceBadges sources={trend.sources || ['x']} />
+                </div>
+              </a>
+
+              {/* X link on hover */}
+              <a
+                href={trend.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="p-1 rounded opacity-0 group-hover:opacity-100 hover:bg-white/10 transition-all flex-shrink-0"
+                title="View on X"
+              >
+                <svg className="w-3 h-3 text-ink-400 hover:text-press-400 transition-colors" viewBox="0 0 1200 1227" fill="currentColor">
+                  <path d="M714.163 519.284L1160.89 0H1055.03L667.137 450.887L357.328 0H0L468.492 681.821L0 1226.37H105.866L515.491 750.218L842.672 1226.37H1200L714.137 519.284H714.163ZM569.165 687.828L521.697 619.934L144.011 79.6944H306.615L611.412 515.685L658.88 583.579L1055.08 1150.3H892.476L569.165 687.854V687.828Z"/>
+                </svg>
+              </a>
+            </div>
+          );
+        })}
       </div>
 
       {/* See all link */}
