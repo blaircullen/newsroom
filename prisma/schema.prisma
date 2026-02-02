@@ -66,6 +66,11 @@ model Article {
   publishedSite   String?       @map("published_site")
   publishedAt     DateTime?     @map("published_at")
 
+  // Analytics
+  totalPageviews       Int       @default(0) @map("total_pageviews")
+  totalUniqueVisitors  Int       @default(0) @map("total_unique_visitors")
+  analyticsUpdatedAt   DateTime? @map("analytics_updated_at")
+
   // Timestamps
   submittedAt     DateTime?     @map("submitted_at")
   createdAt       DateTime      @default(now()) @map("created_at")
