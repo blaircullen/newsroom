@@ -13,7 +13,7 @@ interface TrendingTopic {
   category?: string;
   heat: number; // 0-100 heat score
   sources: string[]; // which outlets are covering it: ['x', 'fox', 'cfp']
-  velocity?: 'rising' | 'steady' | 'new'; // how fast it's climbing
+  velocity?: 'rising' | 'steady' | 'new' | 'falling'; // movement direction
 }
 
 interface TrendingData {
@@ -80,7 +80,7 @@ export async function POST(request: NextRequest) {
       category: t.category || null,
       heat: typeof t.heat === 'number' ? Math.min(100, Math.max(0, t.heat)) : 20,
       sources: Array.isArray(t.sources) ? t.sources : ['x'],
-      velocity: ['rising', 'steady', 'new'].includes(t.velocity) ? t.velocity : 'steady',
+      velocity: ['rising', 'steady', 'new', 'falling'].includes(t.velocity) ? t.velocity : 'steady',
     }));
 
     const data: TrendingData = {
@@ -100,3 +100,4 @@ export async function POST(request: NextRequest) {
     );
   }
 }
+
