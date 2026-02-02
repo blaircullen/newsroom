@@ -116,9 +116,9 @@ async function fetchUmamiMetrics(
 
   const data = await response.json();
   
-  // Sum up pageviews and unique visitors from the returned data
+  // Sum up pageviews and sessions (unique visitors) from the returned data
   const pageviews = data.pageviews?.reduce((sum: number, item: any) => sum + (item.y || 0), 0) || 0;
-  const visitors = data.visitors?.reduce((sum: number, item: any) => sum + (item.y || 0), 0) || 0;
+  const visitors = data.sessions?.reduce((sum: number, item: any) => sum + (item.y || 0), 0) || 0;
 
   return {
     pageviews: { value: pageviews },
