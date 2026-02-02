@@ -34,7 +34,7 @@ export async function sendEmail({ to, subject, html }: EmailOptions) {
 
 function wrapInTemplate(title: string, content: string): string {
   const logoUrl = process.env.NEXTAUTH_URL
-    ? `${process.env.NEXTAUTH_URL}/newsroom-logo.jpeg`
+    ? `${process.env.NEXTAUTH_URL}/newsroom-logo.png`
     : '';
 
   return `
@@ -46,13 +46,13 @@ function wrapInTemplate(title: string, content: string): string {
     </head>
     <body style="margin:0;padding:0;background-color:#f0f3f8;font-family:'Source Sans 3',Georgia,serif;">
       <div style="max-width:600px;margin:0 auto;padding:40px 20px;">
-        <div style="background:#111c30;padding:24px 32px;border-radius:8px 8px 0 0;">
+        <div style="background:#111c30;padding:24px 32px;border-radius:8px 8px 0 0;text-align:center;">
           ${logoUrl ? `
-            <img src="${logoUrl}" alt="NewsRoom" 
-                 style="height:36px;width:auto;" />
+            <img src="${logoUrl}" alt="The NewsRoom"
+                 style="height:36px;width:auto;display:inline-block;" />
           ` : `
             <h1 style="margin:0;color:#ffffff;font-size:20px;font-weight:700;letter-spacing:0.5px;">
-              <span style="color:#ffffff;">News</span><span style="color:#D42B2B;">Room</span>
+              <span style="color:#ffffff;">The News</span><span style="color:#D42B2B;">Room</span>
             </h1>
           `}
         </div>
@@ -62,7 +62,7 @@ function wrapInTemplate(title: string, content: string): string {
         </div>
         <div style="padding:20px;text-align:center;">
           <p style="margin:0;color:#6580b0;font-size:12px;">
-            NewsRoom &bull; <a href="${process.env.NEXTAUTH_URL}" style="color:#D42B2B;">newsroom.m3media.com</a>
+            The NewsRoom &bull; <a href="${process.env.NEXTAUTH_URL}" style="color:#D42B2B;">newsroom.m3media.com</a>
           </p>
         </div>
       </div>
