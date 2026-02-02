@@ -1,5 +1,5 @@
 {
-  "name": "X Trending Topics → Newsroom",
+  "name": "X Trending + News Sources → Newsroom (Enhanced)",
   "nodes": [
     {
       "parameters": {
@@ -16,18 +16,12 @@
       "name": "Every 30 Minutes",
       "type": "n8n-nodes-base.scheduleTrigger",
       "typeVersion": 1.2,
-      "position": [220, 300]
+      "position": [0, 300]
     },
     {
       "parameters": {
-        "method": "GET",
         "url": "https://trends24.in/united-states/",
         "options": {
-          "redirect": {
-            "redirect": {
-              "followRedirects": true
-            }
-          },
           "response": {
             "response": {
               "responseFormat": "text"
@@ -35,21 +29,55 @@
           }
         }
       },
-      "id": "fetch-trends-page",
-      "name": "Fetch Trends Page",
+      "id": "fetch-x-trends",
+      "name": "Fetch X Trends",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [440, 300]
+      "position": [250, 100]
     },
     {
       "parameters": {
-        "jsCode": "// Parse trending topics from trends24.in\n// The page has ordered lists with <li><a href=\"https://twitter.com/search?q=...\">Topic</a></li>\n// We grab the first time block (most recent) and extract top 5.\n\nconst html = $input.first().json.data;\nconst trends = [];\n\n// Match <a> tags linking to twitter.com/search inside list items\nconst pattern = /<li[^>]*>\\s*<a[^>]*href=\"https?:\\/\\/twitter\\.com\\/search\\?q=([^\"]*)\"[^>]*>([^<]+)<\\/a>/gi;\n\nlet match;\nwhile ((match = pattern.exec(html)) !== null && trends.length < 5) {\n  const name = match[2].trim();\n  const query = match[1];\n  if (name && !trends.find(t => t.name === name)) {\n    trends.push({\n      name: name,\n      url: `https://x.com/search?q=${query}`,\n      tweet_volume: null\n    });\n  }\n}\n\n// Fallback: broader pattern if markup changes\nif (trends.length === 0) {\n  const fallback = /<a[^>]*href=\"https?:\\/\\/(twitter|x)\\.com\\/search\\?q=([^\"]*)\"[^>]*>([^<]+)<\\/a>/gi;\n  while ((match = fallback.exec(html)) !== null && trends.length < 5) {\n    const name = match[3].trim();\n    const query = match[2];\n    if (name && name.length > 1 && !trends.find(t => t.name === name)) {\n      trends.push({\n        name: name,\n        url: `https://x.com/search?q=${query}`,\n        tweet_volume: null\n      });\n    }\n  }\n}\n\nreturn [{\n  json: {\n    location: 'United States',\n    trends: trends\n  }\n}];"
+        "url": "https://www.foxnews.com/",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "text"
+            }
+          }
+        }
       },
-      "id": "parse-trends",
-      "name": "Parse Trending Topics",
+      "id": "fetch-fox-news",
+      "name": "Fetch Fox News",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {
+        "url": "https://citizenfreepress.com/",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "text"
+            }
+          }
+        }
+      },
+      "id": "fetch-cfp",
+      "name": "Fetch Citizen Free Press",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [250, 500]
+    },
+    {
+      "parameters": {
+        "jsCode": "// ===== PARSE X TRENDING TOPICS =====\nconst trendsHtml = $('Fetch X Trends').first().json.data;\nlet xTrends = [];\n\ntry {\n  // Try parsing trend cards from trends24\n  const trendPattern = /class=\"trend-card__list[\\s\\S]*?<ol[^>]*>(.*?)<\\/ol>/gi;\n  let listMatch = trendPattern.exec(trendsHtml);\n  \n  if (listMatch) {\n    const itemPattern = /<li[^>]*>\\s*<a[^>]*>([^<]+)<\\/a>/gi;\n    let itemMatch;\n    while ((itemMatch = itemPattern.exec(listMatch[1])) && xTrends.length < 20) {\n      const name = itemMatch[1].trim();\n      if (name && name.length > 1) {\n        xTrends.push(name);\n      }\n    }\n  }\n  \n  // Fallback: try any <a> inside <ol> tags\n  if (xTrends.length === 0) {\n    const olPattern = /<ol[^>]*>(.*?)<\\/ol>/gis;\n    let olMatch;\n    while ((olMatch = olPattern.exec(trendsHtml)) && xTrends.length < 20) {\n      const linkPattern = /<a[^>]*>([^<]+)<\\/a>/gi;\n      let linkMatch;\n      while ((linkMatch = linkPattern.exec(olMatch[1])) && xTrends.length < 20) {\n        const name = linkMatch[1].trim();\n        if (name && name.length > 1 && !name.startsWith('<')) {\n          xTrends.push(name);\n        }\n      }\n    }\n  }\n} catch (e) {\n  // If parsing fails, continue with empty trends\n}\n\n// ===== PARSE FOX NEWS HEADLINES =====\nconst foxHtml = $('Fetch Fox News').first().json.data;\nlet foxHeadlines = [];\n\ntry {\n  // Extract headline text from Fox News\n  const foxTitlePattern = /<h[23][^>]*class=\"title[^\"]*\"[^>]*>\\s*<a[^>]*>([^<]+)<\\/a>/gi;\n  let foxMatch;\n  while ((foxMatch = foxTitlePattern.exec(foxHtml)) && foxHeadlines.length < 50) {\n    foxHeadlines.push(foxMatch[1].trim().toLowerCase());\n  }\n  \n  // Also grab from article titles\n  const foxAltPattern = /<h[234][^>]*>\\s*<a[^>]*href=\"\\/[^\"]*\"[^>]*>([^<]{10,})<\\/a>/gi;\n  while ((foxMatch = foxAltPattern.exec(foxHtml)) && foxHeadlines.length < 80) {\n    const text = foxMatch[1].trim().toLowerCase();\n    if (!foxHeadlines.includes(text)) {\n      foxHeadlines.push(text);\n    }\n  }\n  \n  // Broad fallback: grab text from any headline-like elements\n  const foxBroadPattern = /\"headline\"[^>]*>([^<]{8,})</gi;\n  while ((foxMatch = foxBroadPattern.exec(foxHtml)) && foxHeadlines.length < 100) {\n    const text = foxMatch[1].trim().toLowerCase();\n    if (!foxHeadlines.includes(text)) {\n      foxHeadlines.push(text);\n    }\n  }\n} catch (e) {}\n\n// ===== PARSE CITIZEN FREE PRESS HEADLINES =====\nconst cfpHtml = $('Fetch Citizen Free Press').first().json.data;\nlet cfpHeadlines = [];\n\ntry {\n  // CFP uses WordPress-style post titles\n  const cfpTitlePattern = /<h[234][^>]*class=\"[^\"]*entry-title[^\"]*\"[^>]*>\\s*<a[^>]*>([^<]+)<\\/a>/gi;\n  let cfpMatch;\n  while ((cfpMatch = cfpTitlePattern.exec(cfpHtml)) && cfpHeadlines.length < 50) {\n    cfpHeadlines.push(cfpMatch[1].trim().toLowerCase());\n  }\n  \n  // Also try generic post titles\n  const cfpAltPattern = /<a[^>]*class=\"[^\"]*post-title[^\"]*\"[^>]*>([^<]{8,})<\\/a>/gi;\n  while ((cfpMatch = cfpAltPattern.exec(cfpHtml)) && cfpHeadlines.length < 80) {\n    const text = cfpMatch[1].trim().toLowerCase();\n    if (!cfpHeadlines.includes(text)) {\n      cfpHeadlines.push(text);\n    }\n  }\n\n  // Broad fallback: any link with substantial text in article areas\n  const cfpBroadPattern = /<a[^>]*href=\"https:\\/\\/citizenfreepress\\.com\\/[^\"]*\"[^>]*>([^<]{10,})<\\/a>/gi;\n  while ((cfpMatch = cfpBroadPattern.exec(cfpHtml)) && cfpHeadlines.length < 100) {\n    const text = cfpMatch[1].trim().toLowerCase();\n    if (!cfpHeadlines.includes(text) && !text.includes('citizen free press')) {\n      cfpHeadlines.push(text);\n    }\n  }\n} catch (e) {}\n\n// ===== CROSS-REFERENCE AND SCORE =====\nfunction fuzzyMatch(trendName, headlines) {\n  const trendLower = trendName.toLowerCase();\n  const trendWords = trendLower.split(/\\s+/).filter(w => w.length > 2);\n  \n  for (const headline of headlines) {\n    // Direct substring match\n    if (headline.includes(trendLower) || trendLower.includes(headline.substring(0, 20))) {\n      return true;\n    }\n    \n    // Word overlap: if 60%+ of trend words appear in headline\n    if (trendWords.length >= 2) {\n      const matchCount = trendWords.filter(w => headline.includes(w)).length;\n      if (matchCount / trendWords.length >= 0.6) {\n        return true;\n      }\n    }\n    \n    // Single important word match (for names, places)\n    if (trendWords.length === 1 && trendWords[0].length >= 4) {\n      if (headline.includes(trendWords[0])) {\n        return true;\n      }\n    }\n  }\n  return false;\n}\n\n// Political/news keywords that boost relevance\nconst newsKeywords = [\n  'trump', 'biden', 'congress', 'senate', 'house', 'gop', 'democrat',\n  'republican', 'election', 'vote', 'border', 'immigration', 'economy',\n  'inflation', 'tax', 'policy', 'governor', 'mayor', 'supreme court',\n  'doj', 'fbi', 'cia', 'pentagon', 'military', 'ukraine', 'russia',\n  'china', 'israel', 'gaza', 'iran', 'nato', 'tariff', 'trade',\n  'indictment', 'investigation', 'scandal', 'resign', 'impeach',\n  'executive order', 'legislation', 'amendment', 'attorney general',\n  'secretary', 'white house', 'capitol', 'protest', 'rally',\n  'shooting', 'police', 'crime', 'justice', 'court', 'ruling',\n  'elon', 'musk', 'doge', 'spending', 'debt', 'deficit', 'budget',\n  'woke', 'dei', 'crt', 'trans', 'abortion', 'gun', 'second amendment',\n  'free speech', 'censorship', 'big tech', 'media', 'fake news',\n  'county', 'state', 'federal', 'governor', 'attorney',\n  'war', 'attack', 'threat', 'sanction', 'hostage', 'terrorist',\n  'history month', 'heritage', 'memorial', 'patriot'\n];\n\n// Non-news keywords that reduce relevance (entertainment, sports)\nconst noiseKeywords = [\n  'nfl', 'nba', 'mlb', 'nhl', 'super bowl', 'playoff', 'championship',\n  'grammy', 'oscar', 'emmy', 'tony', 'golden globe',\n  'album', 'song', 'concert', 'tour', 'spotify',\n  'netflix', 'disney', 'marvel', 'star wars',\n  'game', 'ps5', 'xbox', 'nintendo', 'fortnite', 'wordle',\n  'kardashian', 'bachelor', 'bachelorette', 'reality tv',\n  'happy birthday', 'rip '\n];\n\nlet scoredTrends = xTrends.map((name, index) => {\n  const nameLower = name.toLowerCase();\n  let heat = 20; // base score for being on X trending\n  let sources = ['x'];\n  let velocity = 'steady';\n  \n  // Check Fox News\n  const onFox = fuzzyMatch(name, foxHeadlines);\n  if (onFox) {\n    heat += 30;\n    sources.push('fox');\n  }\n  \n  // Check CFP\n  const onCFP = fuzzyMatch(name, cfpHeadlines);\n  if (onCFP) {\n    heat += 25;\n    sources.push('cfp');\n  }\n  \n  // News/politics keyword boost\n  const isNewsy = newsKeywords.some(kw => nameLower.includes(kw));\n  if (isNewsy) {\n    heat += 15;\n  }\n  \n  // Noise penalty\n  const isNoise = noiseKeywords.some(kw => nameLower.includes(kw));\n  if (isNoise && !onFox && !onCFP) {\n    heat -= 15;\n  }\n  \n  // Position boost (higher ranked = slightly hotter)\n  heat += Math.max(0, 10 - index);\n  \n  // Multi-source bonus\n  if (sources.length >= 3) {\n    heat += 10;\n    velocity = 'rising';\n  } else if (sources.length === 2) {\n    velocity = 'rising';\n  }\n  \n  // Cap heat\n  heat = Math.min(100, Math.max(0, heat));\n  \n  return {\n    name,\n    url: `https://x.com/search?q=${encodeURIComponent(name)}`,\n    tweet_volume: null,\n    heat,\n    sources,\n    velocity,\n    isNews: isNewsy || onFox || onCFP,\n    isNoise: isNoise && !onFox && !onCFP\n  };\n});\n\n// ===== ALSO ADD TOP FOX/CFP HEADLINES NOT ON X =====\n// Extract unique headline topics from Fox and CFP that match news keywords\nfunction extractTopicFromHeadline(headline) {\n  // Try to extract the key subject (first 3-5 meaningful words)\n  const words = headline.split(/\\s+/).filter(w => \n    w.length > 2 && !['the', 'and', 'for', 'but', 'has', 'was', 'are', 'with', 'his', 'her', 'its', 'how', 'why', 'what', 'who', 'new', 'says', 'said', 'will', 'from', 'that', 'this', 'over', 'into', 'than', 'been'].includes(w)\n  );\n  return words.slice(0, 4).join(' ');\n}\n\n// Sort: prioritize news topics, then by heat score\nscored = scoredTrends\n  .filter(t => !t.isNoise || t.heat >= 30) // remove pure noise unless it has decent heat\n  .sort((a, b) => {\n    // News topics first\n    if (a.isNews && !b.isNews) return -1;\n    if (!a.isNews && b.isNews) return 1;\n    // Then by heat\n    return b.heat - a.heat;\n  })\n  .slice(0, 10)\n  .map((t, i) => ({\n    rank: i + 1,\n    name: t.name,\n    url: t.url,\n    tweet_volume: t.tweet_volume,\n    heat: t.heat,\n    sources: t.sources,\n    velocity: t.velocity\n  }));\n\nreturn [{\n  json: {\n    trends: scored,\n    location: 'United States',\n    _debug: {\n      xTrendsFound: xTrends.length,\n      foxHeadlinesFound: foxHeadlines.length,\n      cfpHeadlinesFound: cfpHeadlines.length,\n      foxSample: foxHeadlines.slice(0, 3),\n      cfpSample: cfpHeadlines.slice(0, 3)\n    }\n  }\n}];"
+      },
+      "id": "score-and-filter",
+      "name": "Score & Filter Topics",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [660, 300]
+      "position": [550, 300]
     },
     {
       "parameters": {
@@ -57,13 +85,13 @@
           "options": {
             "caseSensitive": true,
             "leftValue": "",
-            "typeValidation": "strict"
+            "typeValidation": "loose"
           },
           "conditions": [
             {
-              "id": "check-trends-exist",
+              "id": "has-trends",
               "leftValue": "={{ $json.trends.length }}",
-              "rightValue": "0",
+              "rightValue": 0,
               "operator": {
                 "type": "number",
                 "operation": "gt"
@@ -71,13 +99,14 @@
             }
           ],
           "combinator": "and"
-        }
+        },
+        "options": {}
       },
       "id": "check-has-trends",
       "name": "Has Trends?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
-      "position": [880, 300]
+      "position": [800, 300]
     },
     {
       "parameters": {
@@ -98,52 +127,75 @@
         },
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify($json) }}",
+        "jsonBody": "={{ JSON.stringify({ trends: $json.trends, location: $json.location }) }}",
         "options": {}
       },
-      "id": "push-to-newsroom",
-      "name": "Push to Newsroom API",
+      "id": "post-to-newsroom",
+      "name": "POST to Newsroom",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [1100, 220]
+      "position": [1050, 200]
     },
     {
       "parameters": {},
-      "id": "no-trends-alert",
-      "name": "No Trends Found",
+      "id": "no-data",
+      "name": "No Data - Skip",
       "type": "n8n-nodes-base.noOp",
       "typeVersion": 1,
-      "position": [1100, 420]
+      "position": [1050, 400]
     }
   ],
   "connections": {
     "Every 30 Minutes": {
       "main": [
-        [{ "node": "Fetch Trends Page", "type": "main", "index": 0 }]
+        [
+          { "node": "Fetch X Trends", "type": "main", "index": 0 },
+          { "node": "Fetch Fox News", "type": "main", "index": 0 },
+          { "node": "Fetch Citizen Free Press", "type": "main", "index": 0 }
+        ]
       ]
     },
-    "Fetch Trends Page": {
+    "Fetch X Trends": {
       "main": [
-        [{ "node": "Parse Trending Topics", "type": "main", "index": 0 }]
+        [
+          { "node": "Score & Filter Topics", "type": "main", "index": 0 }
+        ]
       ]
     },
-    "Parse Trending Topics": {
+    "Fetch Fox News": {
       "main": [
-        [{ "node": "Has Trends?", "type": "main", "index": 0 }]
+        [
+          { "node": "Score & Filter Topics", "type": "main", "index": 0 }
+        ]
+      ]
+    },
+    "Fetch Citizen Free Press": {
+      "main": [
+        [
+          { "node": "Score & Filter Topics", "type": "main", "index": 0 }
+        ]
+      ]
+    },
+    "Score & Filter Topics": {
+      "main": [
+        [
+          { "node": "Has Trends?", "type": "main", "index": 0 }
+        ]
       ]
     },
     "Has Trends?": {
       "main": [
-        [{ "node": "Push to Newsroom API", "type": "main", "index": 0 }],
-        [{ "node": "No Trends Found", "type": "main", "index": 0 }]
+        [
+          { "node": "POST to Newsroom", "type": "main", "index": 0 }
+        ],
+        [
+          { "node": "No Data - Skip", "type": "main", "index": 0 }
+        ]
       ]
     }
   },
   "settings": {
     "executionOrder": "v1"
   },
-  "tags": [
-    { "name": "newsroom" },
-    { "name": "trending" }
-  ]
+  "tags": []
 }
