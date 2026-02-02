@@ -46,13 +46,13 @@ function wrapInTemplate(title: string, content: string): string {
     </head>
     <body style="margin:0;padding:0;background-color:#f0f3f8;font-family:'Source Sans 3',Georgia,serif;">
       <div style="max-width:600px;margin:0 auto;padding:40px 20px;">
-        <div style="background:#111c30;padding:24px 32px;border-radius:8px 8px 0 0;text-align:center;">
+        <div style="background:#ffffff;padding:24px 32px;border-radius:8px 8px 0 0;text-align:center;border:1px solid #bcc9e1;border-bottom:4px solid #111c30;">
           ${logoUrl ? `
             <img src="${logoUrl}" alt="The NewsRoom"
                  style="height:36px;width:auto;display:inline-block;" />
           ` : `
-            <h1 style="margin:0;color:#ffffff;font-size:20px;font-weight:700;letter-spacing:0.5px;">
-              <span style="color:#ffffff;">The News</span><span style="color:#D42B2B;">Room</span>
+            <h1 style="margin:0;color:#111c30;font-size:20px;font-weight:700;letter-spacing:0.5px;">
+              <span style="color:#111c30;">The News</span><span style="color:#D42B2B;">Room</span>
             </h1>
           `}
         </div>
