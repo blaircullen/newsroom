@@ -22,7 +22,7 @@ interface TrendingTopic {
   tweet_volume: number | null;
   heat: number;
   sources: string[];
-  velocity?: 'rising' | 'steady' | 'new';
+  velocity?: 'rising' | 'steady' | 'new' | 'falling';
 }
 
 interface TrendingData {
@@ -223,6 +223,11 @@ function SidebarTrending() {
                       NEW
                     </span>
                   )}
+                  {trend.velocity === 'falling' && (
+                    <svg viewBox="0 0 8 8" className="w-2.5 h-2.5 text-red-400/80 flex-shrink-0">
+                      <path d="M4 7L7 3H1L4 7Z" fill="currentColor" />
+                    </svg>
+                  )}
                 </div>
                 <div className="flex items-center gap-1">
                   {trend.tweet_volume ? (
@@ -335,3 +340,4 @@ export default function Sidebar() {
     </aside>
   );
 }
+
