@@ -91,27 +91,35 @@ async function fetchUmamiMetrics(
   };
 }
 
+// Accept array of URLs and aggregate stats (route expects this signature)
 export async function getArticleAnalytics(
-  url: string
-): Promise<{ pageviews: number; uniqueVisitors: number }> {
+  urls: string[]
+): Promise<{ totalPageviews: number; totalUniqueVisitors: number }> {
   try {
-    const urlObj = new URL(url);
-    const hostname = urlObj.hostname;
-    const config = WEBSITE_CONFIGS[hostname];
+    let totalPageviews = 0;
+    let totalUniqueVisitors = 0;
 
-    if (!config) {
-      console.warn(`No Umami config found for ${hostname}`);
-      return { pageviews: 0, uniqueVisitors: 0 };
+    for (const url of urls) {
+      const urlObj = new URL(url);
+      const hostname = urlObj.hostname;
+      const config = WEBSITE_CONFIGS[hostname];
+
+      if (!config) {
+        console.warn(`No Umami config found for ${hostname}`);
+        continue;
+      }
+
+      const metrics = await fetchUmamiMetrics(config, url);
+      totalPageviews += metrics.pageviews.value;
+      totalUniqueVisitors += metrics.visitors.value;
     }
 
-    const metrics = await fetchUmamiMetrics(config, url);
-
     return {
-      pageviews: metrics.pageviews.value,
-      uniqueVisitors: metrics.visitors.value,
+      totalPageviews,
+      totalUniqueVisitors,
     };
   } catch (error) {
     console.error('Failed to fetch analytics:', error);
-    return { pageviews: 0, uniqueVisitors: 0 };
+    return { totalPageviews: 0, totalUniqueVisitors: 0 };
   }
 }
