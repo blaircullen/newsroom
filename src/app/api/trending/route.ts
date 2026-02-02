@@ -11,6 +11,9 @@ interface TrendingTopic {
   url: string;
   tweet_volume: number | null;
   category?: string;
+  heat: number; // 0-100 heat score
+  sources: string[]; // which outlets are covering it: ['x', 'fox', 'cfp']
+  velocity?: 'rising' | 'steady' | 'new'; // how fast it's climbing
 }
 
 interface TrendingData {
@@ -34,7 +37,7 @@ async function readTrending(): Promise<TrendingData | null> {
   }
 }
 
-// GET — serve trending topics to the dashboard
+// GET — serve trending topics to the sidebar
 export async function GET() {
   const data = await readTrending();
 
@@ -51,7 +54,6 @@ export async function GET() {
 
 // POST — accept trending data from n8n webhook
 export async function POST(request: NextRequest) {
-  // Simple API key auth — set TRENDING_API_KEY in your .env
   const apiKey = request.headers.get('x-api-key');
   const expectedKey = process.env.TRENDING_API_KEY;
 
@@ -62,7 +64,6 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
 
-    // Validate the payload
     if (!body.trends || !Array.isArray(body.trends)) {
       return NextResponse.json(
         { error: 'Invalid payload: trends array required' },
@@ -70,13 +71,16 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Take only top 5 and normalize
-    const trends: TrendingTopic[] = body.trends.slice(0, 5).map((t: any, i: number) => ({
+    // Take top 10, normalize, include heat data
+    const trends: TrendingTopic[] = body.trends.slice(0, 10).map((t: any, i: number) => ({
       rank: i + 1,
       name: t.name || t.trend || '',
       url: t.url || `https://x.com/search?q=${encodeURIComponent(t.name || t.trend || '')}`,
       tweet_volume: t.tweet_volume || t.tweetVolume || null,
       category: t.category || null,
+      heat: typeof t.heat === 'number' ? Math.min(100, Math.max(0, t.heat)) : 20,
+      sources: Array.isArray(t.sources) ? t.sources : ['x'],
+      velocity: ['rising', 'steady', 'new'].includes(t.velocity) ? t.velocity : 'steady',
     }));
 
     const data: TrendingData = {
