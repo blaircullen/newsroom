@@ -849,13 +849,33 @@ export async function publishArticle(
     return { success: false, error: 'Article must be approved or already published' };
   }
 
-  const target = await prisma.publishTarget.findUnique({
-    where: { id: targetId },
-  });
+  // Use raw SQL to avoid Prisma schema mismatch
+  const targets: any[] = await prisma.$queryRaw`
+    SELECT id, name, type, url, api_key, username, password, blog_id,
+           client_id, client_secret, myshopify_domain, is_active
+    FROM publish_targets
+    WHERE id = ${targetId}
+    LIMIT 1
+  `;
 
-  if (!target || !target.isActive) {
+  if (targets.length === 0 || !targets[0].is_active) {
     return { success: false, error: 'Publish target not found or inactive' };
   }
+
+  const target = {
+    id: targets[0].id,
+    name: targets[0].name,
+    type: targets[0].type,
+    url: targets[0].url,
+    apiKey: targets[0].api_key,
+    username: targets[0].username,
+    password: targets[0].password,
+    blogId: targets[0].blog_id,
+    clientId: targets[0].client_id,
+    clientSecret: targets[0].client_secret,
+    myshopifyDomain: targets[0].myshopify_domain,
+    isActive: targets[0].is_active,
+  };
 
   console.log(`[Publish] Article "${article.headline}" -> ${target.name} (${target.type})`);
 
@@ -899,9 +919,30 @@ export async function publishArticle(
 }
 
 export async function getPublishTargets() {
-  return prisma.publishTarget.findMany({
-    where: { isActive: true },
-    orderBy: { name: 'asc' },
-  });
+  // Use raw SQL to avoid Prisma schema mismatch in production
+  const targets: any[] = await prisma.$queryRaw`
+    SELECT id, name, type, url, api_key, username, password, blog_id,
+           client_id, client_secret, myshopify_domain, is_active, created_at, updated_at
+    FROM publish_targets
+    WHERE is_active = true
+    ORDER BY name ASC
+  `;
+
+  return targets.map((t: any) => ({
+    id: t.id,
+    name: t.name,
+    type: t.type,
+    url: t.url,
+    apiKey: t.api_key,
+    username: t.username,
+    password: t.password,
+    blogId: t.blog_id,
+    clientId: t.client_id,
+    clientSecret: t.client_secret,
+    myshopifyDomain: t.myshopify_domain,
+    isActive: t.is_active,
+    createdAt: t.created_at,
+    updatedAt: t.updated_at,
+  }));
 }
 
