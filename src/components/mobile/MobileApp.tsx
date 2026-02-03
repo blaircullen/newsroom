@@ -44,26 +44,7 @@ export default function MobileApp() {
   const touchStartY = useRef(0);
   const [stats, setStats] = useState({ total: 0, published: 0, drafts: 0, totalViews: 0 });
 
-  // Redirect if not authenticated
-  useEffect(() => {
-    if (status === 'unauthenticated') {
-      router.push('/login');
-    }
-  }, [status, router]);
-
-  // Show loading while checking auth
-  if (status === 'loading' || status === 'unauthenticated') {
-    return (
-      <div className="flex items-center justify-center min-h-screen bg-ink-950">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-press-400" />
-      </div>
-    );
-  }
-
-  if (!session) return null;
-
-  const isAdmin = ['ADMIN', 'EDITOR'].includes(session.user?.role || '');
-
+  // IMPORTANT: All hooks must be defined before any early returns to comply with Rules of Hooks
   const fetchArticles = useCallback(async () => {
     try {
       const params = new URLSearchParams();
@@ -99,12 +80,33 @@ export default function MobileApp() {
     }
   }, []);
 
+  // Redirect if not authenticated
+  useEffect(() => {
+    if (status === 'unauthenticated') {
+      router.push('/login');
+    }
+  }, [status, router]);
+
+  // Fetch data when session is available
   useEffect(() => {
     if (session) {
       fetchArticles();
       fetchHotArticles();
     }
   }, [session, fetchArticles, fetchHotArticles]);
+
+  // Show loading while checking auth - AFTER all hooks are defined
+  if (status === 'loading' || status === 'unauthenticated') {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-ink-950">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-press-400" />
+      </div>
+    );
+  }
+
+  if (!session) return null;
+
+  const isAdmin = ['ADMIN', 'EDITOR'].includes(session.user?.role || '');
 
   const handlePullToRefresh = async () => {
     setIsRefreshing(true);
