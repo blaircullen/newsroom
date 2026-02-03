@@ -1,19 +1,4 @@
 services:
-  db:
-    image: postgres:16-alpine
-    restart: unless-stopped
-    environment:
-      POSTGRES_DB: m3newsroom
-      POSTGRES_USER: newsroom
-      POSTGRES_PASSWORD: ${DB_PASSWORD}
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U newsroom -d m3newsroom"]
-      interval: 5s
-      timeout: 5s
-      retries: 5
-
   app:
     image: ghcr.io/blaircullen/newsroom:latest
     build:
@@ -21,16 +6,12 @@ services:
       dockerfile: Dockerfile
     container_name: newsroom-app
     restart: unless-stopped
-    depends_on:
-      db:
-        condition: service_healthy
     ports:
       - "3000:3000"
     networks:
-      - default
       - caddy-net
     environment:
-      DATABASE_URL: postgresql://newsroom:${DB_PASSWORD}@db:5432/m3newsroom?schema=public
+      DATABASE_URL: ${DATABASE_URL}
       NEXTAUTH_URL: ${NEXTAUTH_URL}
       NEXTAUTH_SECRET: ${NEXTAUTH_SECRET}
       SMTP_HOST: ${SMTP_HOST:-}
@@ -50,21 +31,6 @@ services:
       UMAMI_JOEPAGS_WEBSITE_ID: ${UMAMI_JOEPAGS_WEBSITE_ID:-}
       UMAMI_ROGUERECAP_WEBSITE_ID: ${UMAMI_ROGUERECAP_WEBSITE_ID:-}
       CRON_SECRET: ${CRON_SECRET:-}
-
-  migrate:
-    build:
-      context: .
-      dockerfile: Dockerfile.migrate
-    depends_on:
-      db:
-        condition: service_healthy
-    environment:
-      DATABASE_URL: postgresql://newsroom:${DB_PASSWORD}@db:5432/m3newsroom?schema=public
-    profiles:
-      - setup
-
-volumes:
-  postgres_data:
 
 networks:
   caddy-net:
