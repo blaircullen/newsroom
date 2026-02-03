@@ -1,5 +1,8 @@
 'use client';
-export const dynamic = 'force-dynamic';
+
+import { useIsMobile } from '@/hooks/use-mobile';
+import MobileDashboard from '@/components/mobile/MobileDashboard';
+
 
 import { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
@@ -47,6 +50,12 @@ export default function DashboardPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const filterParam = searchParams.get('filter') || '';
+  const isMobile = useIsMobile();
+
+  // Show mobile-optimized interface for mobile devices
+  if (isMobile) {
+    return <MobileDashboard />;
+  }
 
   const [articles, setArticles] = useState<any[]>([]);
   const [stats, setStats] = useState({ total: 0, submitted: 0, approved: 0, published: 0 });
