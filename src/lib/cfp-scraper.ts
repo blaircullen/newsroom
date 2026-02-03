@@ -52,15 +52,62 @@ export async function scrapeStoryIdeas(): Promise<StoryIdea[]> {
         !text.toLowerCase().includes('subscribe') &&
         !text.toLowerCase().includes('donate')
       ) {
-        // Extract source domain from URL
-        let source = 'Unknown';
+        // Extract source domain from URL with friendly names
+        let source = 'Web';
         try {
           const url = new URL(href);
-          source = url.hostname.replace('www.', '').split('.')[0];
-          // Capitalize first letter
-          source = source.charAt(0).toUpperCase() + source.slice(1);
+          const hostname = url.hostname.replace('www.', '').toLowerCase();
+
+          // Map common domains to friendly names
+          const sourceMap: Record<string, string> = {
+            'x.com': 'Twitter',
+            'twitter.com': 'Twitter',
+            'youtube.com': 'YouTube',
+            'youtu.be': 'YouTube',
+            'reddit.com': 'Reddit',
+            'substack.com': 'Substack',
+            'foxnews.com': 'Fox News',
+            'breitbart.com': 'Breitbart',
+            'dailywire.com': 'Daily Wire',
+            'nypost.com': 'NY Post',
+            'dailymail.co.uk': 'Daily Mail',
+            'thegatewaypundit.com': 'Gateway Pundit',
+            'zerohedge.com': 'ZeroHedge',
+            'rumble.com': 'Rumble',
+            'revolver.news': 'Revolver',
+            'thepostmillennial.com': 'Post Millennial',
+            'townhall.com': 'Townhall',
+            'pjmedia.com': 'PJ Media',
+            'twitchy.com': 'Twitchy',
+            'hotair.com': 'Hot Air',
+            'washingtonexaminer.com': 'Wash Examiner',
+            'newsweek.com': 'Newsweek',
+            'politico.com': 'Politico',
+            'thehill.com': 'The Hill',
+            'axios.com': 'Axios',
+            'reuters.com': 'Reuters',
+            'apnews.com': 'AP News',
+          };
+
+          // Check for exact match first
+          if (sourceMap[hostname]) {
+            source = sourceMap[hostname];
+          } else {
+            // Check if hostname contains any of the keys
+            for (const [domain, name] of Object.entries(sourceMap)) {
+              if (hostname.includes(domain.split('.')[0])) {
+                source = name;
+                break;
+              }
+            }
+            // Fallback: extract and capitalize first part of domain
+            if (source === 'Web') {
+              const parts = hostname.split('.');
+              source = parts[0].charAt(0).toUpperCase() + parts[0].slice(1);
+            }
+          }
         } catch {
-          // Keep as Unknown
+          // Keep as Web
         }
 
         ideas.push({

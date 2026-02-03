@@ -409,6 +409,10 @@ function ArticleCard({ article }: { article: Article }) {
 }
 
 function HotTodayTab({ hotArticles, storyIdeas, activeTab, onTabChange }: any) {
+  const [showAllHot, setShowAllHot] = useState(false);
+  const displayedArticles = showAllHot ? hotArticles : hotArticles.slice(0, 3);
+  const hasMoreArticles = hotArticles.length > 3;
+
   return (
     <div className="min-h-screen bg-slate-900 pb-20">
       <div className="sticky top-0 z-40 bg-slate-900/95 backdrop-blur-xl border-b border-slate-700/50">
@@ -429,44 +433,62 @@ function HotTodayTab({ hotArticles, storyIdeas, activeTab, onTabChange }: any) {
             <p className="text-white/50 text-sm mt-1">Check back soon</p>
           </div>
         ) : (
-          hotArticles.map((article: Article, index: number) => (
-            <div key={article.id} className="relative">
-              <Link href={`/editor/${article.id}`}>
-                <div className="group active:scale-[0.98] transition-transform">
-                  <div className="relative overflow-hidden rounded-2xl bg-slate-800/80 border border-orange-500/40">
-                    <div className="p-4">
-                      <div className="absolute top-3 right-3">
-                        <div className="w-8 h-8 rounded-full bg-gradient-to-br from-orange-500 to-red-500 flex items-center justify-center shadow-lg shadow-orange-500/40">
-                          <span className="text-white text-sm font-bold">{index + 1}</span>
+          <>
+            {displayedArticles.map((article: Article, index: number) => (
+              <div key={article.id} className="relative">
+                <Link href={`/editor/${article.id}`}>
+                  <div className="group active:scale-[0.98] transition-transform">
+                    <div className="relative overflow-hidden rounded-2xl bg-slate-800/80 border border-orange-500/40">
+                      <div className="p-4">
+                        <div className="absolute top-3 right-3">
+                          <div className="w-8 h-8 rounded-full bg-gradient-to-br from-orange-500 to-red-500 flex items-center justify-center shadow-lg shadow-orange-500/40">
+                            <span className="text-white text-sm font-bold">{index + 1}</span>
+                          </div>
                         </div>
-                      </div>
 
-                      <h3 className="text-base font-bold text-white line-clamp-2 leading-snug mb-2 pr-10">
-                        {article.headline}
-                      </h3>
+                        <h3 className="text-base font-bold text-white line-clamp-2 leading-snug mb-2 pr-10">
+                          {article.headline}
+                        </h3>
 
-                      {article.author?.name && (
-                        <p className="text-xs text-white/50 mb-2">
-                          by <span className="text-white/70 font-medium">{article.author.name}</span>
-                        </p>
-                      )}
+                        {article.author?.name && (
+                          <p className="text-xs text-white/50 mb-2">
+                            by <span className="text-white/70 font-medium">{article.author.name}</span>
+                          </p>
+                        )}
 
-                      <div className="flex items-center gap-4 text-sm">
-                        <div className="flex items-center gap-1 text-orange-300 font-semibold">
-                          <HiOutlineEye className="w-4 h-4" />
-                          <span>{(article.totalPageviews || 0).toLocaleString()}</span>
-                        </div>
-                        <div className="flex items-center gap-1 text-white/60">
-                          <HiOutlineArrowTrendingUp className="w-4 h-4" />
-                          <span>{article.totalUniqueVisitors || 0} unique</span>
+                        <div className="flex items-center gap-4 text-sm">
+                          <div className="flex items-center gap-1 text-orange-300 font-semibold">
+                            <HiOutlineEye className="w-4 h-4" />
+                            <span>{(article.totalPageviews || 0).toLocaleString()}</span>
+                          </div>
+                          <div className="flex items-center gap-1 text-white/60">
+                            <HiOutlineArrowTrendingUp className="w-4 h-4" />
+                            <span>{article.totalUniqueVisitors || 0} unique</span>
+                          </div>
                         </div>
                       </div>
                     </div>
                   </div>
-                </div>
-              </Link>
-            </div>
-          ))
+                </Link>
+              </div>
+            ))}
+
+            {hasMoreArticles && (
+              <button
+                onClick={() => setShowAllHot(!showAllHot)}
+                className="w-full py-3 rounded-xl bg-slate-800/50 border border-slate-700/50 text-white/70 text-sm font-medium flex items-center justify-center gap-2 active:scale-[0.98] transition-all"
+              >
+                {showAllHot ? (
+                  <>Show Less</>
+                ) : (
+                  <>
+                    <span>Show {hotArticles.length - 3} More</span>
+                    <span className="text-orange-400">#{4}-{hotArticles.length}</span>
+                  </>
+                )}
+              </button>
+            )}
+          </>
         )}
       </div>
 
