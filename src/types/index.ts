@@ -1,6 +1,7 @@
 import { Role, ArticleStatus } from '@prisma/client';
 import 'next-auth';
 
+// NextAuth session type augmentation
 declare module 'next-auth' {
   interface User {
     id: string;

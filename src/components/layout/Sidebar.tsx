@@ -107,21 +107,32 @@ function SidebarTrending() {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
+    let isMounted = true;
+
     const fetchTrending = async () => {
       try {
         const res = await fetch('/api/trending');
-        if (!res.ok) throw new Error();
-        setData(await res.json());
+        if (!res.ok) throw new Error('Failed to fetch');
+        const json = await res.json();
+        if (isMounted) {
+          setData(json);
+          setIsLoading(false);
+        }
       } catch {
-        setData(null);
-      } finally {
-        setIsLoading(false);
+        if (isMounted) {
+          setData(null);
+          setIsLoading(false);
+        }
       }
     };
 
     fetchTrending();
     const interval = setInterval(fetchTrending, 5 * 60 * 1000);
-    return () => clearInterval(interval);
+
+    return () => {
+      isMounted = false;
+      clearInterval(interval);
+    };
   }, []);
 
   if (isLoading) {

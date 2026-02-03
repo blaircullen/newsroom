@@ -18,23 +18,26 @@ interface TokenCache {
 const tokenCache = new Map<string, TokenCache>();
 const TOKEN_TTL = 50 * 60 * 1000; // 50 minutes (Umami tokens last 1 hour)
 
-const WEBSITE_CONFIGS: Record<string, WebsiteConfig> = {
-  'lizpeek.com': {
-    websiteId: process.env.UMAMI_LIZPEEK_WEBSITE_ID || '',
-    username: process.env.UMAMI_USERNAME || '',
-    password: process.env.UMAMI_PASSWORD || '',
-  },
-  'joepags.com': {
-    websiteId: process.env.UMAMI_JOEPAGS_WEBSITE_ID || '',
-    username: process.env.UMAMI_USERNAME || '',
-    password: process.env.UMAMI_PASSWORD || '',
-  },
-  'roguerecap.com': {
-    websiteId: process.env.UMAMI_ROGUERECAP_WEBSITE_ID || '',
-    username: process.env.UMAMI_USERNAME || '',
-    password: process.env.UMAMI_PASSWORD || '',
-  },
-};
+// Lazy-load website configs to avoid accessing undefined env vars at module load
+function getWebsiteConfigs(): Record<string, WebsiteConfig> {
+  return {
+    'lizpeek.com': {
+      websiteId: process.env.UMAMI_LIZPEEK_WEBSITE_ID || '',
+      username: process.env.UMAMI_USERNAME || '',
+      password: process.env.UMAMI_PASSWORD || '',
+    },
+    'joepags.com': {
+      websiteId: process.env.UMAMI_JOEPAGS_WEBSITE_ID || '',
+      username: process.env.UMAMI_USERNAME || '',
+      password: process.env.UMAMI_PASSWORD || '',
+    },
+    'roguerecap.com': {
+      websiteId: process.env.UMAMI_ROGUERECAP_WEBSITE_ID || '',
+      username: process.env.UMAMI_USERNAME || '',
+      password: process.env.UMAMI_PASSWORD || '',
+    },
+  };
+}
 
 async function getAuthToken(username: string, password: string): Promise<string> {
   // Check cache first
@@ -45,7 +48,7 @@ async function getAuthToken(username: string, password: string): Promise<string>
 
   // Cache miss or expired - get fresh token
   const baseUrl = process.env.UMAMI_URL;
-  
+
   const response = await fetch(`${baseUrl}/api/auth/login`, {
     method: 'POST',
     headers: {
@@ -59,13 +62,13 @@ async function getAuthToken(username: string, password: string): Promise<string>
   }
 
   const data = await response.json();
-  
+
   // Cache the token
   tokenCache.set(username, {
     token: data.token,
     expiresAt: Date.now() + TOKEN_TTL,
   });
-  
+
   return data.token;
 }
 
@@ -114,35 +117,43 @@ async function fetchUmamiMetrics(
   };
 }
 
-// Accept array of URLs and aggregate stats (route expects this signature)
+// Accept array of URLs and aggregate stats using Promise.all + reduce to avoid race conditions
 export async function getArticleAnalytics(
   urls: string[]
 ): Promise<{ totalPageviews: number; totalUniqueVisitors: number }> {
-  try {
-    let totalPageviews = 0;
-    let totalUniqueVisitors = 0;
+  const websiteConfigs = getWebsiteConfigs();
 
-    for (const url of urls) {
+  // Build fetch promises for all URLs
+  const fetchPromises = urls.map(async (url) => {
+    try {
       const urlObj = new URL(url);
       const hostname = urlObj.hostname;
-      const config = WEBSITE_CONFIGS[hostname];
+      const config = websiteConfigs[hostname];
 
-      if (!config) {
+      if (!config || !config.websiteId) {
         console.warn(`No Umami config found for ${hostname}`);
-        continue;
+        return { pageviews: 0, visitors: 0 };
       }
 
       const metrics = await fetchUmamiMetrics(config, url);
-      totalPageviews += metrics.pageviews.value;
-      totalUniqueVisitors += metrics.visitors.value;
+      return {
+        pageviews: metrics.pageviews.value,
+        visitors: metrics.visitors.value,
+      };
+    } catch (error) {
+      console.error(`Failed to fetch analytics for ${url}:`, error);
+      return { pageviews: 0, visitors: 0 };
     }
+  });
 
-    return {
-      totalPageviews,
-      totalUniqueVisitors,
-    };
-  } catch (error) {
-    console.error('Failed to fetch analytics:', error);
-    return { totalPageviews: 0, totalUniqueVisitors: 0 };
-  }
+  // Wait for all fetches and aggregate results using reduce (thread-safe)
+  const results = await Promise.all(fetchPromises);
+
+  return results.reduce(
+    (acc, result) => ({
+      totalPageviews: acc.totalPageviews + result.pageviews,
+      totalUniqueVisitors: acc.totalUniqueVisitors + result.visitors,
+    }),
+    { totalPageviews: 0, totalUniqueVisitors: 0 }
+  );
 }

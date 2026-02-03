@@ -16,26 +16,40 @@ export default function TagInput({ tags, onChange }: TagInputProps) {
   const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    const fetchSuggestions = async () => {
-      if (input.length < 1) {
-        setSuggestions([]);
-        return;
-      }
+    if (input.length < 1) {
+      setSuggestions([]);
+      setShowSuggestions(false);
+      return;
+    }
 
+    let isCancelled = false;
+
+    const fetchSuggestions = async () => {
       try {
         const res = await fetch(`/api/tags?q=${encodeURIComponent(input)}`);
-        const data = await res.json();
-        setSuggestions(
-          data.filter((t: any) => !tags.includes(t.name))
-        );
-        setShowSuggestions(true);
+        if (!res.ok) throw new Error('Failed to fetch');
+
+        const data: { id: string; name: string }[] = await res.json();
+
+        if (!isCancelled) {
+          const filtered = data.filter((t) => !tags.includes(t.name));
+          setSuggestions(filtered);
+          setShowSuggestions(filtered.length > 0);
+        }
       } catch (error) {
         console.error('Failed to fetch tag suggestions:', error);
+        if (!isCancelled) {
+          setSuggestions([]);
+        }
       }
     };
 
     const timer = setTimeout(fetchSuggestions, 200);
-    return () => clearTimeout(timer);
+
+    return () => {
+      isCancelled = true;
+      clearTimeout(timer);
+    };
   }, [input, tags]);
 
   // Close suggestions on click outside

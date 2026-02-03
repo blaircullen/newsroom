@@ -3,6 +3,19 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import prisma from '@/lib/prisma';
 import slugify from 'slugify';
+import { ArticleStatus, Prisma } from '@prisma/client';
+
+// Valid article statuses for validation
+const VALID_STATUSES = new Set<string>([
+  'DRAFT', 'SUBMITTED', 'IN_REVIEW', 'REVISION_REQUESTED', 'APPROVED', 'PUBLISHED', 'REJECTED'
+]);
+
+// Valid sort options
+const VALID_SORT_OPTIONS = new Set(['updatedAt', 'publishedAt', 'pageviews', 'visitors']);
+
+// Maximum limits to prevent abuse
+const MAX_LIMIT = 100;
+const DEFAULT_LIMIT = 20;
 
 // GET /api/articles - List articles
 export async function GET(request: NextRequest) {
@@ -14,25 +27,34 @@ export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const status = searchParams.get('status');
   const authorId = searchParams.get('authorId');
-  const page = parseInt(searchParams.get('page') || '1');
-  const limit = parseInt(searchParams.get('limit') || '20');
-  const sortBy = searchParams.get('sortBy') || 'updatedAt'; // updatedAt, publishedAt, pageviews
+  const sortByParam = searchParams.get('sortBy') || 'updatedAt';
 
-  const where: any = {};
+  // Validate and sanitize pagination params
+  const page = Math.max(1, parseInt(searchParams.get('page') || '1', 10) || 1);
+  const limit = Math.min(MAX_LIMIT, Math.max(1, parseInt(searchParams.get('limit') || String(DEFAULT_LIMIT), 10) || DEFAULT_LIMIT));
+
+  // Validate sortBy parameter
+  const sortBy = VALID_SORT_OPTIONS.has(sortByParam) ? sortByParam : 'updatedAt';
+
+  const where: Prisma.ArticleWhereInput = {};
 
   // Writers can only see their own articles
   if (session.user.role === 'WRITER') {
     where.authorId = session.user.id;
   } else if (authorId) {
-    where.authorId = authorId;
+    // Validate authorId format (cuid)
+    if (/^c[a-z0-9]{24}$/i.test(authorId)) {
+      where.authorId = authorId;
+    }
   }
 
-  if (status) {
-    where.status = status.toUpperCase();
+  // Validate status parameter
+  if (status && VALID_STATUSES.has(status.toUpperCase())) {
+    where.status = status.toUpperCase() as ArticleStatus;
   }
 
   // Determine sort order
-  let orderBy: any;
+  let orderBy: Prisma.ArticleOrderByWithRelationInput;
   switch (sortBy) {
     case 'publishedAt':
       orderBy = { publishedAt: 'desc' };
@@ -79,6 +101,13 @@ export async function GET(request: NextRequest) {
   });
 }
 
+// Input validation constants
+const MAX_HEADLINE_LENGTH = 500;
+const MAX_SUBHEADLINE_LENGTH = 1000;
+const MAX_BODY_LENGTH = 500000; // 500KB
+const MAX_TAGS = 20;
+const MAX_TAG_NAME_LENGTH = 100;
+
 // POST /api/articles - Create new article
 export async function POST(request: NextRequest) {
   const session = await getServerSession(authOptions);
@@ -86,27 +115,56 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
-  const body = await request.json();
-  const { headline, subHeadline, bodyContent, bodyHtml, featuredImage, featuredImageId, imageCredit, tags } = body;
-
-  if (!headline || !bodyContent) {
-    return NextResponse.json(
-      { error: 'Headline and body are required' },
-      { status: 400 }
-    );
+  let body: Record<string, unknown>;
+  try {
+    body = await request.json();
+  } catch {
+    return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 });
   }
 
-  const slug = slugify(headline, { lower: true, strict: true });
+  const { headline, subHeadline, bodyContent, bodyHtml, featuredImage, featuredImageId, imageCredit, tags } = body;
 
-  // Create or connect tags
-  const tagConnections = [];
+  // Validate required fields
+  if (typeof headline !== 'string' || !headline.trim()) {
+    return NextResponse.json({ error: 'Headline is required' }, { status: 400 });
+  }
+
+  if (typeof bodyContent !== 'string' || !bodyContent.trim()) {
+    return NextResponse.json({ error: 'Body content is required' }, { status: 400 });
+  }
+
+  // Validate field lengths
+  if (headline.length > MAX_HEADLINE_LENGTH) {
+    return NextResponse.json({ error: `Headline must be under ${MAX_HEADLINE_LENGTH} characters` }, { status: 400 });
+  }
+
+  if (subHeadline && typeof subHeadline === 'string' && subHeadline.length > MAX_SUBHEADLINE_LENGTH) {
+    return NextResponse.json({ error: `Subheadline must be under ${MAX_SUBHEADLINE_LENGTH} characters` }, { status: 400 });
+  }
+
+  if (bodyContent.length > MAX_BODY_LENGTH) {
+    return NextResponse.json({ error: 'Article body is too long' }, { status: 400 });
+  }
+
+  const slug = slugify(headline.trim(), { lower: true, strict: true });
+
+  // Process and validate tags
+  const tagConnections: { tag: { connect: { id: string } } }[] = [];
   if (tags && Array.isArray(tags)) {
-    for (const tagName of tags) {
-      const tagSlug = slugify(tagName, { lower: true, strict: true });
+    const uniqueTags = Array.from(new Set(tags.slice(0, MAX_TAGS).filter((t): t is string => typeof t === 'string' && Boolean(t.trim()))));
+
+    for (const tagName of uniqueTags) {
+      if (tagName.length > MAX_TAG_NAME_LENGTH) continue;
+
+      const trimmedName = tagName.trim();
+      const tagSlug = slugify(trimmedName, { lower: true, strict: true });
+
+      if (!tagSlug) continue;
+
       const tag = await prisma.tag.upsert({
         where: { slug: tagSlug },
         update: {},
-        create: { name: tagName, slug: tagSlug },
+        create: { name: trimmedName, slug: tagSlug },
       });
       tagConnections.push({
         tag: { connect: { id: tag.id } },
@@ -116,14 +174,14 @@ export async function POST(request: NextRequest) {
 
   const article = await prisma.article.create({
     data: {
-      headline,
-      subHeadline: subHeadline || null,
-      body: bodyContent,
-      bodyHtml: bodyHtml || null,
+      headline: headline.trim(),
+      subHeadline: typeof subHeadline === 'string' ? subHeadline.trim() || null : null,
+      body: bodyContent.trim(),
+      bodyHtml: typeof bodyHtml === 'string' ? bodyHtml : null,
       slug,
-      featuredImage: featuredImage || null,
-      featuredImageId: featuredImageId || null,
-      imageCredit: imageCredit || null,
+      featuredImage: typeof featuredImage === 'string' ? featuredImage : null,
+      featuredImageId: typeof featuredImageId === 'string' ? featuredImageId : null,
+      imageCredit: typeof imageCredit === 'string' ? imageCredit.trim() || null : null,
       status: 'DRAFT',
       authorId: session.user.id,
       tags: {

@@ -44,15 +44,18 @@ export default function ImagePicker({ isOpen, onClose, onSelect, selectedImageId
   const [uploadError, setUploadError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const fetchImages = useCallback(async (query?: string, pageToken?: string) => {
+  const fetchImages = useCallback(async (query?: string, pageToken?: string, signal?: AbortSignal) => {
     setIsLoading(true);
     try {
       const params = new URLSearchParams();
       if (query) params.set('q', query);
       if (pageToken) params.set('pageToken', pageToken);
 
-      const res = await fetch(`/api/drive-images?${params}`);
-      const data = await res.json();
+      const res = await fetch(`/api/drive-images?${params}`, { signal });
+
+      if (!res.ok) throw new Error('Failed to fetch');
+
+      const data: { images: DriveImage[]; nextPageToken?: string } = await res.json();
 
       if (pageToken) {
         setImages((prev) => [...prev, ...data.images]);
@@ -61,25 +64,35 @@ export default function ImagePicker({ isOpen, onClose, onSelect, selectedImageId
       }
       setNextPageToken(data.nextPageToken || null);
     } catch (error) {
-      console.error('Failed to fetch images:', error);
+      if ((error as Error).name !== 'AbortError') {
+        console.error('Failed to fetch images:', error);
+      }
     } finally {
       setIsLoading(false);
     }
   }, []);
 
   useEffect(() => {
-    if (isOpen && activeTab === 'browse') {
-      fetchImages();
-    }
+    if (!isOpen || activeTab !== 'browse') return;
+
+    const controller = new AbortController();
+    fetchImages(undefined, undefined, controller.signal);
+
+    return () => controller.abort();
   }, [isOpen, activeTab, fetchImages]);
 
   useEffect(() => {
+    if (!isOpen || activeTab !== 'browse') return;
+
+    const controller = new AbortController();
     const timer = setTimeout(() => {
-      if (isOpen && activeTab === 'browse') {
-        fetchImages(search || undefined);
-      }
+      fetchImages(search || undefined, undefined, controller.signal);
     }, 300);
-    return () => clearTimeout(timer);
+
+    return () => {
+      clearTimeout(timer);
+      controller.abort();
+    };
   }, [search, isOpen, activeTab, fetchImages]);
 
   // Reset upload state when closing or switching tabs

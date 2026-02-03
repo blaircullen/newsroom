@@ -1,14 +1,25 @@
 import nodemailer from 'nodemailer';
 
-const transporter = nodemailer.createTransport({
-  host: process.env.SMTP_HOST || 'smtp.gmail.com',
-  port: parseInt(process.env.SMTP_PORT || '587'),
-  secure: false,
-  auth: {
-    user: process.env.SMTP_USER,
-    pass: process.env.SMTP_PASSWORD,
-  },
-});
+// Lazy-load transporter to avoid connection issues at module load
+let transporter: nodemailer.Transporter | null = null;
+
+function getTransporter(): nodemailer.Transporter {
+  if (!transporter) {
+    transporter = nodemailer.createTransport({
+      host: process.env.SMTP_HOST || 'smtp.gmail.com',
+      port: parseInt(process.env.SMTP_PORT || '587', 10),
+      secure: process.env.SMTP_SECURE === 'true',
+      auth: {
+        user: process.env.SMTP_USER,
+        pass: process.env.SMTP_PASSWORD,
+      },
+      // Connection pool for better performance
+      pool: true,
+      maxConnections: 5,
+    });
+  }
+  return transporter;
+}
 
 interface EmailOptions {
   to: string | string[];
@@ -16,9 +27,26 @@ interface EmailOptions {
   html: string;
 }
 
-export async function sendEmail({ to, subject, html }: EmailOptions) {
+// Escape HTML to prevent XSS in email content
+function escapeHtml(str: string): string {
+  const htmlEscapes: Record<string, string> = {
+    '&': '&amp;',
+    '<': '&lt;',
+    '>': '&gt;',
+    '"': '&quot;',
+    "'": '&#39;',
+  };
+  return str.replace(/[&<>"']/g, (char) => htmlEscapes[char]);
+}
+
+export async function sendEmail({ to, subject, html }: EmailOptions): Promise<{
+  success: boolean;
+  messageId?: string;
+  error?: unknown;
+}> {
   try {
-    const info = await transporter.sendMail({
+    const transport = getTransporter();
+    const info = await transport.sendMail({
       from: process.env.SMTP_FROM || 'NewsRoom <noreply@m3media.com>',
       to: Array.isArray(to) ? to.join(', ') : to,
       subject,
@@ -78,24 +106,29 @@ export async function sendSubmissionConfirmation(
   headline: string,
   articleId: string
 ) {
+  const safeWriterName = escapeHtml(writerName);
+  const safeHeadline = escapeHtml(headline);
+  const safeArticleId = escapeHtml(articleId);
+  const dashboardUrl = `${process.env.NEXTAUTH_URL || ''}/dashboard`;
+
   return sendEmail({
     to: writerEmail,
     subject: `Story Submitted: "${headline}"`,
     html: `
       <p style="color:#192842;font-size:15px;line-height:1.6;">
-        Hi ${writerName},
+        Hi ${safeWriterName},
       </p>
       <p style="color:#192842;font-size:15px;line-height:1.6;">
-        Your story <strong>"${headline}"</strong> has been successfully submitted for review.
+        Your story <strong>"${safeHeadline}"</strong> has been successfully submitted for review.
         Our editorial team will review it shortly.
       </p>
       <p style="color:#192842;font-size:15px;line-height:1.6;">
         You can track the status of your story in the
-        <a href="${process.env.NEXTAUTH_URL}/dashboard" style="color:#D42B2B;">newsroom dashboard</a>.
+        <a href="${dashboardUrl}" style="color:#D42B2B;">newsroom dashboard</a>.
       </p>
       <div style="margin:24px 0;padding:16px;background:#fef2f2;border-left:4px solid #D42B2B;border-radius:0 4px 4px 0;">
         <p style="margin:0;color:#465f94;font-size:13px;">
-          Article ID: ${articleId}
+          Article ID: ${safeArticleId}
         </p>
       </div>
     `,
@@ -108,6 +141,11 @@ export async function sendEditorNotification(
   headline: string,
   articleId: string
 ) {
+  const safeWriterName = escapeHtml(writerName);
+  const safeHeadline = escapeHtml(headline);
+  const safeArticleId = escapeHtml(articleId);
+  const editorUrl = `${process.env.NEXTAUTH_URL || ''}/editor/${safeArticleId}`;
+
   return sendEmail({
     to: editorEmails,
     subject: `New Submission for Review: "${headline}"`,
@@ -116,10 +154,10 @@ export async function sendEditorNotification(
         A new story has been submitted for your review:
       </p>
       <div style="margin:20px 0;padding:20px;background:#f0f3f8;border-radius:6px;border:1px solid #bcc9e1;">
-        <h3 style="margin:0 0 8px;color:#111c30;font-size:16px;">${headline}</h3>
-        <p style="margin:0;color:#6580b0;font-size:14px;">By ${writerName}</p>
+        <h3 style="margin:0 0 8px;color:#111c30;font-size:16px;">${safeHeadline}</h3>
+        <p style="margin:0;color:#6580b0;font-size:14px;">By ${safeWriterName}</p>
       </div>
-      <a href="${process.env.NEXTAUTH_URL}/editor/${articleId}" 
+      <a href="${editorUrl}"
          style="display:inline-block;padding:12px 24px;background:#111c30;color:#ffffff;text-decoration:none;border-radius:6px;font-size:14px;font-weight:600;">
         Review Story →
       </a>
@@ -134,13 +172,18 @@ export async function sendReviewDecision(
   decision: 'approved' | 'revision_requested' | 'rejected',
   notes?: string
 ) {
-  const decisionText = {
-    approved: 'Your story has been approved! 🎉',
+  const safeWriterName = escapeHtml(writerName);
+  const safeHeadline = escapeHtml(headline);
+  const safeNotes = notes ? escapeHtml(notes) : '';
+  const dashboardUrl = `${process.env.NEXTAUTH_URL || ''}/dashboard`;
+
+  const decisionText: Record<typeof decision, string> = {
+    approved: 'Your story has been approved!',
     revision_requested: 'Your story needs some revisions.',
     rejected: 'Your story was not approved at this time.',
   };
 
-  const decisionColor = {
+  const decisionColor: Record<typeof decision, string> = {
     approved: '#16a34a',
     revision_requested: '#D42B2B',
     rejected: '#dc2626',
@@ -151,7 +194,7 @@ export async function sendReviewDecision(
     subject: `Review Decision: "${headline}"`,
     html: `
       <p style="color:#192842;font-size:15px;line-height:1.6;">
-        Hi ${writerName},
+        Hi ${safeWriterName},
       </p>
       <div style="margin:20px 0;padding:16px;background:#f0f3f8;border-left:4px solid ${decisionColor[decision]};border-radius:0 4px 4px 0;">
         <p style="margin:0;color:#111c30;font-size:15px;font-weight:600;">
@@ -159,15 +202,15 @@ export async function sendReviewDecision(
         </p>
       </div>
       <p style="color:#192842;font-size:15px;line-height:1.6;">
-        Story: <strong>"${headline}"</strong>
+        Story: <strong>"${safeHeadline}"</strong>
       </p>
-      ${notes ? `
+      ${safeNotes ? `
         <div style="margin:20px 0;padding:16px;background:#f0f3f8;border-radius:6px;">
           <p style="margin:0 0 8px;color:#465f94;font-size:13px;text-transform:uppercase;letter-spacing:0.5px;">Editor Notes</p>
-          <p style="margin:0;color:#192842;font-size:14px;line-height:1.6;">${notes}</p>
+          <p style="margin:0;color:#192842;font-size:14px;line-height:1.6;">${safeNotes}</p>
         </div>
       ` : ''}
-      <a href="${process.env.NEXTAUTH_URL}/dashboard" 
+      <a href="${dashboardUrl}"
          style="display:inline-block;padding:12px 24px;background:#111c30;color:#ffffff;text-decoration:none;border-radius:6px;font-size:14px;font-weight:600;">
         View in Dashboard →
       </a>

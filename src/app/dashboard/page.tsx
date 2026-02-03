@@ -25,7 +25,7 @@ import {
   HiOutlineChartBarSquare,
 } from 'react-icons/hi2';
 
-const STATUS_CONFIG: Record<string, { label: string; class: string; icon: any }> = {
+const STATUS_CONFIG: Record<string, { label: string; class: string; icon: React.ComponentType<{ className?: string }> }> = {
   DRAFT: { label: 'Draft', class: 'status-draft', icon: HiOutlineDocumentText },
   SUBMITTED: { label: 'Submitted', class: 'status-submitted', icon: HiOutlinePaperAirplane },
   IN_REVIEW: { label: 'In Review', class: 'status-in-review', icon: HiOutlineEye },
@@ -44,13 +44,28 @@ const FILTERS = [
   { value: 'REVISION_REQUESTED', label: 'Needs Revision' },
 ];
 
+interface Article {
+  id: string;
+  headline: string;
+  subHeadline?: string;
+  status: string;
+  featuredImage?: string;
+  publishedUrl?: string;
+  totalPageviews: number;
+  totalUniqueVisitors: number;
+  analyticsUpdatedAt?: string;
+  updatedAt: string;
+  author: { name: string };
+  tags: { tag: { name: string } }[];
+}
+
 function DesktopDashboard() {
   const { data: session } = useSession();
   const router = useRouter();
   const searchParams = useSearchParams();
   const filterParam = searchParams.get('filter') || '';
 
-  const [articles, setArticles] = useState<any[]>([]);
+  const [articles, setArticles] = useState<Article[]>([]);
   const [stats, setStats] = useState({ total: 0, submitted: 0, approved: 0, published: 0 });
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
@@ -71,22 +86,34 @@ function DesktopDashboard() {
       params.set('page', currentPage.toString());
       params.set('sortBy', sortBy);
 
-      const res = await fetch(`/api/articles?${params}`);
-      const data = await res.json();
-      setArticles(data.articles || []);
-      setTotalPages(data.pagination?.pages || 1);
+      // Fetch filtered articles and stats in parallel for better performance
+      const [filteredRes, statsRes] = await Promise.all([
+        fetch(`/api/articles?${params}`),
+        fetch('/api/articles?limit=1000'),
+      ]);
 
-      // Calculate stats from all articles
-      const allRes = await fetch('/api/articles?limit=1000');
-      const allData = await allRes.json();
-      const all = allData.articles || [];
-      
-      setStats({
-        total: all.length,
-        submitted: all.filter((a: any) => a.status === 'SUBMITTED').length,
-        approved: all.filter((a: any) => a.status === 'APPROVED').length,
-        published: all.filter((a: any) => a.status === 'PUBLISHED').length,
-      });
+      const [filteredData, statsData] = await Promise.all([
+        filteredRes.json(),
+        statsRes.json(),
+      ]);
+
+      setArticles(filteredData.articles || []);
+      setTotalPages(filteredData.pagination?.pages || 1);
+
+      // Calculate stats from all articles using reduce for efficiency
+      const all = statsData.articles || [];
+      const calculatedStats = all.reduce(
+        (acc: { total: number; submitted: number; approved: number; published: number }, a: { status: string }) => {
+          acc.total++;
+          if (a.status === 'SUBMITTED') acc.submitted++;
+          else if (a.status === 'APPROVED') acc.approved++;
+          else if (a.status === 'PUBLISHED') acc.published++;
+          return acc;
+        },
+        { total: 0, submitted: 0, approved: 0, published: 0 }
+      );
+
+      setStats(calculatedStats);
     } catch (error) {
       console.error('Failed to fetch articles:', error);
     } finally {
@@ -116,8 +143,9 @@ function DesktopDashboard() {
       toast.success('Story deleted');
       setDeleteConfirm(null);
       fetchArticles();
-    } catch (error: any) {
-      toast.error(error.message || 'Failed to delete');
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to delete';
+      toast.error(message);
     } finally {
       setIsDeleting(false);
     }
@@ -131,17 +159,18 @@ function DesktopDashboard() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({})
       });
-      
+
       if (!res.ok) {
         const data = await res.json();
         throw new Error(data.error || 'Failed to refresh analytics');
       }
-      
+
       const data = await res.json();
       toast.success(data.message || 'Analytics refreshed');
       fetchArticles();
-    } catch (error: any) {
-      toast.error(error.message || 'Failed to refresh analytics');
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to refresh analytics';
+      toast.error(message);
     } finally {
       setIsRefreshingAnalytics(false);
     }
@@ -282,11 +311,11 @@ function DesktopDashboard() {
             // Calculate high-performing articles
             const publishedArticles = articles.filter(a => a.status === 'PUBLISHED' && a.totalPageviews > 0);
             const pageviewsArray = publishedArticles.map(a => a.totalPageviews).sort((a, b) => a - b);
-            const medianPageviews = pageviewsArray.length > 0 
-              ? pageviewsArray[Math.floor(pageviewsArray.length / 2)] 
+            const medianPageviews = pageviewsArray.length > 0
+              ? pageviewsArray[Math.floor(pageviewsArray.length / 2)]
               : 0;
             const topPerformerThreshold = medianPageviews * 2.5; // 2.5x median
-            
+
             return articles.map((article) => {
             const config = STATUS_CONFIG[article.status] || STATUS_CONFIG.DRAFT;
             const hasAnalytics = article.status === 'PUBLISHED' && (article.totalPageviews > 0 || article.totalUniqueVisitors > 0);
@@ -295,7 +324,7 @@ function DesktopDashboard() {
               <div
                 key={article.id}
                 className={`rounded-xl border transition-all duration-200 group relative p-5 ${
-                  isTopPerformer 
+                  isTopPerformer
                     ? 'bg-gradient-to-br from-amber-50 to-orange-50 border-transparent shadow-lg shadow-amber-100/50 ring-2 ring-amber-400/30'
                     : 'bg-white border-ink-100 hover:shadow-card-hover hover:border-ink-200'
                 }`}
@@ -363,7 +392,7 @@ function DesktopDashboard() {
                         </span>
                         {article.tags.length > 0 && (
                           <span className="flex items-center gap-1">
-                            {article.tags.slice(0, 3).map((t: any) => t.tag.name).join(', ')}
+                            {article.tags.slice(0, 3).map((t) => t.tag.name).join(', ')}
                             {article.tags.length > 3 && ` +${article.tags.length - 3}`}
                           </span>
                         )}
@@ -451,7 +480,7 @@ function DesktopDashboard() {
             >
               Previous
             </button>
-            
+
             {/* Page numbers */}
             <div className="flex items-center gap-1">
               {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
@@ -465,7 +494,7 @@ function DesktopDashboard() {
                 } else {
                   pageNum = currentPage - 2 + i;
                 }
-                
+
                 return (
                   <button
                     key={pageNum}
@@ -554,7 +583,7 @@ function StatCard({
 }: {
   label: string;
   value: number;
-  icon: any;
+  icon: React.ComponentType<{ className?: string }>;
   color: string;
   highlight?: boolean;
 }) {

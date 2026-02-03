@@ -7,6 +7,38 @@ interface PublishResult {
   error?: string;
 }
 
+interface ArticleForPublish {
+  headline: string;
+  subHeadline?: string | null;
+  bodyHtml?: string | null;
+  body: string;
+  featuredImage?: string | null;
+  imageCredit?: string | null;
+  slug?: string | null;
+  tags: { tag: { name: string } }[];
+}
+
+interface GhostTarget {
+  url: string;
+  apiKey?: string | null;
+}
+
+interface WordPressTarget {
+  url: string;
+  username?: string | null;
+  password?: string | null;
+}
+
+interface ImageData {
+  buffer: Buffer;
+  contentType: string;
+  ext: string;
+}
+
+// Constants
+const IMAGE_FETCH_TIMEOUT = 30000;
+const API_TIMEOUT = 60000;
+
 // Transform tweet embed placeholders into standard Twitter blockquote format
 function transformTweetEmbeds(html: string): string {
   if (!html) return html;
@@ -38,9 +70,25 @@ function generateGhostToken(apiKey: string): string {
   return `${header}.${payload}.${signature}`;
 }
 
+// Map content type to file extension
+function getExtFromContentType(contentType: string): string {
+  const typeMap: Record<string, string> = {
+    'image/png': 'png',
+    'image/gif': 'gif',
+    'image/webp': 'webp',
+    'image/svg+xml': 'svg',
+    'image/jpeg': 'jpg',
+  };
+
+  for (const [type, ext] of Object.entries(typeMap)) {
+    if (contentType.includes(type.split('/')[1])) return ext;
+  }
+  return 'jpg';
+}
+
 // Download an image — if it's a Drive proxy URL, fetch directly from Google Drive API
 // This avoids the auth-protected proxy route which can't be called server-side
-async function downloadImage(imageUrl: string): Promise<{ buffer: Buffer; contentType: string; ext: string } | null> {
+async function downloadImage(imageUrl: string): Promise<ImageData | null> {
   try {
     // Check if this is a drive-images proxy URL and extract the file ID
     const driveMatch = imageUrl.match(/\/api\/drive-images\/([^/]+)\/raw/);
@@ -50,66 +98,98 @@ async function downloadImage(imageUrl: string): Promise<{ buffer: Buffer; conten
       return await downloadFromDrive(fileId);
     }
 
-    // For non-Drive URLs, fetch normally
+    // Construct absolute URL for relative paths
+    let absoluteUrl = imageUrl;
     if (imageUrl.startsWith('/')) {
       const baseUrl = process.env.NEXTAUTH_URL || 'http://localhost:3000';
-      imageUrl = `${baseUrl}${imageUrl}`;
+      absoluteUrl = `${baseUrl}${imageUrl}`;
     }
-    console.log(`[Image Download] Fetching: ${imageUrl}`);
-    const response = await fetch(imageUrl);
-    if (!response.ok) {
-      console.error(`[Image Download] Failed: ${response.status}`);
+
+    // Validate URL to prevent SSRF
+    const url = new URL(absoluteUrl);
+    if (!['http:', 'https:'].includes(url.protocol)) {
+      console.error(`[Image Download] Invalid protocol: ${url.protocol}`);
       return null;
     }
 
-    const buffer = Buffer.from(await response.arrayBuffer());
-    const contentType = response.headers.get('content-type') || 'image/jpeg';
-    const ext = contentType.includes('png') ? 'png' : contentType.includes('gif') ? 'gif' : contentType.includes('webp') ? 'webp' : 'jpg';
+    console.log(`[Image Download] Fetching: ${absoluteUrl}`);
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), IMAGE_FETCH_TIMEOUT);
 
-    console.log(`[Image Download] Success: ${buffer.length} bytes, ${contentType}`);
-    return { buffer, contentType, ext };
-  } catch (error: any) {
-    console.error(`[Image Download] Error:`, error.message);
+    try {
+      const response = await fetch(absoluteUrl, { signal: controller.signal });
+      clearTimeout(timeout);
+
+      if (!response.ok) {
+        console.error(`[Image Download] Failed: ${response.status}`);
+        return null;
+      }
+
+      const buffer = Buffer.from(await response.arrayBuffer());
+      const contentType = response.headers.get('content-type') || 'image/jpeg';
+      const ext = getExtFromContentType(contentType);
+
+      console.log(`[Image Download] Success: ${buffer.length} bytes, ${contentType}`);
+      return { buffer, contentType, ext };
+    } finally {
+      clearTimeout(timeout);
+    }
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Unknown error';
+    console.error(`[Image Download] Error:`, message);
     return null;
   }
 }
 
+// Lazy-load googleapis to improve cold start performance
+let googleApis: typeof import('googleapis') | null = null;
+
+async function getGoogleApis() {
+  if (!googleApis) {
+    googleApis = await import('googleapis');
+  }
+  return googleApis;
+}
+
 // Download image directly from Google Drive using the service account
-async function downloadFromDrive(fileId: string): Promise<{ buffer: Buffer; contentType: string; ext: string } | null> {
+async function downloadFromDrive(fileId: string): Promise<ImageData | null> {
+  const serviceAccountKey = process.env.GOOGLE_SERVICE_ACCOUNT_KEY;
+  if (!serviceAccountKey) {
+    console.error('[Drive Download] GOOGLE_SERVICE_ACCOUNT_KEY not configured');
+    return null;
+  }
+
   try {
-    const { google } = require('googleapis');
-    const serviceAccountKey = process.env.GOOGLE_SERVICE_ACCOUNT_KEY;
-    if (!serviceAccountKey) {
-      console.error('[Drive Download] GOOGLE_SERVICE_ACCOUNT_KEY not configured');
-      return null;
-    }
+    const { google } = await getGoogleApis();
     const credentials = JSON.parse(serviceAccountKey);
     const auth = new google.auth.GoogleAuth({
       credentials,
-      scopes: ['https://www.googleapis.com/auth/drive'],
+      scopes: ['https://www.googleapis.com/auth/drive.readonly'],
     });
     const drive = google.drive({ version: 'v3', auth });
 
-    // Get file metadata for mime type
-    const meta = await drive.files.get({
-      fileId,
-      fields: 'mimeType',
-      supportsAllDrives: true,
-    });
-    const contentType = meta.data.mimeType || 'image/jpeg';
-    const ext = contentType.includes('png') ? 'png' : contentType.includes('gif') ? 'gif' : contentType.includes('webp') ? 'webp' : 'jpg';
+    // Get file metadata and content in parallel for better performance
+    const [metaResponse, contentResponse] = await Promise.all([
+      drive.files.get({
+        fileId,
+        fields: 'mimeType',
+        supportsAllDrives: true,
+      }),
+      drive.files.get(
+        { fileId, alt: 'media', supportsAllDrives: true },
+        { responseType: 'arraybuffer' }
+      ),
+    ]);
 
-    // Download file content
-    const response = await drive.files.get(
-      { fileId, alt: 'media', supportsAllDrives: true },
-      { responseType: 'arraybuffer' }
-    );
+    const contentType = metaResponse.data.mimeType || 'image/jpeg';
+    const ext = getExtFromContentType(contentType);
+    const buffer = Buffer.from(contentResponse.data as ArrayBuffer);
 
-    const buffer = Buffer.from(response.data as ArrayBuffer);
     console.log(`[Drive Download] Success: ${buffer.length} bytes, ${contentType}`);
     return { buffer, contentType, ext };
-  } catch (error: any) {
-    console.error(`[Drive Download] Error:`, error.message);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Unknown error';
+    console.error(`[Drive Download] Error:`, message);
     return null;
   }
 }
@@ -245,20 +325,8 @@ function prepareWordPressHtml(
 
 // Ghost CMS Publishing
 async function publishToGhost(
-  article: {
-    headline: string;
-    subHeadline?: string | null;
-    bodyHtml?: string | null;
-    body: string;
-    featuredImage?: string | null;
-    imageCredit?: string | null;
-    slug?: string | null;
-    tags: { tag: { name: string } }[];
-  },
-  target: {
-    url: string;
-    apiKey?: string | null;
-  }
+  article: ArticleForPublish,
+  target: GhostTarget
 ): Promise<PublishResult> {
   try {
     if (!target.apiKey) {
@@ -337,21 +405,8 @@ async function publishToGhost(
 
 // WordPress REST API Publishing
 async function publishToWordPress(
-  article: {
-    headline: string;
-    subHeadline?: string | null;
-    bodyHtml?: string | null;
-    body: string;
-    featuredImage?: string | null;
-    imageCredit?: string | null;
-    slug?: string | null;
-    tags: { tag: { name: string } }[];
-  },
-  target: {
-    url: string;
-    username?: string | null;
-    password?: string | null;
-  }
+  article: ArticleForPublish,
+  target: WordPressTarget
 ): Promise<PublishResult> {
   try {
     if (!target.username || !target.password) {
