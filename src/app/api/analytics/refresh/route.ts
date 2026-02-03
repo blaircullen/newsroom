@@ -33,8 +33,8 @@ export async function POST(request: NextRequest) {
       if (!article || !article.publishedUrl) continue;
 
       try {
-        // publishedUrl is a single URL string in the current schema
-        const urls = [article.publishedUrl];
+        // Split publishedUrl by " | " to get individual URLs for each site
+        const urls = article.publishedUrl.split(' | ').map(url => url.trim());
 
         const analytics = await getArticleAnalytics(urls);
 
