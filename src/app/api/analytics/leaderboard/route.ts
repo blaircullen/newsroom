@@ -64,8 +64,9 @@ export async function GET(request: NextRequest) {
       authorStats[authorId].totalVisitors += article.totalUniqueVisitors || 0;
     }
 
-    // Convert to array and sort by pageviews
+    // Convert to array, filter out managing editor, and sort by pageviews
     const leaderboard = Object.values(authorStats)
+      .filter((a) => a.name.toLowerCase() !== 'managing editor')
       .sort((a, b) => b.totalPageviews - a.totalPageviews)
       .slice(0, 10)
       .map((author, index) => ({
