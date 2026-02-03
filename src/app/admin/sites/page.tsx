@@ -15,6 +15,10 @@ interface Site {
   apiKey: string | null;
   username: string | null;
   password: string | null;
+  blogId: string | null;
+  clientId: string | null;
+  clientSecret: string | null;
+  myshopifyDomain: string | null;
   isActive: boolean;
   createdAt: string;
 }
@@ -32,6 +36,10 @@ export default function AdminSitesPage() {
   const [formApiKey, setFormApiKey] = useState('');
   const [formUsername, setFormUsername] = useState('');
   const [formPassword, setFormPassword] = useState('');
+  const [formClientId, setFormClientId] = useState('');
+  const [formClientSecret, setFormClientSecret] = useState('');
+  const [formMyshopifyDomain, setFormMyshopifyDomain] = useState('');
+  const [formBlogId, setFormBlogId] = useState('');
 
   useEffect(() => {
     if (session?.user?.role !== 'ADMIN') { router.push('/dashboard'); return; }
@@ -48,18 +56,26 @@ export default function AdminSitesPage() {
   function resetForm() {
     setFormName(''); setFormType('wordpress'); setFormUrl('');
     setFormApiKey(''); setFormUsername(''); setFormPassword('');
+    setFormClientId(''); setFormClientSecret(''); setFormMyshopifyDomain(''); setFormBlogId('');
   }
 
   async function doSave() {
     if (!formName || !formType || !formUrl) { toast.error('Please fill in name, type, and URL'); return; }
     if (formType === 'wordpress' && (!formUsername || !formPassword)) { toast.error('WordPress username and application password required'); return; }
     if (formType === 'ghost' && !formApiKey) { toast.error('Ghost Admin API Key required'); return; }
+    if (formType === 'shopify' && (!formClientId || !formClientSecret || !formMyshopifyDomain)) { toast.error('Shopify Client ID, Client Secret, and myshopify domain required'); return; }
 
     setIsSaving(true);
     try {
       const payload: any = { name: formName, type: formType, url: formUrl };
       if (formType === 'ghost') { payload.apiKey = formApiKey; }
-      else { payload.username = formUsername; payload.password = formPassword; }
+      else if (formType === 'wordpress') { payload.username = formUsername; payload.password = formPassword; }
+      else if (formType === 'shopify') {
+        payload.clientId = formClientId;
+        payload.clientSecret = formClientSecret;
+        payload.myshopifyDomain = formMyshopifyDomain;
+        if (formBlogId) payload.blogId = formBlogId;
+      }
 
       const res = await fetch('/api/sites', {
         method: 'POST',
@@ -95,7 +111,7 @@ export default function AdminSitesPage() {
             </div>
             <div>
               <h1 className="font-display text-display-md text-ink-950">Publish Sites</h1>
-              <p className="text-ink-400 text-sm">Configure WordPress and Ghost CMS destinations</p>
+              <p className="text-ink-400 text-sm">Configure WordPress, Ghost, and Shopify destinations</p>
             </div>
           </div>
           <button type="button" onClick={() => { resetForm(); setShowForm(true); }}
@@ -124,6 +140,7 @@ export default function AdminSitesPage() {
                   className="w-full px-3 py-2.5 rounded-lg border border-ink-200 text-sm focus:outline-none focus:border-press-500 bg-white">
                   <option value="wordpress">WordPress</option>
                   <option value="ghost">Ghost CMS</option>
+                  <option value="shopify">Shopify Blog</option>
                 </select>
               </div>
               <div className="col-span-2">
@@ -137,6 +154,29 @@ export default function AdminSitesPage() {
                   <input type="text" value={formApiKey} onChange={(e) => setFormApiKey(e.target.value)}
                     className="w-full px-3 py-2.5 rounded-lg border border-ink-200 text-sm focus:outline-none focus:border-press-500 font-mono" placeholder="64-char-hex:64-char-hex" />
                 </div>
+              ) : formType === 'shopify' ? (
+                <>
+                  <div>
+                    <label className="block text-sm font-medium text-ink-600 mb-1">Client ID</label>
+                    <input type="text" value={formClientId} onChange={(e) => setFormClientId(e.target.value)}
+                      className="w-full px-3 py-2.5 rounded-lg border border-ink-200 text-sm focus:outline-none focus:border-press-500 font-mono" placeholder="Your Shopify app client ID" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-ink-600 mb-1">Client Secret</label>
+                    <input type="password" value={formClientSecret} onChange={(e) => setFormClientSecret(e.target.value)}
+                      className="w-full px-3 py-2.5 rounded-lg border border-ink-200 text-sm focus:outline-none focus:border-press-500 font-mono" placeholder="shpss_..." />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-ink-600 mb-1">Myshopify Domain</label>
+                    <input type="text" value={formMyshopifyDomain} onChange={(e) => setFormMyshopifyDomain(e.target.value)}
+                      className="w-full px-3 py-2.5 rounded-lg border border-ink-200 text-sm focus:outline-none focus:border-press-500" placeholder="yourstore.myshopify.com" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-ink-600 mb-1">Blog ID (optional)</label>
+                    <input type="text" value={formBlogId} onChange={(e) => setFormBlogId(e.target.value)}
+                      className="w-full px-3 py-2.5 rounded-lg border border-ink-200 text-sm focus:outline-none focus:border-press-500" placeholder="Leave empty to auto-detect" />
+                  </div>
+                </>
               ) : (
                 <>
                   <div>
@@ -166,8 +206,10 @@ export default function AdminSitesPage() {
             {sites.map((site) => (
               <div key={site.id} className="bg-white rounded-xl border border-ink-100 p-5 flex items-center justify-between hover:border-ink-200 transition-colors">
                 <div className="flex items-center gap-4">
-                  <div className={`w-10 h-10 rounded-lg flex items-center justify-center text-white text-xs font-bold uppercase ${site.type === 'wordpress' ? 'bg-blue-600' : 'bg-emerald-600'}`}>
-                    {site.type === 'wordpress' ? 'WP' : 'G'}
+                  <div className={`w-10 h-10 rounded-lg flex items-center justify-center text-white text-xs font-bold uppercase ${
+                    site.type === 'wordpress' ? 'bg-blue-600' : site.type === 'shopify' ? 'bg-green-600' : 'bg-emerald-600'
+                  }`}>
+                    {site.type === 'wordpress' ? 'WP' : site.type === 'shopify' ? 'SH' : 'G'}
                   </div>
                   <div>
                     <h4 className="text-ink-900 font-semibold text-sm">{site.name}</h4>
@@ -175,8 +217,12 @@ export default function AdminSitesPage() {
                   </div>
                 </div>
                 <div className="flex items-center gap-3">
-                  <span className={`text-xs font-medium px-2 py-1 rounded-full ${site.type === 'wordpress' ? 'bg-blue-50 text-blue-700' : 'bg-emerald-50 text-emerald-700'}`}>
-                    {site.type === 'wordpress' ? 'WordPress' : 'Ghost'}
+                  <span className={`text-xs font-medium px-2 py-1 rounded-full ${
+                    site.type === 'wordpress' ? 'bg-blue-50 text-blue-700' :
+                    site.type === 'shopify' ? 'bg-green-50 text-green-700' :
+                    'bg-emerald-50 text-emerald-700'
+                  }`}>
+                    {site.type === 'wordpress' ? 'WordPress' : site.type === 'shopify' ? 'Shopify' : 'Ghost'}
                   </span>
                   <button
                     type="button"
