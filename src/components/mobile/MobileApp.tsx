@@ -139,23 +139,23 @@ export default function MobileApp() {
 
   if (activeTab === 'home') {
     return (
-      <div 
-        className="min-h-screen bg-gradient-to-b from-ink-950 via-ink-950 to-ink-900 pb-20"
+      <div
+        className="min-h-screen bg-slate-900 pb-20"
         onTouchStart={handleTouchStart}
         onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd}
       >
         {/* Pull to Refresh Indicator */}
         {pullDistance > 0 && (
-          <div 
+          <div
             className="fixed top-0 left-0 right-0 flex items-center justify-center z-50 transition-opacity"
-            style={{ 
+            style={{
               height: `${pullDistance}px`,
-              opacity: pullDistance / 100 
+              opacity: pullDistance / 100
             }}
           >
-            <div className="bg-white/10 backdrop-blur-xl rounded-full p-2">
-              <HiOutlineArrowPath 
+            <div className="bg-slate-800/90 backdrop-blur-xl rounded-full p-2">
+              <HiOutlineArrowPath
                 className={`w-6 h-6 text-press-400 ${pullDistance > 60 ? 'animate-spin' : ''}`}
                 style={{ transform: `rotate(${pullDistance * 3.6}deg)` }}
               />
@@ -164,7 +164,7 @@ export default function MobileApp() {
         )}
 
         {/* Sticky Header */}
-        <div className="sticky top-0 z-40 bg-gradient-to-b from-ink-950 via-ink-950/98 to-transparent backdrop-blur-xl">
+        <div className="sticky top-0 z-40 bg-slate-900/95 backdrop-blur-xl">
           <div className="px-4 pt-3 pb-4">
             {/* Top Bar */}
             <div className="flex items-center justify-between mb-4">
@@ -189,22 +189,19 @@ export default function MobileApp() {
 
             {/* Quick Stats Cards */}
             <div className="grid grid-cols-3 gap-2 mb-4">
-              <div className="relative overflow-hidden rounded-xl p-3 bg-gradient-to-br from-blue-500/20 to-blue-600/10 border border-blue-400/30">
-                <div className="absolute top-0 right-0 w-16 h-16 bg-blue-400/10 rounded-full blur-2xl" />
+              <div className="rounded-xl p-3 bg-slate-800/80 border border-blue-400/40">
                 <div className="text-2xl font-bold text-blue-300">{stats.total}</div>
-                <div className="text-[10px] text-blue-200/80 uppercase tracking-wider font-medium mt-0.5">Total</div>
+                <div className="text-[10px] text-white/70 uppercase tracking-wider font-medium mt-0.5">Total</div>
               </div>
-              <div className="relative overflow-hidden rounded-xl p-3 bg-gradient-to-br from-emerald-500/20 to-emerald-600/10 border border-emerald-400/30">
-                <div className="absolute top-0 right-0 w-16 h-16 bg-emerald-400/10 rounded-full blur-2xl" />
+              <div className="rounded-xl p-3 bg-slate-800/80 border border-emerald-400/40">
                 <div className="text-2xl font-bold text-emerald-300">{stats.published}</div>
-                <div className="text-[10px] text-emerald-200/80 uppercase tracking-wider font-medium mt-0.5">Live</div>
+                <div className="text-[10px] text-white/70 uppercase tracking-wider font-medium mt-0.5">Live</div>
               </div>
-              <div className="relative overflow-hidden rounded-xl p-3 bg-gradient-to-br from-orange-500/20 to-orange-600/10 border border-orange-400/30">
-                <div className="absolute top-0 right-0 w-16 h-16 bg-orange-400/10 rounded-full blur-2xl" />
+              <div className="rounded-xl p-3 bg-slate-800/80 border border-orange-400/40">
                 <div className="text-2xl font-bold text-orange-300">
                   {stats.totalViews > 999 ? `${(stats.totalViews / 1000).toFixed(1)}k` : stats.totalViews}
                 </div>
-                <div className="text-[10px] text-orange-200/80 uppercase tracking-wider font-medium mt-0.5">Views</div>
+                <div className="text-[10px] text-white/70 uppercase tracking-wider font-medium mt-0.5">Views</div>
               </div>
             </div>
 
@@ -339,7 +336,7 @@ function ArticleCard({ article }: { article: Article }) {
       onClick={() => router.push(`/editor/${article.id}`)}
       className="group active:scale-[0.98] transition-transform"
     >
-      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-white/[0.04] to-white/[0.01] border border-white/5 group-active:border-white/10 transition-colors">
+      <div className="relative overflow-hidden rounded-2xl bg-slate-800/70 border border-slate-600/50 group-active:border-slate-500/70 transition-colors">
         <div className="p-4">
           {/* Header */}
           <div className="flex items-center justify-between mb-3">
@@ -390,33 +387,33 @@ function ArticleCard({ article }: { article: Article }) {
 
 function HotTodayTab({ hotArticles, activeTab, onTabChange }: any) {
   return (
-    <div className="min-h-screen bg-gradient-to-b from-orange-950/30 via-ink-950 to-ink-900 pb-20">
-      <div className="sticky top-0 z-40 bg-gradient-to-b from-ink-950 via-ink-950/98 to-transparent backdrop-blur-xl border-b border-white/10">
+    <div className="min-h-screen bg-slate-900 pb-20">
+      <div className="sticky top-0 z-40 bg-slate-900/95 backdrop-blur-xl border-b border-slate-700/50">
         <div className="px-4 pt-4 pb-4">
           <div className="flex items-center gap-2 mb-2">
             <HiOutlineFire className="w-6 h-6 text-orange-400 animate-pulse" />
             <h1 className="text-2xl font-bold text-white">Hot Today</h1>
           </div>
-          <p className="text-sm text-white/60">Top stories from the last 24 hours</p>
+          <p className="text-sm text-white/70">Top stories from the last 24 hours</p>
         </div>
       </div>
 
       <div className="px-4 pt-4 space-y-3">
         {hotArticles.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-20 text-center">
-            <HiOutlineFire className="w-16 h-16 text-white/20 mb-4" />
-            <p className="text-white/70">No hot articles today</p>
-            <p className="text-white/40 text-sm mt-1">Check back soon</p>
+            <HiOutlineFire className="w-16 h-16 text-white/30 mb-4" />
+            <p className="text-white/80">No hot articles today</p>
+            <p className="text-white/50 text-sm mt-1">Check back soon</p>
           </div>
         ) : (
           hotArticles.map((article: Article, index: number) => (
             <div key={article.id} className="relative">
               <Link href={`/editor/${article.id}`}>
                 <div className="group active:scale-[0.98] transition-transform">
-                  <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-orange-500/20 to-red-500/10 border border-orange-400/30">
+                  <div className="relative overflow-hidden rounded-2xl bg-slate-800/80 border border-orange-500/40">
                     <div className="p-4">
                       <div className="absolute top-3 right-3">
-                        <div className="w-8 h-8 rounded-full bg-gradient-to-br from-orange-500 to-red-500 flex items-center justify-center shadow-lg shadow-orange-500/30">
+                        <div className="w-8 h-8 rounded-full bg-gradient-to-br from-orange-500 to-red-500 flex items-center justify-center shadow-lg shadow-orange-500/40">
                           <span className="text-white text-sm font-bold">{index + 1}</span>
                         </div>
                       </div>
@@ -426,13 +423,13 @@ function HotTodayTab({ hotArticles, activeTab, onTabChange }: any) {
                       </h3>
 
                       <div className="flex items-center gap-4 text-sm">
-                        <div className="flex items-center gap-1 text-orange-300">
+                        <div className="flex items-center gap-1 text-orange-300 font-semibold">
                           <HiOutlineEye className="w-4 h-4" />
-                          <span className="font-semibold">{(article.totalPageviews || 0).toLocaleString()}</span>
+                          <span>{(article.totalPageviews || 0).toLocaleString()}</span>
                         </div>
-                        <div className="flex items-center gap-1 text-white/50">
+                        <div className="flex items-center gap-1 text-white/60">
                           <HiOutlineArrowTrendingUp className="w-4 h-4" />
-                          <span className="text-xs">{article.totalUniqueVisitors || 0} unique</span>
+                          <span>{article.totalUniqueVisitors || 0} unique</span>
                         </div>
                       </div>
                     </div>
@@ -456,52 +453,50 @@ function AnalyticsTab({ stats, articles, activeTab, onTabChange }: any) {
     .slice(0, 5);
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-blue-950/30 via-ink-950 to-ink-900 pb-20">
-      <div className="sticky top-0 z-40 bg-gradient-to-b from-ink-950 via-ink-950/98 to-transparent backdrop-blur-xl border-b border-white/10">
+    <div className="min-h-screen bg-slate-900 pb-20">
+      <div className="sticky top-0 z-40 bg-slate-900/95 backdrop-blur-xl border-b border-slate-700/50">
         <div className="px-4 pt-4 pb-4">
           <div className="flex items-center gap-2 mb-2">
             <HiOutlineChartBarSquare className="w-6 h-6 text-blue-400" />
             <h1 className="text-2xl font-bold text-white">Analytics</h1>
           </div>
-          <p className="text-sm text-white/60">Performance overview</p>
+          <p className="text-sm text-white/70">Performance overview</p>
         </div>
       </div>
 
       <div className="px-4 pt-4 space-y-4">
         <div className="grid grid-cols-2 gap-3">
-          <div className="p-4 rounded-2xl bg-gradient-to-br from-blue-500/20 to-blue-600/10 border border-blue-400/30">
+          <div className="p-4 rounded-2xl bg-slate-800/80 border border-blue-400/40">
             <div className="text-3xl font-bold text-blue-300 mb-1">{stats.totalViews.toLocaleString()}</div>
-            <div className="text-xs text-blue-200/80 uppercase tracking-wider">Total Views</div>
+            <div className="text-xs text-white/70 uppercase tracking-wider font-medium">Total Views</div>
           </div>
-          <div className="p-4 rounded-2xl bg-gradient-to-br from-emerald-500/20 to-emerald-600/10 border border-emerald-400/30">
+          <div className="p-4 rounded-2xl bg-slate-800/80 border border-emerald-400/40">
             <div className="text-3xl font-bold text-emerald-300 mb-1">{stats.published}</div>
-            <div className="text-xs text-emerald-200/80 uppercase tracking-wider">Published</div>
+            <div className="text-xs text-white/70 uppercase tracking-wider font-medium">Published</div>
           </div>
         </div>
 
         {topArticles.length > 0 && (
           <div>
-            <h2 className="text-sm font-semibold text-white/70 uppercase tracking-wider mb-3 px-1">
+            <h2 className="text-sm font-semibold text-white uppercase tracking-wider mb-3 px-1">
               Top Performers
             </h2>
             <div className="space-y-2">
               {topArticles.map((article: Article, index: number) => (
                 <Link key={article.id} href={`/editor/${article.id}`}>
                   <div className="group active:scale-[0.98] transition-transform">
-                    <div className="p-4 rounded-xl bg-white/[0.06] border border-white/10 group-active:border-white/20">
+                    <div className="p-4 rounded-xl bg-slate-800/80 border border-slate-600/50 group-active:border-slate-500/70">
                       <div className="flex items-start gap-3">
-                        <div className="flex-shrink-0 w-7 h-7 rounded-full bg-gradient-to-br from-blue-500/30 to-purple-500/30 flex items-center justify-center border border-blue-400/40">
-                          <span className="text-xs font-bold text-blue-300">{index + 1}</span>
+                        <div className="flex-shrink-0 w-8 h-8 rounded-full bg-blue-500/30 flex items-center justify-center border-2 border-blue-400/60">
+                          <span className="text-sm font-bold text-blue-200">{index + 1}</span>
                         </div>
                         <div className="flex-1 min-w-0">
                           <h3 className="text-sm font-semibold text-white line-clamp-1 mb-1">
                             {article.headline}
                           </h3>
-                          <div className="flex items-center gap-3 text-xs text-white/50">
-                            <span className="flex items-center gap-1 text-blue-300">
-                              <HiOutlineEye className="w-3.5 h-3.5" />
-                              {(article.totalPageviews || 0).toLocaleString()}
-                            </span>
+                          <div className="flex items-center gap-1 text-sm text-emerald-400 font-medium">
+                            <HiOutlineEye className="w-4 h-4" />
+                            {(article.totalPageviews || 0).toLocaleString()}
                           </div>
                         </div>
                       </div>
