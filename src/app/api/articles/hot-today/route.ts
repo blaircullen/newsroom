@@ -87,8 +87,8 @@ export async function GET(request: NextRequest) {
       currentRankings[article.id] = index + 1;
     });
 
-    // Calculate rank changes for top 3 articles
-    const articlesWithMovement = hotArticles.slice(0, 3).map((article, index) => {
+    // Calculate rank changes for top 5 articles
+    const articlesWithMovement = hotArticles.slice(0, 5).map((article, index) => {
       const currentRank = index + 1;
       const previousRank = previousRankings[article.id];
 
