@@ -212,7 +212,7 @@ function DesktopDashboard() {
                   setSortBy(e.target.value);
                   setCurrentPage(1);
                 }}
-                className="appearance-none pl-4 pr-10 py-2.5 bg-white border border-ink-200 text-ink-700 rounded-lg font-semibold text-sm hover:bg-ink-50 transition-all cursor-pointer focus:outline-none focus:ring-2 focus:ring-ink-300"
+                className="appearance-none pl-4 pr-10 py-2.5 bg-white dark:bg-ink-900 border border-ink-200 dark:border-ink-700 text-ink-700 dark:text-ink-200 rounded-lg font-semibold text-sm hover:bg-ink-50 dark:hover:bg-ink-800 transition-all cursor-pointer focus:outline-none focus:ring-2 focus:ring-ink-300 dark:focus:ring-ink-600"
               >
                 <option value="updatedAt">Recent Updates</option>
                 <option value="publishedAt">Recently Published</option>
@@ -230,7 +230,7 @@ function DesktopDashboard() {
             <button
               onClick={handleRefreshAnalytics}
               disabled={isRefreshingAnalytics}
-              className="flex items-center gap-2 px-4 py-2.5 bg-white border border-ink-200 text-ink-700 rounded-lg font-semibold text-sm hover:bg-ink-50 transition-all active:scale-[0.98] disabled:opacity-50"
+              className="flex items-center gap-2 px-4 py-2.5 bg-white dark:bg-ink-900 border border-ink-200 dark:border-ink-700 text-ink-700 dark:text-ink-200 rounded-lg font-semibold text-sm hover:bg-ink-50 dark:hover:bg-ink-800 transition-all active:scale-[0.98] disabled:opacity-50"
             >
               <HiOutlineArrowPath className={`w-5 h-5 ${isRefreshingAnalytics ? 'animate-spin' : ''}`} />
               {isRefreshingAnalytics ? 'Refreshing...' : 'Refresh Analytics'}
@@ -281,15 +281,15 @@ function DesktopDashboard() {
 
 
       {/* Filter tabs */}
-      <div className="flex items-center gap-1 mb-6 bg-white rounded-xl border border-ink-100 p-1.5 w-fit">
+      <div className="flex items-center gap-1 mb-6 bg-white dark:bg-ink-900 rounded-xl border border-ink-100 dark:border-ink-800 p-1.5 w-fit">
         {FILTERS.map((filter) => (
           <button
             key={filter.value}
             onClick={() => handleFilterChange(filter.value)}
             className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
               activeFilter === filter.value
-                ? 'bg-ink-950 text-paper-100'
-                : 'text-ink-500 hover:bg-ink-50 hover:text-ink-700'
+                ? 'bg-ink-950 text-paper-100 dark:bg-ink-700 dark:text-ink-100'
+                : 'text-ink-500 dark:text-ink-400 hover:bg-ink-50 dark:hover:bg-ink-800 hover:text-ink-700 dark:hover:text-ink-200'
             }`}
           >
             {filter.label}
@@ -303,9 +303,9 @@ function DesktopDashboard() {
           <div className="animate-spin w-8 h-8 border-2 border-ink-200 border-t-press-500 rounded-full" />
         </div>
       ) : articles.length === 0 ? (
-        <div className="text-center py-20 bg-white rounded-2xl border border-ink-100">
-          <HiOutlineDocumentText className="w-12 h-12 text-ink-200 mx-auto mb-4" />
-          <h3 className="font-display text-lg text-ink-700 mb-2">
+        <div className="text-center py-20 bg-white dark:bg-ink-900 rounded-2xl border border-ink-100 dark:border-ink-800">
+          <HiOutlineDocumentText className="w-12 h-12 text-ink-200 dark:text-ink-600 mx-auto mb-4" />
+          <h3 className="font-display text-lg text-ink-700 dark:text-ink-200 mb-2">
             {activeFilter ? 'No stories with this status' : 'No stories yet'}
           </h3>
           <p className="text-ink-400 text-sm mb-6">
@@ -315,7 +315,7 @@ function DesktopDashboard() {
           </p>
           <Link
             href="/editor"
-            className="inline-flex items-center gap-2 px-5 py-2.5 bg-ink-950 text-paper-100 rounded-lg font-semibold text-sm"
+            className="inline-flex items-center gap-2 px-5 py-2.5 bg-ink-950 dark:bg-ink-700 text-paper-100 rounded-lg font-semibold text-sm"
           >
             <HiOutlinePlusCircle className="w-5 h-5" />
             Write a Story
@@ -341,8 +341,8 @@ function DesktopDashboard() {
                 key={article.id}
                 className={`rounded-xl border transition-all duration-200 group relative p-5 ${
                   isTopPerformer
-                    ? 'bg-gradient-to-br from-amber-50 to-orange-50 border-transparent shadow-lg shadow-amber-100/50 ring-2 ring-amber-400/30'
-                    : 'bg-white border-ink-100 hover:shadow-card-hover hover:border-ink-200'
+                    ? 'bg-gradient-to-br from-amber-50 to-orange-50 dark:from-amber-900/20 dark:to-orange-900/20 border-transparent shadow-lg shadow-amber-100/50 dark:shadow-amber-900/30 ring-2 ring-amber-400/30 dark:ring-amber-600/30'
+                    : 'bg-white dark:bg-ink-900 border-ink-100 dark:border-ink-800 hover:shadow-card-hover hover:border-ink-200 dark:hover:border-ink-700'
                 }`}
               >
                 {isTopPerformer && (
@@ -375,11 +375,11 @@ function DesktopDashboard() {
                     <div className="flex-1 min-w-0">
                       <div className="flex items-start justify-between gap-4">
                         <div className="min-w-0">
-                          <h3 className="font-display font-semibold text-ink-900 text-lg group-hover:text-press-700 transition-colors truncate">
+                          <h3 className="font-display font-semibold text-ink-900 dark:text-ink-100 text-lg group-hover:text-press-700 dark:group-hover:text-press-400 transition-colors truncate">
                             {article.headline}
                           </h3>
                           {article.subHeadline && (
-                            <p className="text-ink-500 text-sm mt-0.5 truncate">
+                            <p className="text-ink-500 dark:text-ink-400 text-sm mt-0.5 truncate">
                               {article.subHeadline}
                             </p>
                           )}
@@ -482,21 +482,21 @@ function DesktopDashboard() {
       {/* Pagination Controls */}
       {!isLoading && totalPages > 1 && (
         <div className="flex items-center justify-between mt-8 px-4">
-          <div className="text-sm text-ink-600">
+          <div className="text-sm text-ink-600 dark:text-ink-400">
             Page {currentPage} of {totalPages}
           </div>
           <div className="flex items-center gap-2">
             <button
               onClick={() => setCurrentPage(1)}
               disabled={currentPage === 1}
-              className="px-3 py-2 text-sm font-medium text-ink-700 bg-white border border-ink-200 rounded-lg hover:bg-ink-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+              className="px-3 py-2 text-sm font-medium text-ink-700 dark:text-ink-200 bg-white dark:bg-ink-900 border border-ink-200 dark:border-ink-700 rounded-lg hover:bg-ink-50 dark:hover:bg-ink-800 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
             >
               First
             </button>
             <button
               onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
               disabled={currentPage === 1}
-              className="px-3 py-2 text-sm font-medium text-ink-700 bg-white border border-ink-200 rounded-lg hover:bg-ink-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+              className="px-3 py-2 text-sm font-medium text-ink-700 dark:text-ink-200 bg-white dark:bg-ink-900 border border-ink-200 dark:border-ink-700 rounded-lg hover:bg-ink-50 dark:hover:bg-ink-800 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
             >
               Previous
             </button>
@@ -521,8 +521,8 @@ function DesktopDashboard() {
                     onClick={() => setCurrentPage(pageNum)}
                     className={`px-3 py-2 text-sm font-medium rounded-lg transition-all ${
                       currentPage === pageNum
-                        ? 'bg-ink-950 text-white'
-                        : 'text-ink-700 bg-white border border-ink-200 hover:bg-ink-50'
+                        ? 'bg-ink-950 dark:bg-ink-700 text-white'
+                        : 'text-ink-700 dark:text-ink-200 bg-white dark:bg-ink-900 border border-ink-200 dark:border-ink-700 hover:bg-ink-50 dark:hover:bg-ink-800'
                     }`}
                   >
                     {pageNum}
@@ -534,14 +534,14 @@ function DesktopDashboard() {
             <button
               onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
               disabled={currentPage === totalPages}
-              className="px-3 py-2 text-sm font-medium text-ink-700 bg-white border border-ink-200 rounded-lg hover:bg-ink-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+              className="px-3 py-2 text-sm font-medium text-ink-700 dark:text-ink-200 bg-white dark:bg-ink-900 border border-ink-200 dark:border-ink-700 rounded-lg hover:bg-ink-50 dark:hover:bg-ink-800 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
             >
               Next
             </button>
             <button
               onClick={() => setCurrentPage(totalPages)}
               disabled={currentPage === totalPages}
-              className="px-3 py-2 text-sm font-medium text-ink-700 bg-white border border-ink-200 rounded-lg hover:bg-ink-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+              className="px-3 py-2 text-sm font-medium text-ink-700 dark:text-ink-200 bg-white dark:bg-ink-900 border border-ink-200 dark:border-ink-700 rounded-lg hover:bg-ink-50 dark:hover:bg-ink-800 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
             >
               Last
             </button>
@@ -552,19 +552,19 @@ function DesktopDashboard() {
       {/* Delete Confirmation Modal */}
       {deleteConfirm && (
         <div className="fixed inset-0 bg-ink-950/50 backdrop-blur-sm flex items-center justify-center z-50">
-          <div className="bg-white rounded-2xl border border-ink-100 shadow-xl max-w-md w-full mx-4 p-6">
+          <div className="bg-white dark:bg-ink-900 rounded-2xl border border-ink-100 dark:border-ink-800 shadow-xl max-w-md w-full mx-4 p-6">
             <div className="flex items-center gap-3 mb-4">
-              <div className="w-10 h-10 rounded-full bg-red-50 flex items-center justify-center">
-                <HiOutlineExclamationTriangle className="w-5 h-5 text-red-500" />
+              <div className="w-10 h-10 rounded-full bg-red-50 dark:bg-red-900/30 flex items-center justify-center">
+                <HiOutlineExclamationTriangle className="w-5 h-5 text-red-500 dark:text-red-400" />
               </div>
-              <h3 className="font-display text-lg font-semibold text-ink-900">
+              <h3 className="font-display text-lg font-semibold text-ink-900 dark:text-ink-100">
                 Delete Story
               </h3>
             </div>
-            <p className="text-ink-600 text-sm mb-2">
+            <p className="text-ink-600 dark:text-ink-300 text-sm mb-2">
               Are you sure you want to delete this story?
             </p>
-            <p className="text-ink-900 font-medium text-sm mb-4 bg-ink-50 rounded-lg p-3">
+            <p className="text-ink-900 dark:text-ink-100 font-medium text-sm mb-4 bg-ink-50 dark:bg-ink-800 rounded-lg p-3">
               &ldquo;{deleteConfirm.headline}&rdquo;
             </p>
             <p className="text-ink-400 text-xs mb-6">
@@ -574,7 +574,7 @@ function DesktopDashboard() {
               <button
                 onClick={() => setDeleteConfirm(null)}
                 disabled={isDeleting}
-                className="px-4 py-2.5 text-sm font-medium text-ink-700 bg-white border border-ink-200 rounded-lg hover:bg-ink-50 disabled:opacity-50 transition-all"
+                className="px-4 py-2.5 text-sm font-medium text-ink-700 dark:text-ink-200 bg-white dark:bg-ink-800 border border-ink-200 dark:border-ink-700 rounded-lg hover:bg-ink-50 dark:hover:bg-ink-700 disabled:opacity-50 transition-all"
               >
                 Cancel
               </button>
@@ -650,16 +650,16 @@ function StatCard({
   isUpdating?: boolean;
 }) {
   const colorMap: Record<string, string> = {
-    ink: 'bg-ink-50 text-ink-600',
-    blue: 'bg-blue-50 text-blue-600',
-    emerald: 'bg-emerald-50 text-emerald-600',
-    press: 'bg-press-50 text-press-600',
+    ink: 'bg-ink-50 text-ink-600 dark:bg-ink-800 dark:text-ink-300',
+    blue: 'bg-blue-50 text-blue-600 dark:bg-blue-900/40 dark:text-blue-400',
+    emerald: 'bg-emerald-50 text-emerald-600 dark:bg-emerald-900/40 dark:text-emerald-400',
+    press: 'bg-press-50 text-press-600 dark:bg-press-900/40 dark:text-press-400',
   };
 
   return (
-    <div className={`bg-white rounded-xl border p-5 transition-all duration-300 ${
-      highlight ? 'border-blue-200 shadow-card ring-1 ring-blue-100' : 'border-ink-100'
-    } ${isUpdating ? 'ring-2 ring-press-200/50' : ''}`}>
+    <div className={`bg-white dark:bg-ink-900 rounded-xl border p-5 transition-all duration-300 ${
+      highlight ? 'border-blue-200 dark:border-blue-800 shadow-card ring-1 ring-blue-100 dark:ring-blue-900' : 'border-ink-100 dark:border-ink-800'
+    } ${isUpdating ? 'ring-2 ring-press-200/50 dark:ring-press-700/50' : ''}`}>
       <div className="flex items-center justify-between mb-3">
         <div className={`w-9 h-9 rounded-lg flex items-center justify-center ${colorMap[color]} transition-all duration-300 ${
           isUpdating ? 'scale-105' : 'scale-100'
@@ -673,7 +673,7 @@ function StatCard({
           <span className="w-2 h-2 rounded-full bg-press-400 animate-pulse" />
         )}
       </div>
-      <p className="text-2xl font-display font-bold text-ink-900">
+      <p className="text-2xl font-display font-bold text-ink-900 dark:text-ink-100">
         <AnimatedNumber value={value} isUpdating={isUpdating} />
       </p>
       <p className="text-xs text-ink-400 mt-0.5">{label}</p>

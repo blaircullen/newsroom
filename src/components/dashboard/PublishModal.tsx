@@ -129,15 +129,15 @@ export default function PublishModal({ articleId, onClose, onPublished }: Publis
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-ink-950/60 backdrop-blur-sm" onClick={onClose} />
-      <div className="relative bg-white rounded-2xl shadow-elevated w-full max-w-md overflow-hidden">
-        <div className="flex items-center justify-between p-5 border-b border-ink-100">
+      <div className="absolute inset-0 bg-ink-950/60 dark:bg-black/70 backdrop-blur-sm" onClick={onClose} />
+      <div className="relative bg-white dark:bg-ink-900 rounded-2xl shadow-elevated w-full max-w-md overflow-hidden">
+        <div className="flex items-center justify-between p-5 border-b border-ink-100 dark:border-ink-800">
           <div className="flex items-center gap-3">
             <div className="w-9 h-9 rounded-lg bg-emerald-50 flex items-center justify-center">
               <HiOutlineGlobeAlt className="w-5 h-5 text-emerald-600" />
             </div>
             <div>
-              <h3 className="font-display font-semibold text-lg text-ink-900">
+              <h3 className="font-display font-semibold text-lg text-ink-900 dark:text-ink-100">
                 {hasResults ? 'Publish Results' : 'Publish Article'}
               </h3>
               <p className="text-ink-400 text-xs">
@@ -145,7 +145,7 @@ export default function PublishModal({ articleId, onClose, onPublished }: Publis
               </p>
             </div>
           </div>
-          <button onClick={onClose} className="p-2 rounded-lg text-ink-400 hover:bg-ink-50">
+          <button onClick={onClose} className="p-2 rounded-lg text-ink-400 hover:bg-ink-50 dark:hover:bg-ink-800">
             <HiOutlineXMark className="w-5 h-5" />
           </button>
         </div>
@@ -191,14 +191,14 @@ export default function PublishModal({ articleId, onClose, onPublished }: Publis
           ) : (
             <div className="space-y-4">
               {/* Publish mode toggle */}
-              <div className="flex items-center gap-2 p-1 bg-ink-100 rounded-lg">
+              <div className="flex items-center gap-2 p-1 bg-ink-100 dark:bg-ink-800 rounded-lg">
                 <button
                   type="button"
                   onClick={() => setPublishMode('now')}
                   className={`flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-md text-sm font-medium transition-all ${
                     publishMode === 'now'
-                      ? 'bg-white shadow-sm text-ink-900'
-                      : 'text-ink-500 hover:text-ink-700'
+                      ? 'bg-white dark:bg-ink-700 shadow-sm text-ink-900 dark:text-ink-100'
+                      : 'text-ink-500 dark:text-ink-400 hover:text-ink-700 dark:hover:text-ink-200'
                   }`}
                 >
                   <HiOutlineGlobeAlt className="w-4 h-4" />
@@ -209,8 +209,8 @@ export default function PublishModal({ articleId, onClose, onPublished }: Publis
                   onClick={() => setPublishMode('schedule')}
                   className={`flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-md text-sm font-medium transition-all ${
                     publishMode === 'schedule'
-                      ? 'bg-white shadow-sm text-ink-900'
-                      : 'text-ink-500 hover:text-ink-700'
+                      ? 'bg-white dark:bg-ink-700 shadow-sm text-ink-900 dark:text-ink-100'
+                      : 'text-ink-500 dark:text-ink-400 hover:text-ink-700 dark:hover:text-ink-200'
                   }`}
                 >
                   <HiOutlineClock className="w-4 h-4" />
@@ -219,29 +219,29 @@ export default function PublishModal({ articleId, onClose, onPublished }: Publis
               </div>
 
               {publishMode === 'schedule' ? (
-                <div className="p-4 rounded-xl border-2 border-ink-100 bg-ink-50/50">
+                <div className="p-4 rounded-xl border-2 border-ink-100 dark:border-ink-700 bg-ink-50/50 dark:bg-ink-800/50">
                   <div className="flex items-center gap-2 mb-3">
-                    <HiOutlineCalendarDays className="w-5 h-5 text-ink-500" />
-                    <p className="font-medium text-ink-700 text-sm">Schedule for later</p>
+                    <HiOutlineCalendarDays className="w-5 h-5 text-ink-500 dark:text-ink-400" />
+                    <p className="font-medium text-ink-700 dark:text-ink-200 text-sm">Schedule for later</p>
                   </div>
                   <div className="grid grid-cols-2 gap-3">
                     <div>
-                      <label className="block text-xs font-medium text-ink-500 mb-1">Date</label>
+                      <label className="block text-xs font-medium text-ink-500 dark:text-ink-400 mb-1">Date</label>
                       <input
                         type="date"
                         value={scheduledDate}
                         onChange={(e) => setScheduledDate(e.target.value)}
                         min={new Date().toISOString().split('T')[0]}
-                        className="w-full px-3 py-2 border border-ink-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-press-500/20 focus:border-press-500"
+                        className="w-full px-3 py-2 border border-ink-200 dark:border-ink-600 rounded-lg text-sm bg-white dark:bg-ink-900 text-ink-900 dark:text-ink-100 focus:outline-none focus:ring-2 focus:ring-press-500/20 focus:border-press-500"
                       />
                     </div>
                     <div>
-                      <label className="block text-xs font-medium text-ink-500 mb-1">Time</label>
+                      <label className="block text-xs font-medium text-ink-500 dark:text-ink-400 mb-1">Time</label>
                       <input
                         type="time"
                         value={scheduledTime}
                         onChange={(e) => setScheduledTime(e.target.value)}
-                        className="w-full px-3 py-2 border border-ink-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-press-500/20 focus:border-press-500"
+                        className="w-full px-3 py-2 border border-ink-200 dark:border-ink-600 rounded-lg text-sm bg-white dark:bg-ink-900 text-ink-900 dark:text-ink-100 focus:outline-none focus:ring-2 focus:ring-press-500/20 focus:border-press-500"
                       />
                     </div>
                   </div>
@@ -253,7 +253,7 @@ export default function PublishModal({ articleId, onClose, onPublished }: Publis
                 <div className="space-y-2">
                   {targets.length > 1 && (
                     <button type="button" onClick={selectAll}
-                      className="text-xs font-medium text-press-600 hover:text-press-700 mb-1">
+                      className="text-xs font-medium text-press-600 dark:text-press-400 hover:text-press-700 dark:hover:text-press-300 mb-1">
                       {allSelected ? 'Deselect all' : 'Select all'}
                     </button>
                   )}
@@ -262,18 +262,18 @@ export default function PublishModal({ articleId, onClose, onPublished }: Publis
                 return (
                   <button key={target.id} type="button" onClick={() => toggleTarget(target.id)}
                     className={'w-full text-left p-4 rounded-xl border-2 transition-all ' +
-                      (isSelected ? 'border-emerald-500 bg-emerald-50/50' : 'border-ink-100 hover:border-ink-200')}>
+                      (isSelected ? 'border-emerald-500 bg-emerald-50/50 dark:bg-emerald-900/20' : 'border-ink-100 dark:border-ink-700 hover:border-ink-200 dark:hover:border-ink-600')}>
                     <div className="flex items-center gap-3">
                       <div className={'w-5 h-5 rounded border-2 flex items-center justify-center flex-shrink-0 transition-all ' +
-                        (isSelected ? 'bg-emerald-500 border-emerald-500' : 'border-ink-300 bg-white')}>
+                        (isSelected ? 'bg-emerald-500 border-emerald-500' : 'border-ink-300 dark:border-ink-600 bg-white dark:bg-ink-800')}>
                         {isSelected && <HiOutlineCheck className="w-3.5 h-3.5 text-white" />}
                       </div>
                       <div className="flex-1 min-w-0">
-                        <p className="font-medium text-ink-900">{target.name}</p>
+                        <p className="font-medium text-ink-900 dark:text-ink-100">{target.name}</p>
                         <p className="text-xs text-ink-400 mt-0.5">{target.url}</p>
                       </div>
                       <span className={'text-xs px-2 py-0.5 rounded-full font-medium uppercase tracking-wider ' +
-                        (target.type === 'ghost' ? 'bg-purple-50 text-purple-600' : 'bg-blue-50 text-blue-600')}>
+                        (target.type === 'ghost' ? 'bg-purple-50 dark:bg-purple-900/40 text-purple-600 dark:text-purple-300' : 'bg-blue-50 dark:bg-blue-900/40 text-blue-600 dark:text-blue-300')}>
                         {target.type}
                       </span>
                     </div>
@@ -286,9 +286,9 @@ export default function PublishModal({ articleId, onClose, onPublished }: Publis
           )}
         </div>
 
-        <div className="flex items-center justify-end gap-3 p-5 border-t border-ink-100 bg-paper-50">
+        <div className="flex items-center justify-end gap-3 p-5 border-t border-ink-100 dark:border-ink-800 bg-paper-50 dark:bg-ink-800/50">
           <button onClick={onClose}
-            className="px-4 py-2.5 text-sm font-medium text-ink-600 hover:text-ink-800 transition-colors">
+            className="px-4 py-2.5 text-sm font-medium text-ink-600 dark:text-ink-300 hover:text-ink-800 dark:hover:text-ink-100 transition-colors">
             {hasResults ? 'Close' : 'Cancel'}
           </button>
           {!hasResults && (

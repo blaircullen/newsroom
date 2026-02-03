@@ -9,20 +9,44 @@
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
   }
-  
+
   body {
     @apply bg-paper-100 text-ink-900 font-body;
+    @apply dark:bg-ink-950 dark:text-ink-100;
   }
 
   ::selection {
     @apply bg-press-100 text-press-900;
+    @apply dark:bg-press-900 dark:text-press-100;
+  }
+
+  /* Dark mode text color overrides */
+  .dark h1, .dark h2, .dark h3, .dark h4, .dark h5, .dark h6 {
+    @apply text-ink-50;
+  }
+
+  .dark p {
+    @apply text-ink-200;
+  }
+
+  .dark a:not([class]) {
+    @apply text-press-400;
+  }
+
+  /* Dark mode input and form elements */
+  .dark input, .dark textarea, .dark select {
+    @apply bg-ink-900 border-ink-700 text-ink-100 placeholder-ink-500;
+  }
+
+  .dark input:focus, .dark textarea:focus, .dark select:focus {
+    @apply border-press-500 ring-press-500/20;
   }
 }
 
 @layer components {
   /* TipTap Editor Styles */
   .tiptap-editor {
-    @apply prose prose-lg max-w-none;
+    @apply prose prose-lg max-w-none dark:prose-invert;
   }
 
   .tiptap-editor:focus {
@@ -30,27 +54,27 @@
   }
 
   .tiptap-editor h1 {
-    @apply font-display text-display-lg text-ink-950 mb-4;
+    @apply font-display text-display-lg text-ink-950 dark:text-ink-50 mb-4;
   }
 
   .tiptap-editor h2 {
-    @apply font-display text-display-md text-ink-900 mb-3;
+    @apply font-display text-display-md text-ink-900 dark:text-ink-100 mb-3;
   }
 
   .tiptap-editor h3 {
-    @apply font-display text-xl text-ink-800 mb-2;
+    @apply font-display text-xl text-ink-800 dark:text-ink-200 mb-2;
   }
 
   .tiptap-editor p {
-    @apply text-ink-800 leading-relaxed mb-4 text-lg;
+    @apply text-ink-800 dark:text-ink-200 leading-relaxed mb-4 text-lg;
   }
 
   .tiptap-editor a {
-    @apply text-press-600 underline underline-offset-2 decoration-press-300 hover:decoration-press-600 transition-colors;
+    @apply text-press-600 dark:text-press-400 underline underline-offset-2 decoration-press-300 dark:decoration-press-600 hover:decoration-press-600 dark:hover:decoration-press-400 transition-colors;
   }
 
   .tiptap-editor blockquote {
-    @apply border-l-4 border-press-500 pl-6 italic text-ink-600 my-6;
+    @apply border-l-4 border-press-500 pl-6 italic text-ink-600 dark:text-ink-300 my-6;
   }
 
   .tiptap-editor ul {
@@ -62,7 +86,7 @@
   }
 
   .tiptap-editor li {
-    @apply mb-2 text-ink-800;
+    @apply mb-2 text-ink-800 dark:text-ink-200;
   }
 
   .tiptap-editor img {
@@ -70,11 +94,11 @@
   }
 
   .tiptap-editor hr {
-    @apply border-ink-200 my-8;
+    @apply border-ink-200 dark:border-ink-700 my-8;
   }
 
   .tiptap-editor code {
-    @apply font-mono bg-ink-100 px-1.5 py-0.5 rounded text-sm text-ink-800;
+    @apply font-mono bg-ink-100 dark:bg-ink-800 px-1.5 py-0.5 rounded text-sm text-ink-800 dark:text-ink-200;
   }
 
   .tiptap-editor pre {
@@ -91,13 +115,13 @@
   }
 
   .tweet-embed-container {
-    @apply border border-ink-200 rounded-xl overflow-hidden bg-white shadow-sm;
+    @apply border border-ink-200 dark:border-ink-700 rounded-xl overflow-hidden bg-white dark:bg-ink-900 shadow-sm;
     max-width: 550px;
     margin: 0 auto;
   }
 
   .tweet-embed-header {
-    @apply flex items-center justify-between px-4 py-2.5 bg-ink-50 border-b border-ink-100;
+    @apply flex items-center justify-between px-4 py-2.5 bg-ink-50 dark:bg-ink-800 border-b border-ink-100 dark:border-ink-700;
   }
 
   .tweet-embed-header-left {
@@ -105,11 +129,11 @@
   }
 
   .tweet-embed-icon {
-    @apply w-4 h-4 text-ink-600;
+    @apply w-4 h-4 text-ink-600 dark:text-ink-300;
   }
 
   .tweet-embed-label {
-    @apply text-xs font-medium text-ink-500 uppercase tracking-wide;
+    @apply text-xs font-medium text-ink-500 dark:text-ink-400 uppercase tracking-wide;
   }
 
   .tweet-embed-actions {
@@ -117,11 +141,11 @@
   }
 
   .tweet-embed-link {
-    @apply p-1.5 rounded-md text-ink-400 hover:text-ink-700 hover:bg-ink-100 transition-colors;
+    @apply p-1.5 rounded-md text-ink-400 hover:text-ink-700 dark:hover:text-ink-200 hover:bg-ink-100 dark:hover:bg-ink-700 transition-colors;
   }
 
   .tweet-embed-delete {
-    @apply p-1.5 rounded-md text-ink-400 hover:text-red-600 hover:bg-red-50 transition-colors;
+    @apply p-1.5 rounded-md text-ink-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/30 transition-colors;
   }
 
   .tweet-embed-action-icon {
@@ -138,7 +162,7 @@
   }
 
   .tweet-embed-spinner {
-    @apply w-6 h-6 border-2 border-ink-200 border-t-ink-500 rounded-full animate-spin;
+    @apply w-6 h-6 border-2 border-ink-200 dark:border-ink-600 border-t-ink-500 dark:border-t-ink-300 rounded-full animate-spin;
   }
 
   .tweet-embed-iframe {
@@ -155,7 +179,7 @@
   }
 
   .tweet-embed-fallback-icon {
-    @apply w-8 h-8 text-ink-300;
+    @apply w-8 h-8 text-ink-300 dark:text-ink-500;
   }
 
   .tweet-embed-fallback-text {
@@ -163,56 +187,61 @@
   }
 
   .tweet-embed-fallback-link {
-    @apply text-sm text-press-600 hover:text-press-700 font-medium;
+    @apply text-sm text-press-600 dark:text-press-400 hover:text-press-700 dark:hover:text-press-300 font-medium;
   }
 
   /* Legacy tweet embed placeholder (backwards compat) */
   .tiptap-editor .tweet-embed {
-    @apply border border-ink-200 rounded-xl p-4 my-4 bg-white;
+    @apply border border-ink-200 dark:border-ink-700 rounded-xl p-4 my-4 bg-white dark:bg-ink-900;
   }
 
   /* Placeholder styles */
   .tiptap-editor .is-editor-empty:first-child::before {
-    @apply text-ink-300 pointer-events-none float-left h-0;
+    @apply text-ink-300 dark:text-ink-600 pointer-events-none float-left h-0;
     content: attr(data-placeholder);
   }
 
   .tiptap-editor p.is-editor-empty:first-child::before {
-    @apply text-ink-300;
+    @apply text-ink-300 dark:text-ink-600;
     content: attr(data-placeholder);
   }
 
-  /* Status badges */
+  /* Status badges - work well in both light and dark */
   .status-badge {
     @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium tracking-wide uppercase;
   }
 
   .status-draft {
-    @apply bg-ink-100 text-ink-600;
+    @apply bg-ink-100 text-ink-600 dark:bg-ink-800 dark:text-ink-300;
   }
 
   .status-submitted {
-    @apply bg-blue-50 text-blue-700;
+    @apply bg-blue-50 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300;
   }
 
   .status-in-review {
-    @apply bg-amber-50 text-amber-700;
+    @apply bg-amber-50 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300;
   }
 
   .status-revision-requested {
-    @apply bg-orange-50 text-orange-700;
+    @apply bg-orange-50 text-orange-700 dark:bg-orange-900/40 dark:text-orange-300;
   }
 
   .status-approved {
-    @apply bg-emerald-50 text-emerald-700;
+    @apply bg-emerald-50 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300;
   }
 
   .status-published {
-    @apply bg-press-50 text-press-700;
+    @apply bg-press-50 text-press-700 dark:bg-press-900/40 dark:text-press-300;
   }
 
   .status-rejected {
-    @apply bg-red-50 text-red-700;
+    @apply bg-red-50 text-red-700 dark:bg-red-900/40 dark:text-red-300;
+  }
+
+  /* Card and panel dark mode */
+  .dark .card, .dark [class*="bg-white"] {
+    @apply bg-ink-900 border-ink-700;
   }
 }
 
@@ -231,6 +260,14 @@
 
 ::-webkit-scrollbar-thumb:hover {
   @apply bg-ink-300;
+}
+
+.dark ::-webkit-scrollbar-thumb {
+  @apply bg-ink-700;
+}
+
+.dark ::-webkit-scrollbar-thumb:hover {
+  @apply bg-ink-600;
 }
 
 /* Smooth page transitions */
