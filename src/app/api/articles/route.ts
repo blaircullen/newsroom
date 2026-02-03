@@ -16,6 +16,7 @@ export async function GET(request: NextRequest) {
   const authorId = searchParams.get('authorId');
   const page = parseInt(searchParams.get('page') || '1');
   const limit = parseInt(searchParams.get('limit') || '20');
+  const sortBy = searchParams.get('sortBy') || 'updatedAt'; // updatedAt, publishedAt, pageviews
 
   const where: any = {};
 
@@ -28,6 +29,22 @@ export async function GET(request: NextRequest) {
 
   if (status) {
     where.status = status.toUpperCase();
+  }
+
+  // Determine sort order
+  let orderBy: any;
+  switch (sortBy) {
+    case 'publishedAt':
+      orderBy = { publishedAt: 'desc' };
+      break;
+    case 'pageviews':
+      orderBy = { totalPageviews: 'desc' };
+      break;
+    case 'visitors':
+      orderBy = { totalUniqueVisitors: 'desc' };
+      break;
+    default:
+      orderBy = { updatedAt: 'desc' };
   }
 
   const [articles, total] = await Promise.all([
@@ -44,7 +61,7 @@ export async function GET(request: NextRequest) {
           select: { comments: true, reviews: true },
         },
       },
-      orderBy: { updatedAt: 'desc' },
+      orderBy,
       skip: (page - 1) * limit,
       take: limit,
     }),
