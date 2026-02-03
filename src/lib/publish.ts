@@ -1,5 +1,6 @@
 import prisma from './prisma';
 import crypto from 'crypto';
+import { processImage, OptimizeOptions } from './imageOptimization';
 
 interface PublishResult {
   success: boolean;
@@ -38,6 +39,11 @@ interface ImageData {
 // Constants
 const IMAGE_FETCH_TIMEOUT = 30000;
 const API_TIMEOUT = 60000;
+
+// Image optimization settings
+const FEATURED_IMAGE_MAX_WIDTH = 2000;
+const INLINE_IMAGE_MAX_WIDTH = 1600;
+const IMAGE_QUALITY = 85;
 
 // Transform tweet embed placeholders into standard Twitter blockquote format
 function transformTweetEmbeds(html: string): string {
@@ -199,22 +205,38 @@ async function uploadImageToGhost(
   imageUrl: string,
   token: string,
   ghostUrl: string,
-  filename?: string
+  filename?: string,
+  optimizeOptions?: OptimizeOptions
 ): Promise<string | null> {
   try {
     const image = await downloadImage(imageUrl);
     if (!image) return null;
 
-    const name = filename || `featured-image.${image.ext}`;
+    // Optimize image before upload (converts to WebP by default)
+    const options: OptimizeOptions = {
+      maxWidth: FEATURED_IMAGE_MAX_WIDTH,
+      quality: IMAGE_QUALITY,
+      format: 'webp',
+      ...optimizeOptions,
+    };
+    const optimizedImage = await processImage(image, options);
+
+    // Update filename extension to match optimized format
+    let name = filename || `featured-image.${optimizedImage.ext}`;
+    // If filename was provided, replace extension with optimized format
+    if (filename && optimizedImage.ext !== image.ext) {
+      name = filename.replace(/\.[^.]+$/, `.${optimizedImage.ext}`);
+    }
+
     const boundary = '----FormBoundary' + crypto.randomUUID().replace(/-/g, '');
 
     const headerPart = Buffer.from(
-      `--${boundary}\r\nContent-Disposition: form-data; name="file"; filename="${name}"\r\nContent-Type: ${image.contentType}\r\n\r\n`
+      `--${boundary}\r\nContent-Disposition: form-data; name="file"; filename="${name}"\r\nContent-Type: ${optimizedImage.contentType}\r\n\r\n`
     );
     const footerPart = Buffer.from(`\r\n--${boundary}--\r\n`);
-    const bodyBuffer = Buffer.concat([headerPart, image.buffer, footerPart]);
+    const bodyBuffer = Buffer.concat([headerPart, optimizedImage.buffer, footerPart]);
 
-    console.log(`[Ghost Image Upload] Uploading ${name} (${image.buffer.length} bytes)`);
+    console.log(`[Ghost Image Upload] Uploading ${name} (${optimizedImage.buffer.length} bytes, ${optimizedImage.contentType})`);
 
     const uploadResponse = await fetch(`${ghostUrl}/ghost/api/admin/images/upload/`, {
       method: 'POST',
@@ -248,24 +270,39 @@ async function uploadImageToWordPress(
   auth: string,
   wpUrl: string,
   filename?: string,
-  caption?: string
+  caption?: string,
+  optimizeOptions?: OptimizeOptions
 ): Promise<number | null> {
   try {
     const image = await downloadImage(imageUrl);
     if (!image) return null;
 
-    const name = filename || `featured-image.${image.ext}`;
+    // Optimize image before upload (converts to WebP by default)
+    const options: OptimizeOptions = {
+      maxWidth: FEATURED_IMAGE_MAX_WIDTH,
+      quality: IMAGE_QUALITY,
+      format: 'webp',
+      ...optimizeOptions,
+    };
+    const optimizedImage = await processImage(image, options);
 
-    console.log(`[WP Image Upload] Uploading ${name} (${image.buffer.length} bytes)`);
+    // Update filename extension to match optimized format
+    let name = filename || `featured-image.${optimizedImage.ext}`;
+    // If filename was provided, replace extension with optimized format
+    if (filename && optimizedImage.ext !== image.ext) {
+      name = filename.replace(/\.[^.]+$/, `.${optimizedImage.ext}`);
+    }
+
+    console.log(`[WP Image Upload] Uploading ${name} (${optimizedImage.buffer.length} bytes, ${optimizedImage.contentType})`);
 
     const uploadResponse = await fetch(`${wpUrl}/wp-json/wp/v2/media`, {
       method: 'POST',
       headers: {
         Authorization: `Basic ${auth}`,
-        'Content-Type': image.contentType,
+        'Content-Type': optimizedImage.contentType,
         'Content-Disposition': `attachment; filename="${name}"`,
       },
-      body: new Uint8Array(image.buffer),
+      body: new Uint8Array(optimizedImage.buffer),
     });
 
     if (!uploadResponse.ok) {
@@ -295,6 +332,114 @@ async function uploadImageToWordPress(
     console.error(`[WP Image Upload] Error:`, error.message);
     return null;
   }
+}
+
+// Process inline images in article body HTML
+// Downloads, optimizes, and re-uploads each <img> tag to the target platform
+interface ProcessBodyImagesConfig {
+  type: 'ghost' | 'wordpress';
+  token?: string;      // For Ghost
+  auth?: string;       // For WordPress
+  targetUrl: string;
+}
+
+async function processBodyImages(
+  html: string,
+  config: ProcessBodyImagesConfig
+): Promise<string> {
+  if (!html) return html;
+
+  // Find all img tags with src attributes
+  const imgRegex = /<img[^>]*\ssrc=["']([^"']+)["'][^>]*>/gi;
+  const matches: RegExpExecArray[] = [];
+  let match: RegExpExecArray | null;
+  while ((match = imgRegex.exec(html)) !== null) {
+    matches.push(match);
+  }
+
+  if (matches.length === 0) {
+    console.log('[Body Images] No inline images found');
+    return html;
+  }
+
+  console.log(`[Body Images] Found ${matches.length} inline image(s) to process`);
+
+  let processedHtml = html;
+
+  for (let imageIndex = 0; imageIndex < matches.length; imageIndex++) {
+    const imgMatch = matches[imageIndex];
+    const fullTag = imgMatch[0];
+    const originalSrc = imgMatch[1];
+    const imageNum = imageIndex + 1;
+
+    // Skip data URLs, already-hosted URLs on target, and external CDN URLs
+    if (originalSrc.startsWith('data:')) {
+      console.log(`[Body Images] Skipping data URL for image ${imageNum}`);
+      continue;
+    }
+
+    // Skip if already pointing to the target host
+    if (originalSrc.includes(new URL(config.targetUrl).hostname)) {
+      console.log(`[Body Images] Skipping already-hosted image ${imageNum}: ${originalSrc}`);
+      continue;
+    }
+
+    console.log(`[Body Images] Processing image ${imageNum}: ${originalSrc}`);
+
+    const optimizeOptions: OptimizeOptions = {
+      maxWidth: INLINE_IMAGE_MAX_WIDTH,
+      quality: IMAGE_QUALITY,
+      format: 'webp',
+    };
+
+    let newUrl: string | null = null;
+
+    if (config.type === 'ghost' && config.token) {
+      newUrl = await uploadImageToGhost(
+        originalSrc,
+        config.token,
+        config.targetUrl,
+        `inline-image-${imageNum}.webp`,
+        optimizeOptions
+      );
+    } else if (config.type === 'wordpress' && config.auth) {
+      // For WordPress, we need to get the media URL after upload
+      const mediaId = await uploadImageToWordPress(
+        originalSrc,
+        config.auth,
+        config.targetUrl,
+        `inline-image-${imageNum}.webp`,
+        undefined,
+        optimizeOptions
+      );
+
+      if (mediaId) {
+        // Fetch the media item to get its URL
+        try {
+          const mediaResponse = await fetch(`${config.targetUrl}/wp-json/wp/v2/media/${mediaId}`, {
+            headers: { Authorization: `Basic ${config.auth}` },
+          });
+          if (mediaResponse.ok) {
+            const mediaData = await mediaResponse.json();
+            newUrl = mediaData.source_url;
+          }
+        } catch (err) {
+          console.error(`[Body Images] Failed to get media URL for ID ${mediaId}`);
+        }
+      }
+    }
+
+    if (newUrl) {
+      // Replace the src in the img tag
+      const newTag = fullTag.replace(originalSrc, newUrl);
+      processedHtml = processedHtml.replace(fullTag, newTag);
+      console.log(`[Body Images] Replaced image ${imageNum} with: ${newUrl}`);
+    } else {
+      console.log(`[Body Images] Failed to process image ${imageNum}, keeping original`);
+    }
+  }
+
+  return processedHtml;
 }
 
 // Prepare article HTML for Ghost publishing
@@ -353,7 +498,14 @@ async function publishToGhost(
       }
     }
 
-    const processedHtml = prepareGhostHtml(article.bodyHtml, article.body, article.imageCredit);
+    let processedHtml = prepareGhostHtml(article.bodyHtml, article.body, article.imageCredit);
+
+    // Process inline body images - download, optimize, and re-upload to Ghost
+    processedHtml = await processBodyImages(processedHtml, {
+      type: 'ghost',
+      token,
+      targetUrl: target.url,
+    });
 
     console.log(`[Publish Ghost] Target: ${target.url}`);
     console.log(`[Publish Ghost] Feature image: ${featureImageUrl || '(none)'}`);
@@ -456,7 +608,14 @@ async function publishToWordPress(
       }
     }
 
-    const processedHtml = prepareWordPressHtml(article.bodyHtml, article.body, article.imageCredit);
+    let processedHtml = prepareWordPressHtml(article.bodyHtml, article.body, article.imageCredit);
+
+    // Process inline body images - download, optimize, and re-upload to WordPress
+    processedHtml = await processBodyImages(processedHtml, {
+      type: 'wordpress',
+      auth,
+      targetUrl: target.url,
+    });
 
     console.log(`[Publish WP] Target: ${target.url}`);
     console.log(`[Publish WP] Featured media ID: ${featuredMediaId || '(none)'}`);
