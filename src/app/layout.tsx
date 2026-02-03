@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import { Toaster } from 'react-hot-toast';
 import AuthProvider from '@/components/layout/AuthProvider';
 import './globals.css';
+import './mobile.css';
 
 export const metadata: Metadata = {
   title: 'NewsRoom',
