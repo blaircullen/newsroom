@@ -7,12 +7,18 @@ export async function GET(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
-  const session = await getServerSession(authOptions);
-  if (!session || !['ADMIN', 'EDITOR'].includes(session.user.role)) {
-    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  try {
+    const session = await getServerSession(authOptions);
+    if (!session || !['ADMIN', 'EDITOR'].includes(session.user.role)) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+    const targets = await getPublishTargets();
+    console.log('[Publish API] Fetched targets:', targets.length);
+    return NextResponse.json({ targets });
+  } catch (error: any) {
+    console.error('[Publish API] Error fetching targets:', error.message);
+    return NextResponse.json({ error: error.message, targets: [] }, { status: 500 });
   }
-  const targets = await getPublishTargets();
-  return NextResponse.json({ targets });
 }
 
 export async function POST(
