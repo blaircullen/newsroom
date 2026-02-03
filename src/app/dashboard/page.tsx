@@ -50,6 +50,9 @@ export default function DashboardPage() {
 
   const [articles, setArticles] = useState<any[]>([]);
   const [stats, setStats] = useState({ total: 0, submitted: 0, approved: 0, published: 0 });
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [sortBy, setSortBy] = useState('updatedAt');
   const [activeFilter, setActiveFilter] = useState(filterParam);
   const [isLoading, setIsLoading] = useState(true);
   const [deleteConfirm, setDeleteConfirm] = useState<{ id: string; headline: string } | null>(null);
@@ -63,10 +66,13 @@ export default function DashboardPage() {
     try {
       const params = new URLSearchParams();
       if (activeFilter) params.set('status', activeFilter);
+      params.set('page', currentPage.toString());
+      params.set('sortBy', sortBy);
 
       const res = await fetch(`/api/articles?${params}`);
       const data = await res.json();
       setArticles(data.articles || []);
+      setTotalPages(data.pagination?.pages || 1);
 
       // Calculate stats from all articles
       const allRes = await fetch('/api/articles?limit=1000');
@@ -88,10 +94,11 @@ export default function DashboardPage() {
 
   useEffect(() => {
     fetchArticles();
-  }, [activeFilter]);
+  }, [activeFilter, currentPage, sortBy]);
 
   const handleFilterChange = (filter: string) => {
     setActiveFilter(filter);
+    setCurrentPage(1); // Reset to page 1 when changing filters
     const url = filter ? `/dashboard?filter=${filter.toLowerCase()}` : '/dashboard';
     router.replace(url, { scroll: false });
   };
@@ -153,6 +160,29 @@ export default function DashboardPage() {
           </p>
         </div>
         <div className="flex items-center gap-3">
+          {/* Sort dropdown */}
+          {(activeFilter === null || activeFilter === 'PUBLISHED') && articles.length > 0 && (
+            <div className="relative">
+              <select
+                value={sortBy}
+                onChange={(e) => {
+                  setSortBy(e.target.value);
+                  setCurrentPage(1);
+                }}
+                className="appearance-none pl-4 pr-10 py-2.5 bg-white border border-ink-200 text-ink-700 rounded-lg font-semibold text-sm hover:bg-ink-50 transition-all cursor-pointer focus:outline-none focus:ring-2 focus:ring-ink-300"
+              >
+                <option value="updatedAt">Recent Updates</option>
+                <option value="publishedAt">Recently Published</option>
+                <option value="pageviews">Most Pageviews</option>
+                <option value="visitors">Most Visitors</option>
+              </select>
+              <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-ink-400">
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                </svg>
+              </div>
+            </div>
+          )}
           {isAdmin && (activeFilter === null || activeFilter === 'PUBLISHED') && (
             <button
               onClick={handleRefreshAnalytics}
@@ -395,6 +425,76 @@ export default function DashboardPage() {
             );
           });
           })()}
+        </div>
+      )}
+
+      {/* Pagination Controls */}
+      {!isLoading && totalPages > 1 && (
+        <div className="flex items-center justify-between mt-8 px-4">
+          <div className="text-sm text-ink-600">
+            Page {currentPage} of {totalPages}
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setCurrentPage(1)}
+              disabled={currentPage === 1}
+              className="px-3 py-2 text-sm font-medium text-ink-700 bg-white border border-ink-200 rounded-lg hover:bg-ink-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+            >
+              First
+            </button>
+            <button
+              onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+              disabled={currentPage === 1}
+              className="px-3 py-2 text-sm font-medium text-ink-700 bg-white border border-ink-200 rounded-lg hover:bg-ink-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+            >
+              Previous
+            </button>
+            
+            {/* Page numbers */}
+            <div className="flex items-center gap-1">
+              {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                let pageNum;
+                if (totalPages <= 5) {
+                  pageNum = i + 1;
+                } else if (currentPage <= 3) {
+                  pageNum = i + 1;
+                } else if (currentPage >= totalPages - 2) {
+                  pageNum = totalPages - 4 + i;
+                } else {
+                  pageNum = currentPage - 2 + i;
+                }
+                
+                return (
+                  <button
+                    key={pageNum}
+                    onClick={() => setCurrentPage(pageNum)}
+                    className={`px-3 py-2 text-sm font-medium rounded-lg transition-all ${
+                      currentPage === pageNum
+                        ? 'bg-ink-950 text-white'
+                        : 'text-ink-700 bg-white border border-ink-200 hover:bg-ink-50'
+                    }`}
+                  >
+                    {pageNum}
+                  </button>
+                );
+              })}
+            </div>
+
+            <button
+              onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+              disabled={currentPage === totalPages}
+              className="px-3 py-2 text-sm font-medium text-ink-700 bg-white border border-ink-200 rounded-lg hover:bg-ink-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+            >
+              Next
+            </button>
+            <button
+              onClick={() => setCurrentPage(totalPages)}
+              disabled={currentPage === totalPages}
+              className="px-3 py-2 text-sm font-medium text-ink-700 bg-white border border-ink-200 rounded-lg hover:bg-ink-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+            >
+              Last
+            </button>
+          </div>
         </div>
       )}
 
