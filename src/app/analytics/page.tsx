@@ -22,8 +22,16 @@ interface ArticleStats {
   totalPageviews: number;
   totalUniqueVisitors: number;
   publishedAt: string;
+  publishedSite: string | null;
   author: { name: string };
   sparkline?: number[];
+}
+
+interface SiteStats {
+  site: string;
+  articleCount: number;
+  totalPageviews: number;
+  totalVisitors: number;
 }
 
 interface OverviewStats {
@@ -39,15 +47,11 @@ export default function AnalyticsPage() {
   const [dateRange, setDateRange] = useState<'7d' | '30d' | '90d' | 'all'>('30d');
   const [articles, setArticles] = useState<ArticleStats[]>([]);
   const [overview, setOverview] = useState<OverviewStats | null>(null);
+  const [siteStats, setSiteStats] = useState<SiteStats[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
-  const isAdmin = session?.user?.role === 'ADMIN' || session?.user?.role === 'EDITOR';
-
   useEffect(() => {
-    if (!isAdmin) {
-      router.push('/dashboard');
-      return;
-    }
+    if (!session) return;
 
     const fetchData = async () => {
       setIsLoading(true);
@@ -69,6 +73,27 @@ export default function AnalyticsPage() {
           : 0;
 
         setOverview(stats);
+
+        // Calculate site-by-site stats
+        const siteMap = new Map<string, SiteStats>();
+        publishedArticles.forEach((a: ArticleStats) => {
+          const site = a.publishedSite || 'Unknown';
+          const existing = siteMap.get(site);
+          if (existing) {
+            existing.articleCount++;
+            existing.totalPageviews += a.totalPageviews || 0;
+            existing.totalVisitors += a.totalUniqueVisitors || 0;
+          } else {
+            siteMap.set(site, {
+              site,
+              articleCount: 1,
+              totalPageviews: a.totalPageviews || 0,
+              totalVisitors: a.totalUniqueVisitors || 0,
+            });
+          }
+        });
+        const sortedSiteStats = Array.from(siteMap.values()).sort((a, b) => b.totalPageviews - a.totalPageviews);
+        setSiteStats(sortedSiteStats);
 
         // Fetch sparkline data
         const ids = publishedArticles.slice(0, 20).map((a: ArticleStats) => a.id).join(',');
@@ -93,9 +118,9 @@ export default function AnalyticsPage() {
     };
 
     fetchData();
-  }, [dateRange, isAdmin, router]);
+  }, [dateRange, session]);
 
-  if (!isAdmin) return null;
+  if (!session) return null;
 
   return (
     <AppShell>
@@ -224,6 +249,37 @@ export default function AnalyticsPage() {
               {/* Sidebar */}
               <div className="space-y-6">
                 <WriterLeaderboard />
+
+                {/* Site Performance */}
+                {siteStats.length > 0 && (
+                  <div className="bg-white dark:bg-ink-900 rounded-xl border border-ink-100 dark:border-ink-800 p-5">
+                    <h3 className="font-display font-semibold text-ink-900 dark:text-white mb-4">
+                      Performance by Site
+                    </h3>
+                    <div className="space-y-3">
+                      {siteStats.map((site) => (
+                        <div key={site.site} className="pb-3 border-b border-ink-100 dark:border-ink-800 last:border-0 last:pb-0">
+                          <div className="flex items-center justify-between mb-1">
+                            <span className="text-sm font-medium text-ink-900 dark:text-white truncate">
+                              {site.site}
+                            </span>
+                            <span className="text-xs text-ink-400 flex-shrink-0 ml-2">
+                              {site.articleCount} articles
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-4 text-xs">
+                            <span className="text-ink-500 dark:text-ink-400">
+                              <span className="font-semibold text-ink-700 dark:text-ink-200">{site.totalPageviews.toLocaleString()}</span> views
+                            </span>
+                            <span className="text-ink-500 dark:text-ink-400">
+                              <span className="font-semibold text-ink-700 dark:text-ink-200">{site.totalVisitors.toLocaleString()}</span> visitors
+                            </span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
 
                 {/* Quick Stats */}
                 <div className="bg-white dark:bg-ink-900 rounded-xl border border-ink-100 dark:border-ink-800 p-5">

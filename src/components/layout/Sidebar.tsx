@@ -50,7 +50,7 @@ function timeAgo(dateString: string): string {
 
 // Unified Insights Panel with tabs
 function InsightsPanel() {
-  const [activeTab, setActiveTab] = useState<'trending' | 'top'>('trending');
+  const [activeTab, setActiveTab] = useState<'trending' | 'top'>('top');
   const [trending, setTrending] = useState<TrendingData | null>(null);
   const [articles, setArticles] = useState<HotArticle[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -137,7 +137,7 @@ function InsightsPanel() {
             <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
             </svg>
-            Top Posts
+            Top 24H
           </button>
         )}
       </div>
@@ -228,7 +228,7 @@ export default function Sidebar() {
     { href: '/editor/new', label: 'New Story', icon: HiOutlinePlusCircle, show: true },
     { href: '/dashboard?filter=submitted', label: 'For Review', icon: HiOutlineClipboardDocumentCheck, show: isAdmin },
     { href: '/calendar', label: 'Calendar', icon: HiOutlineCalendarDays, show: isAdmin },
-    { href: '/analytics', label: 'Analytics', icon: HiOutlineChartBar, show: isAdmin },
+    { href: '/analytics', label: 'Analytics', icon: HiOutlineChartBar, show: true },
     { href: '/admin/users', label: 'Manage Writers', icon: HiOutlineUserGroup, show: session.user.role === 'ADMIN' },
     { href: '/admin/sites', label: 'Publish Sites', icon: HiOutlineGlobeAlt, show: session.user.role === 'ADMIN' },
   ];
