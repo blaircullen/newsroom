@@ -11,7 +11,7 @@ const VALID_STATUSES = new Set<string>([
 ]);
 
 // Valid sort options
-const VALID_SORT_OPTIONS = new Set(['updatedAt', 'publishedAt', 'pageviews', 'visitors']);
+const VALID_SORT_OPTIONS = new Set(['createdAt', 'updatedAt', 'publishedAt', 'pageviews', 'visitors']);
 
 // Maximum limits to prevent abuse
 const MAX_LIMIT = 100;
@@ -56,6 +56,9 @@ export async function GET(request: NextRequest) {
   // Determine sort order
   let orderBy: Prisma.ArticleOrderByWithRelationInput;
   switch (sortBy) {
+    case 'createdAt':
+      orderBy = { createdAt: 'desc' };
+      break;
     case 'publishedAt':
       orderBy = { publishedAt: 'desc' };
       break;

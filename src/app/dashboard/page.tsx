@@ -73,7 +73,7 @@ function DesktopDashboard() {
   const [stats, setStats] = useState({ total: 0, submitted: 0, approved: 0, published: 0 });
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
-  const [sortBy, setSortBy] = useState('updatedAt');
+  const [sortBy, setSortBy] = useState('createdAt');
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   const [isAutoRefreshing, setIsAutoRefreshing] = useState(false);
   const [activeFilter, setActiveFilter] = useState(filterParam);
@@ -212,6 +212,7 @@ function DesktopDashboard() {
                 }}
                 className="appearance-none pl-4 pr-10 py-2.5 bg-white dark:bg-ink-900 border border-ink-200 dark:border-ink-700 text-ink-700 dark:text-ink-200 rounded-lg font-semibold text-sm hover:bg-ink-50 dark:hover:bg-ink-800 transition-all cursor-pointer focus:outline-none focus:ring-2 focus:ring-ink-300 dark:focus:ring-ink-600"
               >
+                <option value="createdAt">Newest First</option>
                 <option value="updatedAt">Recent Updates</option>
                 <option value="publishedAt">Recently Published</option>
                 <option value="pageviews">Most Pageviews</option>
