@@ -246,14 +246,39 @@ export default function DashboardPage() {
         </div>
       ) : (
         <div className="space-y-3">
-          {articles.map((article) => {
+          {(() => {
+            // Calculate high-performing articles
+            const publishedArticles = articles.filter(a => a.status === 'PUBLISHED' && a.totalPageviews > 0);
+            const pageviewsArray = publishedArticles.map(a => a.totalPageviews).sort((a, b) => a - b);
+            const medianPageviews = pageviewsArray.length > 0 
+              ? pageviewsArray[Math.floor(pageviewsArray.length / 2)] 
+              : 0;
+            const topPerformerThreshold = medianPageviews * 2.5; // 2.5x median
+            
+            return articles.map((article) => {
             const config = STATUS_CONFIG[article.status] || STATUS_CONFIG.DRAFT;
             const hasAnalytics = article.status === 'PUBLISHED' && (article.totalPageviews > 0 || article.totalUniqueVisitors > 0);
+            const isTopPerformer = article.status === 'PUBLISHED' && article.totalPageviews >= topPerformerThreshold && topPerformerThreshold > 0;
             return (
               <div
                 key={article.id}
-                className="bg-white rounded-xl border border-ink-100 p-5 hover:shadow-card-hover hover:border-ink-200 transition-all duration-200 group relative"
+                className={`rounded-xl border transition-all duration-200 group relative p-5 ${
+                  isTopPerformer 
+                    ? 'bg-gradient-to-br from-amber-50 to-orange-50 border-transparent shadow-lg shadow-amber-100/50 ring-2 ring-amber-400/30'
+                    : 'bg-white border-ink-100 hover:shadow-card-hover hover:border-ink-200'
+                }`}
               >
+                {isTopPerformer && (
+                  <div className="absolute -top-2 -right-2 z-10">
+                    <div className="flex items-center gap-1.5 px-3 py-1.5 bg-gradient-to-r from-amber-500 to-orange-500 text-white rounded-full text-xs font-bold shadow-lg shadow-amber-500/30">
+                      <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                        <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                      </svg>
+                      Top Performer
+                    </div>
+                  </div>
+                )}
+
                 <Link
                   href={`/editor/${article.id}`}
                   className="block"
@@ -327,13 +352,13 @@ export default function DashboardPage() {
                       {hasAnalytics && (
                         <div className="flex items-center gap-4 mt-3 pt-3 border-t border-ink-100">
                           <div className="flex items-center gap-1.5 text-xs">
-                            <HiOutlineChartBarSquare className="w-4 h-4 text-press-600" />
-                            <span className="font-semibold text-ink-900">{article.totalPageviews.toLocaleString()}</span>
+                            <HiOutlineChartBarSquare className={`w-4 h-4 ${isTopPerformer ? 'text-amber-600' : 'text-press-600'}`} />
+                            <span className={`font-semibold ${isTopPerformer ? 'text-amber-700 text-base' : 'text-ink-900'}`}>{article.totalPageviews.toLocaleString()}</span>
                             <span className="text-ink-400">pageviews</span>
                           </div>
                           <div className="flex items-center gap-1.5 text-xs">
-                            <HiOutlineEye className="w-4 h-4 text-blue-600" />
-                            <span className="font-semibold text-ink-900">{article.totalUniqueVisitors.toLocaleString()}</span>
+                            <HiOutlineEye className={`w-4 h-4 ${isTopPerformer ? 'text-amber-600' : 'text-blue-600'}`} />
+                            <span className={`font-semibold ${isTopPerformer ? 'text-amber-700 text-base' : 'text-ink-900'}`}>{article.totalUniqueVisitors.toLocaleString()}</span>
                             <span className="text-ink-400">unique visitors</span>
                           </div>
                           {article.analyticsUpdatedAt && (
@@ -368,7 +393,8 @@ export default function DashboardPage() {
                 )}
               </div>
             );
-          })}
+          });
+          })()}
         </div>
       )}
 
