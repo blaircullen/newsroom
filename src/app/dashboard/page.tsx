@@ -1,9 +1,18 @@
 'use client';
 
-import MobileDetector from '@/components/mobile/MobileDetector';
-import MobileApp from '@/components/mobile/MobileApp';
-
+import dynamic from 'next/dynamic';
 import { useState, useEffect } from 'react';
+import { useMobileDetection } from '@/components/mobile/MobileDetector';
+
+// Dynamically import MobileApp to prevent SSR issues with hooks
+const MobileApp = dynamic(() => import('@/components/mobile/MobileApp'), {
+  ssr: false,
+  loading: () => (
+    <div className="flex items-center justify-center min-h-screen bg-ink-950">
+      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-press-400" />
+    </div>
+  ),
+});
 import { useSession } from 'next-auth/react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
@@ -676,13 +685,28 @@ function StatCard({
 }
 
 
-// Wrap with mobile detection
+// Use mobile detection hook for proper client-side rendering
 export default function DashboardPage() {
-  return (
-    <MobileDetector
-      mobileComponent={<MobileApp />}
-    >
-      <DesktopDashboard />
-    </MobileDetector>
-  );
+  const isMobile = useMobileDetection();
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  // Show loading state until mounted to prevent hydration mismatch
+  if (!mounted) {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-ink-950">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-press-400" />
+      </div>
+    );
+  }
+
+  // Render mobile or desktop based on detection
+  if (isMobile) {
+    return <MobileApp />;
+  }
+
+  return <DesktopDashboard />;
 }
