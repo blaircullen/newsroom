@@ -41,6 +41,7 @@ export async function scrapeStoryIdeas(): Promise<StoryIdea[]> {
       const text = $link.text().trim();
 
       // Filter for actual headline links (skip navigation, social, etc.)
+      const textLower = text.toLowerCase();
       if (
         href &&
         text &&
@@ -49,8 +50,12 @@ export async function scrapeStoryIdeas(): Promise<StoryIdea[]> {
         !href.includes('citizenfreepress.com/category') &&
         !href.includes('/about') &&
         !href.includes('/contact') &&
-        !text.toLowerCase().includes('subscribe') &&
-        !text.toLowerCase().includes('donate')
+        !textLower.includes('subscribe') &&
+        !textLower.includes('donate') &&
+        // Filter out promotional content
+        !textLower.includes('steve bannon') &&
+        !textLower.includes('war room') &&
+        !textLower.includes('watch live')
       ) {
         // Extract source domain from URL with friendly names
         let source = 'Web';
