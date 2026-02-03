@@ -1,8 +1,7 @@
 'use client';
 
-import { useIsMobile } from '@/hooks/use-mobile';
-import MobileDashboard from '@/components/mobile/MobileDashboard';
-
+import MobileDetector from '@/components/mobile/MobileDetector';
+import MobileApp from '@/components/mobile/MobileApp';
 
 import { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
@@ -45,17 +44,11 @@ const FILTERS = [
   { value: 'REVISION_REQUESTED', label: 'Needs Revision' },
 ];
 
-export default function DashboardPage() {
+function DesktopDashboard() {
   const { data: session } = useSession();
   const router = useRouter();
   const searchParams = useSearchParams();
   const filterParam = searchParams.get('filter') || '';
-  const isMobile = useIsMobile();
-
-  // Show mobile-optimized interface for mobile devices
-  if (isMobile) {
-    return <MobileDashboard />;
-  }
 
   const [articles, setArticles] = useState<any[]>([]);
   const [stats, setStats] = useState({ total: 0, submitted: 0, approved: 0, published: 0 });
@@ -590,3 +583,14 @@ function StatCard({
   );
 }
 
+
+// Wrap with mobile detection
+export default function DashboardPage() {
+  return (
+    <MobileDetector
+      mobileComponent={<MobileApp />}
+    >
+      <DesktopDashboard />
+    </MobileDetector>
+  );
+}
