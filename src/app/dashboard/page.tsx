@@ -32,6 +32,7 @@ import {
   HiOutlineSparkles,
   HiOutlineChevronDown,
   HiOutlineChevronUp,
+  HiOutlineArrowTrendingUp,
 } from 'react-icons/hi2';
 
 const STATUS_CONFIG: Record<string, { label: string; class: string; icon: React.ComponentType<{ className?: string }> }> = {
@@ -376,9 +377,25 @@ function DesktopDashboard() {
                 {storyIdeas.slice(0, 6).map((idea, index) => (
                   <div
                     key={index}
-                    className="bg-white dark:bg-ink-900 rounded-lg border border-amber-200/50 dark:border-amber-800/50 p-4 hover:shadow-md transition-all group"
+                    className={`rounded-lg p-4 hover:shadow-md transition-all group relative overflow-hidden ${
+                      idea.trending
+                        ? 'bg-gradient-to-br from-purple-50 to-pink-50 dark:from-purple-900/30 dark:to-pink-900/30 border-2 border-purple-300 dark:border-purple-600 ring-1 ring-purple-200 dark:ring-purple-800'
+                        : 'bg-white dark:bg-ink-900 border border-amber-200/50 dark:border-amber-800/50'
+                    }`}
                   >
-                    <h4 className="text-sm font-medium text-ink-800 dark:text-ink-200 line-clamp-2 mb-3 leading-snug">
+                    {idea.trending && (
+                      <div className="absolute top-0 right-0">
+                        <div className="bg-gradient-to-r from-purple-500 to-pink-500 text-white text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-bl-lg flex items-center gap-1">
+                          <HiOutlineArrowTrendingUp className="w-3 h-3" />
+                          Multi-Source
+                        </div>
+                      </div>
+                    )}
+                    <h4 className={`text-sm font-medium line-clamp-2 mb-3 leading-snug ${
+                      idea.trending
+                        ? 'text-purple-900 dark:text-purple-100 pr-20'
+                        : 'text-ink-800 dark:text-ink-200'
+                    }`}>
                       {idea.headline}
                     </h4>
                     <div className="flex items-center justify-between">
@@ -386,7 +403,11 @@ function DesktopDashboard() {
                         href={idea.sourceUrl}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="flex items-center gap-1 text-xs text-amber-600 dark:text-amber-400 hover:underline"
+                        className={`flex items-center gap-1 text-xs hover:underline ${
+                          idea.trending
+                            ? 'text-purple-600 dark:text-purple-400'
+                            : 'text-amber-600 dark:text-amber-400'
+                        }`}
                       >
                         <span className="uppercase tracking-wider font-medium">{idea.source}</span>
                         <HiOutlineArrowTopRightOnSquare className="w-3 h-3" />
@@ -394,7 +415,11 @@ function DesktopDashboard() {
                       <button
                         onClick={() => handleCreateFromIdea(idea)}
                         disabled={creatingFromIdea === idea.headline}
-                        className="flex items-center gap-1.5 px-3 py-1.5 bg-ink-950 dark:bg-ink-700 text-white text-xs font-semibold rounded-lg hover:bg-ink-800 dark:hover:bg-ink-600 disabled:opacity-50 transition-all active:scale-95"
+                        className={`flex items-center gap-1.5 px-3 py-1.5 text-white text-xs font-semibold rounded-lg disabled:opacity-50 transition-all active:scale-95 ${
+                          idea.trending
+                            ? 'bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700'
+                            : 'bg-ink-950 dark:bg-ink-700 hover:bg-ink-800 dark:hover:bg-ink-600'
+                        }`}
                       >
                         {creatingFromIdea === idea.headline ? (
                           <>

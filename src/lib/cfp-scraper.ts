@@ -4,12 +4,71 @@ export interface StoryIdea {
   headline: string;
   sourceUrl: string;
   source: string;
+  trending?: boolean; // Appears in multiple sources
 }
 
 // In-memory cache
 let cachedIdeas: StoryIdea[] = [];
 let cacheTimestamp = 0;
 const CACHE_TTL = 15 * 60 * 1000; // 15 minutes
+
+// Extract keywords from headline for fuzzy matching
+function extractKeywords(text: string): Set<string> {
+  const stopWords = new Set(['the', 'a', 'an', 'is', 'are', 'was', 'were', 'be', 'been', 'being', 'have', 'has', 'had', 'do', 'does', 'did', 'will', 'would', 'could', 'should', 'may', 'might', 'must', 'shall', 'can', 'need', 'dare', 'ought', 'used', 'to', 'of', 'in', 'for', 'on', 'with', 'at', 'by', 'from', 'as', 'into', 'through', 'during', 'before', 'after', 'above', 'below', 'between', 'under', 'again', 'further', 'then', 'once', 'here', 'there', 'when', 'where', 'why', 'how', 'all', 'each', 'few', 'more', 'most', 'other', 'some', 'such', 'no', 'nor', 'not', 'only', 'own', 'same', 'so', 'than', 'too', 'very', 'just', 'and', 'but', 'if', 'or', 'because', 'until', 'while', 'this', 'that', 'these', 'those', 'what', 'which', 'who', 'whom', 'its', 'his', 'her', 'their', 'our', 'your', 'says', 'said', 'new', 'over', 'out', 'about']);
+
+  return new Set(
+    text.toLowerCase()
+      .replace(/[^a-z0-9\s]/g, '')
+      .split(/\s+/)
+      .filter(word => word.length > 3 && !stopWords.has(word))
+  );
+}
+
+// Check if two headlines are about the same topic
+function areRelated(headline1: string, headline2: string): boolean {
+  const keywords1 = extractKeywords(headline1);
+  const keywords2 = extractKeywords(headline2);
+
+  if (keywords1.size === 0 || keywords2.size === 0) return false;
+
+  // Count overlapping keywords
+  let overlap = 0;
+  for (const word of keywords1) {
+    if (keywords2.has(word)) overlap++;
+  }
+
+  // Need at least 3 matching keywords or 40% overlap
+  const minSize = Math.min(keywords1.size, keywords2.size);
+  return overlap >= 3 || (minSize > 0 && overlap / minSize >= 0.4);
+}
+
+// Fetch BizPac Review RSS feed
+async function fetchBizPacHeadlines(): Promise<string[]> {
+  try {
+    const response = await fetch('https://www.bizpacreview.com/feed/', {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (compatible; NewsroomBot/1.0)',
+      },
+    });
+
+    if (!response.ok) return [];
+
+    const xml = await response.text();
+    const $ = cheerio.load(xml, { xmlMode: true });
+    const headlines: string[] = [];
+
+    $('item title').each((_, el) => {
+      const title = $(el).text().trim();
+      if (title) headlines.push(title);
+    });
+
+    console.log(`[BizPac] Found ${headlines.length} headlines`);
+    return headlines;
+  } catch (error) {
+    console.error('[BizPac] Error fetching RSS:', error);
+    return [];
+  }
+}
 
 export async function scrapeStoryIdeas(): Promise<StoryIdea[]> {
   // Return cached if fresh
@@ -18,21 +77,56 @@ export async function scrapeStoryIdeas(): Promise<StoryIdea[]> {
   }
 
   try {
-    const response = await fetch('https://citizenfreepress.com/', {
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (compatible; NewsroomBot/1.0)',
-      },
-      next: { revalidate: 900 }, // Cache for 15 min
-    });
+    // Fetch both sources in parallel
+    const [cfpResponse, bizpacHeadlines] = await Promise.all([
+      fetch('https://citizenfreepress.com/', {
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (compatible; NewsroomBot/1.0)',
+        },
+      }),
+      fetchBizPacHeadlines(),
+    ]);
 
-    if (!response.ok) {
-      console.error('[CFP Scraper] Failed to fetch:', response.status);
-      return cachedIdeas; // Return stale cache if available
+    if (!cfpResponse.ok) {
+      console.error('[CFP Scraper] Failed to fetch:', cfpResponse.status);
+      return cachedIdeas;
     }
 
-    const html = await response.text();
+    const html = await cfpResponse.text();
     const $ = cheerio.load(html);
     const ideas: StoryIdea[] = [];
+
+    // Source name mapping
+    const sourceMap: Record<string, string> = {
+      'x.com': 'Twitter',
+      'twitter.com': 'Twitter',
+      'youtube.com': 'YouTube',
+      'youtu.be': 'YouTube',
+      'reddit.com': 'Reddit',
+      'substack.com': 'Substack',
+      'foxnews.com': 'Fox News',
+      'breitbart.com': 'Breitbart',
+      'dailywire.com': 'Daily Wire',
+      'nypost.com': 'NY Post',
+      'dailymail.co.uk': 'Daily Mail',
+      'thegatewaypundit.com': 'Gateway Pundit',
+      'zerohedge.com': 'ZeroHedge',
+      'rumble.com': 'Rumble',
+      'revolver.news': 'Revolver',
+      'thepostmillennial.com': 'Post Millennial',
+      'townhall.com': 'Townhall',
+      'pjmedia.com': 'PJ Media',
+      'twitchy.com': 'Twitchy',
+      'hotair.com': 'Hot Air',
+      'washingtonexaminer.com': 'Wash Examiner',
+      'newsweek.com': 'Newsweek',
+      'politico.com': 'Politico',
+      'thehill.com': 'The Hill',
+      'axios.com': 'Axios',
+      'reuters.com': 'Reuters',
+      'apnews.com': 'AP News',
+      'bizpacreview.com': 'BizPac',
+    };
 
     // CFP uses list items with links for headlines
     $('a').each((_, el) => {
@@ -40,7 +134,6 @@ export async function scrapeStoryIdeas(): Promise<StoryIdea[]> {
       const href = $link.attr('href');
       const text = $link.text().trim();
 
-      // Filter for actual headline links (skip navigation, social, etc.)
       const textLower = text.toLowerCase();
       if (
         href &&
@@ -52,60 +145,24 @@ export async function scrapeStoryIdeas(): Promise<StoryIdea[]> {
         !href.includes('/contact') &&
         !textLower.includes('subscribe') &&
         !textLower.includes('donate') &&
-        // Filter out promotional content
         !textLower.includes('steve bannon') &&
         !textLower.includes('war room') &&
         !textLower.includes('watch live')
       ) {
-        // Extract source domain from URL with friendly names
         let source = 'Web';
         try {
           const url = new URL(href);
           const hostname = url.hostname.replace('www.', '').toLowerCase();
 
-          // Map common domains to friendly names
-          const sourceMap: Record<string, string> = {
-            'x.com': 'Twitter',
-            'twitter.com': 'Twitter',
-            'youtube.com': 'YouTube',
-            'youtu.be': 'YouTube',
-            'reddit.com': 'Reddit',
-            'substack.com': 'Substack',
-            'foxnews.com': 'Fox News',
-            'breitbart.com': 'Breitbart',
-            'dailywire.com': 'Daily Wire',
-            'nypost.com': 'NY Post',
-            'dailymail.co.uk': 'Daily Mail',
-            'thegatewaypundit.com': 'Gateway Pundit',
-            'zerohedge.com': 'ZeroHedge',
-            'rumble.com': 'Rumble',
-            'revolver.news': 'Revolver',
-            'thepostmillennial.com': 'Post Millennial',
-            'townhall.com': 'Townhall',
-            'pjmedia.com': 'PJ Media',
-            'twitchy.com': 'Twitchy',
-            'hotair.com': 'Hot Air',
-            'washingtonexaminer.com': 'Wash Examiner',
-            'newsweek.com': 'Newsweek',
-            'politico.com': 'Politico',
-            'thehill.com': 'The Hill',
-            'axios.com': 'Axios',
-            'reuters.com': 'Reuters',
-            'apnews.com': 'AP News',
-          };
-
-          // Check for exact match first
           if (sourceMap[hostname]) {
             source = sourceMap[hostname];
           } else {
-            // Check if hostname contains any of the keys
             for (const [domain, name] of Object.entries(sourceMap)) {
               if (hostname.includes(domain.split('.')[0])) {
                 source = name;
                 break;
               }
             }
-            // Fallback: extract and capitalize first part of domain
             if (source === 'Web') {
               const parts = hostname.split('.');
               source = parts[0].charAt(0).toUpperCase() + parts[0].slice(1);
@@ -115,31 +172,44 @@ export async function scrapeStoryIdeas(): Promise<StoryIdea[]> {
           // Keep as Web
         }
 
+        // Check if this story is also in BizPac Review (trending)
+        const isTrending = bizpacHeadlines.some(bpHeadline => areRelated(text, bpHeadline));
+
         ideas.push({
           headline: text,
           sourceUrl: href,
           source,
+          trending: isTrending,
         });
       }
     });
 
-    // Dedupe by headline and take top 10
+    // Dedupe by headline and take top 10, prioritizing trending stories
     const seen = new Set<string>();
-    const uniqueIdeas = ideas.filter((idea) => {
-      const key = idea.headline.toLowerCase().slice(0, 50);
-      if (seen.has(key)) return false;
-      seen.add(key);
-      return true;
-    }).slice(0, 10);
+    const uniqueIdeas = ideas
+      .filter((idea) => {
+        const key = idea.headline.toLowerCase().slice(0, 50);
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      })
+      .sort((a, b) => {
+        // Trending stories first
+        if (a.trending && !b.trending) return -1;
+        if (!a.trending && b.trending) return 1;
+        return 0;
+      })
+      .slice(0, 10);
 
     // Update cache
     cachedIdeas = uniqueIdeas;
     cacheTimestamp = Date.now();
 
-    console.log(`[CFP Scraper] Found ${uniqueIdeas.length} story ideas`);
+    const trendingCount = uniqueIdeas.filter(i => i.trending).length;
+    console.log(`[CFP Scraper] Found ${uniqueIdeas.length} story ideas (${trendingCount} trending)`);
     return uniqueIdeas;
   } catch (error) {
     console.error('[CFP Scraper] Error:', error);
-    return cachedIdeas; // Return stale cache on error
+    return cachedIdeas;
   }
 }

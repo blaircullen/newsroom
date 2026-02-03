@@ -510,14 +510,35 @@ function HotTodayTab({ hotArticles, storyIdeas, activeTab, onTabChange }: any) {
                 className="block"
               >
                 <div className="group active:scale-[0.98] transition-transform">
-                  <div className="p-3 rounded-xl bg-slate-800/60 border border-yellow-500/20 group-active:border-yellow-500/40">
+                  <div className={`p-3 rounded-xl relative overflow-hidden ${
+                    idea.trending
+                      ? 'bg-gradient-to-r from-purple-900/40 to-pink-900/40 border border-purple-500/50 ring-1 ring-purple-400/20'
+                      : 'bg-slate-800/60 border border-yellow-500/20 group-active:border-yellow-500/40'
+                  }`}>
+                    {idea.trending && (
+                      <div className="absolute top-0 right-0">
+                        <div className="bg-gradient-to-r from-purple-500 to-pink-500 text-white text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-bl-lg">
+                          Multi-Source
+                        </div>
+                      </div>
+                    )}
                     <div className="flex items-start gap-3">
                       <div className="flex-1 min-w-0">
-                        <h4 className="text-sm font-medium text-white/90 line-clamp-2 leading-snug">
+                        <h4 className={`text-sm font-medium line-clamp-2 leading-snug ${
+                          idea.trending ? 'text-white pr-16' : 'text-white/90'
+                        }`}>
                           {idea.headline}
                         </h4>
                         <div className="flex items-center gap-2 mt-1.5">
-                          <span className="text-[10px] text-yellow-400/80 uppercase tracking-wider font-medium">
+                          {idea.trending && (
+                            <span className="flex items-center gap-1 text-[10px] text-purple-300 font-semibold">
+                              <HiOutlineArrowTrendingUp className="w-3 h-3" />
+                              HOT
+                            </span>
+                          )}
+                          <span className={`text-[10px] uppercase tracking-wider font-medium ${
+                            idea.trending ? 'text-purple-300/80' : 'text-yellow-400/80'
+                          }`}>
                             {idea.source}
                           </span>
                           <HiOutlineArrowTopRightOnSquare className="w-3 h-3 text-white/40" />
