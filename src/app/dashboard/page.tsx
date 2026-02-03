@@ -70,6 +70,8 @@ function DesktopDashboard() {
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [sortBy, setSortBy] = useState('updatedAt');
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
+  const [isAutoRefreshing, setIsAutoRefreshing] = useState(false);
   const [activeFilter, setActiveFilter] = useState(filterParam);
   const [isLoading, setIsLoading] = useState(true);
   const [deleteConfirm, setDeleteConfirm] = useState<{ id: string; headline: string } | null>(null);
@@ -114,15 +116,25 @@ function DesktopDashboard() {
       );
 
       setStats(calculatedStats);
+      setLastUpdated(new Date());
     } catch (error) {
       console.error('Failed to fetch articles:', error);
     } finally {
       setIsLoading(false);
+      setIsAutoRefreshing(false);
     }
   };
 
   useEffect(() => {
     fetchArticles();
+    
+    // Auto-refresh every 30 seconds for live updates
+    const interval = setInterval(() => {
+      setIsAutoRefreshing(true);
+      fetchArticles();
+    }, 30000); // 30 seconds
+    
+    return () => clearInterval(interval);
   }, [activeFilter, currentPage, sortBy]);
 
   const handleFilterChange = (filter: string) => {
@@ -241,6 +253,7 @@ function DesktopDashboard() {
           value={stats.total}
           icon={HiOutlineDocumentText}
           color="ink"
+          isUpdating={isAutoRefreshing}
         />
         <StatCard
           label={isAdmin ? 'Awaiting Review' : 'Submitted'}
@@ -248,18 +261,21 @@ function DesktopDashboard() {
           icon={HiOutlinePaperAirplane}
           color="blue"
           highlight={isAdmin && stats.submitted > 0}
+          isUpdating={isAutoRefreshing}
         />
         <StatCard
           label="Approved"
           value={stats.approved}
           icon={HiOutlineCheckCircle}
           color="emerald"
+          isUpdating={isAutoRefreshing}
         />
         <StatCard
           label="Published"
           value={stats.published}
           icon={HiOutlineGlobeAlt}
           color="press"
+          isUpdating={isAutoRefreshing}
         />
       </div>
 
@@ -414,12 +430,16 @@ function DesktopDashboard() {
                         <div className="flex items-center gap-4 mt-3 pt-3 border-t border-ink-100">
                           <div className="flex items-center gap-1.5 text-xs">
                             <HiOutlineChartBarSquare className={`w-4 h-4 ${isTopPerformer ? 'text-amber-600' : 'text-press-600'}`} />
-                            <span className={`font-semibold ${isTopPerformer ? 'text-amber-700 text-base' : 'text-ink-900'}`}>{article.totalPageviews.toLocaleString()}</span>
+                            <span className={`font-semibold ${isTopPerformer ? 'text-amber-700 text-base' : 'text-ink-900'}`}>
+                              <AnimatedNumber value={article.totalPageviews} isUpdating={isAutoRefreshing} />
+                            </span>
                             <span className="text-ink-400">pageviews</span>
                           </div>
                           <div className="flex items-center gap-1.5 text-xs">
                             <HiOutlineEye className={`w-4 h-4 ${isTopPerformer ? 'text-amber-600' : 'text-blue-600'}`} />
-                            <span className={`font-semibold ${isTopPerformer ? 'text-amber-700 text-base' : 'text-ink-900'}`}>{article.totalUniqueVisitors.toLocaleString()}</span>
+                            <span className={`font-semibold ${isTopPerformer ? 'text-amber-700 text-base' : 'text-ink-900'}`}>
+                              <AnimatedNumber value={article.totalUniqueVisitors} isUpdating={isAutoRefreshing} />
+                            </span>
                             <span className="text-ink-400">unique visitors</span>
                           </div>
                           {article.analyticsUpdatedAt && (
@@ -574,18 +594,60 @@ function DesktopDashboard() {
 }
 
 // Stats Card Component
+// Animated number component for smooth value transitions
+function AnimatedNumber({ value, isUpdating = false }: { value: number; isUpdating?: boolean }) {
+  const [displayValue, setDisplayValue] = useState(value);
+  const [isAnimating, setIsAnimating] = useState(false);
+
+  useEffect(() => {
+    if (displayValue !== value) {
+      setIsAnimating(true);
+      
+      // Animate from current to new value
+      const duration = 800; // ms
+      const steps = 30;
+      const stepDuration = duration / steps;
+      const increment = (value - displayValue) / steps;
+      let currentStep = 0;
+
+      const timer = setInterval(() => {
+        currentStep++;
+        if (currentStep >= steps) {
+          setDisplayValue(value);
+          setIsAnimating(false);
+          clearInterval(timer);
+        } else {
+          setDisplayValue(prev => prev + increment);
+        }
+      }, stepDuration);
+
+      return () => clearInterval(timer);
+    }
+  }, [value, displayValue]);
+
+  return (
+    <span className={`transition-all duration-300 ${
+      isAnimating ? 'scale-105 text-press-600' : 'scale-100'
+    } ${isUpdating && !isAnimating ? 'opacity-80' : 'opacity-100'}`}>
+      {Math.round(displayValue).toLocaleString()}
+    </span>
+  );
+}
+
 function StatCard({
   label,
   value,
   icon: Icon,
   color,
   highlight = false,
+  isUpdating = false,
 }: {
   label: string;
   value: number;
   icon: React.ComponentType<{ className?: string }>;
   color: string;
   highlight?: boolean;
+  isUpdating?: boolean;
 }) {
   const colorMap: Record<string, string> = {
     ink: 'bg-ink-50 text-ink-600',
@@ -595,18 +657,25 @@ function StatCard({
   };
 
   return (
-    <div className={`bg-white rounded-xl border p-5 transition-all ${
+    <div className={`bg-white rounded-xl border p-5 transition-all duration-300 ${
       highlight ? 'border-blue-200 shadow-card ring-1 ring-blue-100' : 'border-ink-100'
-    }`}>
+    } ${isUpdating ? 'ring-2 ring-press-200/50' : ''}`}>
       <div className="flex items-center justify-between mb-3">
-        <div className={`w-9 h-9 rounded-lg flex items-center justify-center ${colorMap[color]}`}>
+        <div className={`w-9 h-9 rounded-lg flex items-center justify-center ${colorMap[color]} transition-all duration-300 ${
+          isUpdating ? 'scale-105' : 'scale-100'
+        }`}>
           <Icon className="w-5 h-5" />
         </div>
         {highlight && (
           <span className="w-2.5 h-2.5 rounded-full bg-blue-500 animate-pulse" />
         )}
+        {isUpdating && !highlight && (
+          <span className="w-2 h-2 rounded-full bg-press-400 animate-pulse" />
+        )}
       </div>
-      <p className="text-2xl font-display font-bold text-ink-900">{value}</p>
+      <p className="text-2xl font-display font-bold text-ink-900">
+        <AnimatedNumber value={value} isUpdating={isUpdating} />
+      </p>
       <p className="text-xs text-ink-400 mt-0.5">{label}</p>
     </div>
   );
