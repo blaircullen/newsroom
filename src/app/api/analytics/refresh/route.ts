@@ -29,29 +29,45 @@ export async function POST(request: NextRequest) {
     let updated = 0;
     let failed = 0;
 
-    for (const article of articles) {
-      if (!article || !article.publishedUrl) continue;
+    // Process articles in parallel batches of 10 to avoid overwhelming the API
+    const BATCH_SIZE = 10;
+    const batches = [];
+    for (let i = 0; i < articles.length; i += BATCH_SIZE) {
+      batches.push(articles.slice(i, i + BATCH_SIZE));
+    }
 
-      try {
-        // Split publishedUrl by " | " to get individual URLs for each site
-        const urls = article.publishedUrl.split(' | ').map(url => url.trim());
+    for (const batch of batches) {
+      const results = await Promise.allSettled(
+        batch.map(async (article) => {
+          if (!article || !article.publishedUrl) return null;
 
-        const analytics = await getArticleAnalytics(urls);
+          // Split publishedUrl by " | " to get individual URLs for each site
+          const urls = article.publishedUrl.split(' | ').map(url => url.trim());
 
-        await prisma.article.update({
-          where: { id: article.id },
-          data: {
-            totalPageviews: analytics.totalPageviews,
-            totalUniqueVisitors: analytics.totalUniqueVisitors,
-            analyticsUpdatedAt: new Date()
-          }
-        });
+          const analytics = await getArticleAnalytics(urls);
 
-        updated++;
-      } catch (error) {
-        console.error(`Failed to update analytics for article ${article.id}:`, error);
-        failed++;
-      }
+          await prisma.article.update({
+            where: { id: article.id },
+            data: {
+              totalPageviews: analytics.totalPageviews,
+              totalUniqueVisitors: analytics.totalUniqueVisitors,
+              analyticsUpdatedAt: new Date()
+            }
+          });
+
+          return article.id;
+        })
+      );
+
+      // Count successes and failures
+      results.forEach((result) => {
+        if (result.status === 'fulfilled' && result.value) {
+          updated++;
+        } else if (result.status === 'rejected') {
+          failed++;
+          console.error('Article update failed:', result.reason);
+        }
+      });
     }
 
     return NextResponse.json({
