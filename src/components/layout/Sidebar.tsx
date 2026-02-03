@@ -109,63 +109,93 @@ function InsightsPanel() {
   if (!hasTrending && !hasArticles) return null;
 
   return (
-    <div className="mx-3 mb-3 p-2 rounded-lg bg-white/[0.02] border border-white/5">
+    <div className="mx-3 mb-3 p-3 rounded-xl bg-white/[0.03] border border-white/10">
       {/* Tab Headers */}
-      <div className="flex items-center gap-1 mb-2 p-0.5 bg-white/5 rounded-md">
-        {hasTrending && (
-          <button
-            onClick={() => setActiveTab('trending')}
-            className={`flex-1 flex items-center justify-center gap-1.5 px-2 py-1.5 rounded text-[10px] font-semibold uppercase tracking-wide transition-all ${
-              activeTab === 'trending'
-                ? 'bg-white/10 text-white'
-                : 'text-ink-400 hover:text-ink-200'
-            }`}
-          >
-            <HiOutlineArrowTrendingUp className="w-3 h-3" />
-            Trending
-          </button>
-        )}
+      <div className="flex items-center gap-1 mb-3 p-1 bg-white/5 rounded-lg">
         {hasArticles && (
           <button
             onClick={() => setActiveTab('top')}
-            className={`flex-1 flex items-center justify-center gap-1.5 px-2 py-1.5 rounded text-[10px] font-semibold uppercase tracking-wide transition-all ${
+            className={`flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-md text-xs font-semibold transition-all ${
               activeTab === 'top'
-                ? 'bg-white/10 text-white'
-                : 'text-ink-400 hover:text-ink-200'
+                ? 'bg-press-500/20 text-press-400'
+                : 'text-ink-400 hover:text-ink-200 hover:bg-white/5'
             }`}
           >
-            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
             </svg>
-            Top 24H
+            Top Posts
+          </button>
+        )}
+        {hasTrending && (
+          <button
+            onClick={() => setActiveTab('trending')}
+            className={`flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-md text-xs font-semibold transition-all ${
+              activeTab === 'trending'
+                ? 'bg-sky-500/20 text-sky-400'
+                : 'text-ink-400 hover:text-ink-200 hover:bg-white/5'
+            }`}
+          >
+            <HiOutlineArrowTrendingUp className="w-4 h-4" />
+            Social Trends
           </button>
         )}
       </div>
 
-      {/* Trending Content */}
+      {/* Top Posts Content */}
+      {activeTab === 'top' && hasArticles && (
+        <div className="space-y-1">
+          {articles.slice(0, 5).map((article, i) => (
+            <Link
+              key={article.id}
+              href={`/editor/${article.id}`}
+              className="flex items-start gap-3 px-2 py-2.5 rounded-lg hover:bg-white/5 transition-colors group"
+            >
+              <span className="w-6 h-6 rounded-full bg-amber-500/20 text-xs font-bold text-amber-300 flex items-center justify-center flex-shrink-0">
+                {i + 1}
+              </span>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm text-ink-200 group-hover:text-white line-clamp-2 transition-colors leading-snug">
+                  {article.headline}
+                </p>
+                <p className="text-xs text-ink-500 mt-1">
+                  {article.totalPageviews.toLocaleString()} views
+                </p>
+              </div>
+              {article.isNew && (
+                <span className="text-[9px] font-bold text-press-400 bg-press-500/20 px-1.5 py-0.5 rounded flex-shrink-0">
+                  NEW
+                </span>
+              )}
+            </Link>
+          ))}
+        </div>
+      )}
+
+      {/* Social Trends Content */}
       {activeTab === 'trending' && hasTrending && (
-        <div className="space-y-0.5">
-          {trending.trends.slice(0, 3).map((trend, i) => (
+        <div className="space-y-1">
+          {trending.trends.slice(0, 5).map((trend, i) => (
             <a
               key={trend.rank}
               href={`https://news.google.com/search?q=${encodeURIComponent(trend.name)}&hl=en-US&gl=US&ceid=US:en`}
               target="_blank"
               rel="noopener noreferrer"
-              className="flex items-center gap-2 px-2 py-1.5 rounded-md hover:bg-white/5 transition-colors group"
+              className="flex items-center gap-3 px-2 py-2.5 rounded-lg hover:bg-white/5 transition-colors group"
             >
-              <span className="w-4 text-[10px] font-mono text-ink-500 text-center flex-shrink-0">
+              <span className="w-6 h-6 rounded-full bg-sky-500/20 text-xs font-bold text-sky-300 flex items-center justify-center flex-shrink-0">
                 {i + 1}
               </span>
-              <span className="text-xs text-ink-300 group-hover:text-white truncate flex-1 transition-colors">
+              <span className="text-sm text-ink-200 group-hover:text-white flex-1 line-clamp-1 transition-colors">
                 {trend.name}
               </span>
               {trend.velocity === 'new' && (
-                <span className="text-[8px] font-bold text-press-400 bg-press-500/20 px-1 rounded flex-shrink-0">
+                <span className="text-[9px] font-bold text-emerald-400 bg-emerald-500/20 px-1.5 py-0.5 rounded flex-shrink-0">
                   NEW
                 </span>
               )}
               {trend.velocity === 'rising' && (
-                <svg viewBox="0 0 8 8" className="w-2 h-2 text-emerald-400 flex-shrink-0">
+                <svg viewBox="0 0 8 8" className="w-3 h-3 text-emerald-400 flex-shrink-0">
                   <path d="M4 1L7 5H1L4 1Z" fill="currentColor" />
                 </svg>
               )}
@@ -175,40 +205,10 @@ function InsightsPanel() {
             href="https://x.com/explore/tabs/trending"
             target="_blank"
             rel="noopener noreferrer"
-            className="block px-2 pt-1 text-[10px] text-ink-500 hover:text-press-400 transition-colors"
+            className="block px-2 pt-2 text-xs text-ink-500 hover:text-sky-400 transition-colors"
           >
             See all on X →
           </a>
-        </div>
-      )}
-
-      {/* Top Posts Content */}
-      {activeTab === 'top' && hasArticles && (
-        <div className="space-y-0.5">
-          {articles.slice(0, 3).map((article, i) => (
-            <Link
-              key={article.id}
-              href={`/editor/${article.id}`}
-              className="flex items-start gap-2 px-2 py-1.5 rounded-md hover:bg-white/5 transition-colors group"
-            >
-              <span className="w-4 h-4 rounded-full bg-amber-500/20 text-[10px] font-bold text-amber-300 flex items-center justify-center flex-shrink-0 mt-0.5">
-                {i + 1}
-              </span>
-              <div className="flex-1 min-w-0">
-                <p className="text-xs text-ink-300 group-hover:text-white truncate transition-colors leading-snug">
-                  {article.headline}
-                </p>
-                <p className="text-[10px] text-ink-500 mt-0.5">
-                  {article.totalPageviews.toLocaleString()} views
-                </p>
-              </div>
-              {article.isNew && (
-                <span className="text-[8px] font-bold text-press-400 bg-press-500/20 px-1 rounded flex-shrink-0">
-                  NEW
-                </span>
-              )}
-            </Link>
-          ))}
         </div>
       )}
     </div>
