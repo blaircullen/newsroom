@@ -167,16 +167,20 @@ model ArticleVersion {
 }
 
 model PublishTarget {
-  id        String   @id @default(cuid())
-  name      String   @unique
-  type      String   // "ghost" or "wordpress"
-  url       String
-  apiKey    String?  @map("api_key")
-  username  String?
-  password  String?
-  isActive  Boolean  @default(true) @map("is_active")
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
+  id              String   @id @default(cuid())
+  name            String   @unique
+  type            String   // "ghost", "wordpress", or "shopify"
+  url             String
+  apiKey          String?  @map("api_key")
+  username        String?
+  password        String?
+  blogId          String?  @map("blog_id")           // Shopify blog ID
+  clientId        String?  @map("client_id")         // Shopify client ID
+  clientSecret    String?  @map("client_secret")     // Shopify client secret
+  myshopifyDomain String?  @map("myshopify_domain")  // Shopify myshopify.com domain
+  isActive        Boolean  @default(true) @map("is_active")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
 
   @@map("publish_targets")
 }

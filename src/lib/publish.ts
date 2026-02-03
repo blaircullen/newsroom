@@ -30,6 +30,14 @@ interface WordPressTarget {
   password?: string | null;
 }
 
+interface ShopifyTarget {
+  url: string;
+  blogId?: string | null;
+  clientId?: string | null;
+  clientSecret?: string | null;
+  myshopifyDomain?: string | null;
+}
+
 interface ImageData {
   buffer: Buffer;
   contentType: string;
@@ -667,6 +675,161 @@ async function publishToWordPress(
   }
 }
 
+// Get Shopify access token using client credentials OAuth
+async function getShopifyAccessToken(
+  clientId: string,
+  clientSecret: string,
+  myshopifyDomain: string
+): Promise<string | null> {
+  try {
+    const tokenUrl = `https://${myshopifyDomain}/admin/oauth/access_token`;
+
+    const response = await fetch(tokenUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        client_id: clientId,
+        client_secret: clientSecret,
+        grant_type: 'client_credentials',
+      }),
+    });
+
+    if (!response.ok) {
+      const errText = await response.text().catch(() => '');
+      console.error(`[Shopify OAuth] Token request failed: ${response.status} - ${errText}`);
+      return null;
+    }
+
+    const data = await response.json();
+    console.log('[Shopify OAuth] Access token obtained successfully');
+    return data.access_token;
+  } catch (error: any) {
+    console.error('[Shopify OAuth] Error:', error.message);
+    return null;
+  }
+}
+
+// Shopify Blog Publishing
+async function publishToShopify(
+  article: ArticleForPublish,
+  target: ShopifyTarget
+): Promise<PublishResult> {
+  try {
+    if (!target.clientId || !target.clientSecret || !target.myshopifyDomain) {
+      return { success: false, error: 'Shopify OAuth credentials not configured' };
+    }
+
+    // Get fresh access token (tokens expire every 24 hours)
+    const accessToken = await getShopifyAccessToken(
+      target.clientId,
+      target.clientSecret,
+      target.myshopifyDomain
+    );
+
+    if (!accessToken) {
+      return { success: false, error: 'Failed to obtain Shopify access token' };
+    }
+
+    // Get blog ID - use configured one or fetch the first blog
+    let blogId = target.blogId;
+    if (!blogId) {
+      const blogsResponse = await fetch(
+        `https://${target.myshopifyDomain}/admin/api/2024-01/blogs.json`,
+        {
+          headers: {
+            'X-Shopify-Access-Token': accessToken,
+            'Content-Type': 'application/json',
+          },
+        }
+      );
+
+      if (!blogsResponse.ok) {
+        return { success: false, error: 'Failed to fetch Shopify blogs' };
+      }
+
+      const blogsData = await blogsResponse.json();
+      if (!blogsData.blogs || blogsData.blogs.length === 0) {
+        return { success: false, error: 'No blogs found in Shopify store' };
+      }
+
+      blogId = blogsData.blogs[0].id.toString();
+      console.log(`[Publish Shopify] Using default blog ID: ${blogId}`);
+    }
+
+    // Prepare HTML content
+    let processedHtml = article.bodyHtml || article.body;
+    processedHtml = transformTweetEmbeds(processedHtml);
+
+    // Prepare tags as comma-separated string
+    const tags = article.tags.map(t => t.tag.name).join(', ');
+
+    console.log(`[Publish Shopify] Target: ${target.myshopifyDomain}, Blog ID: ${blogId}`);
+
+    const shopifyArticle: any = {
+      article: {
+        title: article.headline,
+        body_html: processedHtml,
+        summary_html: article.subHeadline || undefined,
+        tags: tags || undefined,
+        published: true,
+      },
+    };
+
+    // Add featured image if present
+    if (article.featuredImage) {
+      // For Shopify, we need to provide the image as a URL or base64
+      // If it's an absolute URL, use it directly
+      if (article.featuredImage.startsWith('http')) {
+        shopifyArticle.article.image = { src: article.featuredImage };
+      } else {
+        // Try to download and convert to base64
+        const image = await downloadImage(article.featuredImage);
+        if (image) {
+          const base64 = image.buffer.toString('base64');
+          shopifyArticle.article.image = {
+            attachment: base64,
+            filename: article.slug ? `${article.slug}.${image.ext}` : `featured.${image.ext}`,
+          };
+        }
+      }
+    }
+
+    const response = await fetch(
+      `https://${target.myshopifyDomain}/admin/api/2024-01/blogs/${blogId}/articles.json`,
+      {
+        method: 'POST',
+        headers: {
+          'X-Shopify-Access-Token': accessToken,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(shopifyArticle),
+      }
+    );
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      return {
+        success: false,
+        error: `Shopify API error: ${response.status} - ${JSON.stringify(errorData)}`,
+      };
+    }
+
+    const data = await response.json();
+    const articleUrl = `https://${target.myshopifyDomain.replace('.myshopify.com', '.com')}/blogs/${data.article.blog_id}/${data.article.handle}`;
+    console.log(`[Publish Shopify] Success: ${articleUrl}`);
+
+    return {
+      success: true,
+      url: articleUrl,
+    };
+  } catch (error: any) {
+    console.error(`[Publish Shopify] Error:`, error.message);
+    return { success: false, error: error.message };
+  }
+}
+
 // Main publish function
 export async function publishArticle(
   articleId: string,
@@ -704,6 +867,9 @@ export async function publishArticle(
       break;
     case 'wordpress':
       result = await publishToWordPress(article, target);
+      break;
+    case 'shopify':
+      result = await publishToShopify(article, target);
       break;
     default:
       result = { success: false, error: `Unknown target type: ${target.type}` };
