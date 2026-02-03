@@ -27,7 +27,7 @@ export async function GET(request: NextRequest) {
   }
 
   if (status) {
-    where.status = status;
+    where.status = status.toUpperCase();
   }
 
   const [articles, total] = await Promise.all([
