@@ -172,7 +172,7 @@ export default function MobileApp() {
                 <h1 className="text-2xl font-bold bg-gradient-to-r from-white via-white to-press-400 bg-clip-text text-transparent">
                   NewsRoom
                 </h1>
-                <p className="text-xs text-ink-400 mt-0.5 flex items-center gap-1">
+                <p className="text-xs text-white/60 mt-0.5 flex items-center gap-1">
                   <HiOutlineSparkles className="w-3 h-3" />
                   {session?.user?.name || 'User'}
                 </p>
@@ -189,22 +189,22 @@ export default function MobileApp() {
 
             {/* Quick Stats Cards */}
             <div className="grid grid-cols-3 gap-2 mb-4">
-              <div className="relative overflow-hidden rounded-xl p-3 bg-gradient-to-br from-blue-500/10 to-blue-600/5 border border-blue-500/10">
-                <div className="absolute top-0 right-0 w-16 h-16 bg-blue-400/5 rounded-full blur-2xl" />
-                <div className="text-2xl font-bold text-blue-400">{stats.total}</div>
-                <div className="text-[10px] text-blue-300/70 uppercase tracking-wider font-medium mt-0.5">Total</div>
+              <div className="relative overflow-hidden rounded-xl p-3 bg-gradient-to-br from-blue-500/20 to-blue-600/10 border border-blue-400/30">
+                <div className="absolute top-0 right-0 w-16 h-16 bg-blue-400/10 rounded-full blur-2xl" />
+                <div className="text-2xl font-bold text-blue-300">{stats.total}</div>
+                <div className="text-[10px] text-blue-200/80 uppercase tracking-wider font-medium mt-0.5">Total</div>
               </div>
-              <div className="relative overflow-hidden rounded-xl p-3 bg-gradient-to-br from-emerald-500/10 to-emerald-600/5 border border-emerald-500/10">
-                <div className="absolute top-0 right-0 w-16 h-16 bg-emerald-400/5 rounded-full blur-2xl" />
-                <div className="text-2xl font-bold text-emerald-400">{stats.published}</div>
-                <div className="text-[10px] text-emerald-300/70 uppercase tracking-wider font-medium mt-0.5">Live</div>
+              <div className="relative overflow-hidden rounded-xl p-3 bg-gradient-to-br from-emerald-500/20 to-emerald-600/10 border border-emerald-400/30">
+                <div className="absolute top-0 right-0 w-16 h-16 bg-emerald-400/10 rounded-full blur-2xl" />
+                <div className="text-2xl font-bold text-emerald-300">{stats.published}</div>
+                <div className="text-[10px] text-emerald-200/80 uppercase tracking-wider font-medium mt-0.5">Live</div>
               </div>
-              <div className="relative overflow-hidden rounded-xl p-3 bg-gradient-to-br from-orange-500/10 to-orange-600/5 border border-orange-500/10">
-                <div className="absolute top-0 right-0 w-16 h-16 bg-orange-400/5 rounded-full blur-2xl" />
-                <div className="text-2xl font-bold text-orange-400">
+              <div className="relative overflow-hidden rounded-xl p-3 bg-gradient-to-br from-orange-500/20 to-orange-600/10 border border-orange-400/30">
+                <div className="absolute top-0 right-0 w-16 h-16 bg-orange-400/10 rounded-full blur-2xl" />
+                <div className="text-2xl font-bold text-orange-300">
                   {stats.totalViews > 999 ? `${(stats.totalViews / 1000).toFixed(1)}k` : stats.totalViews}
                 </div>
-                <div className="text-[10px] text-orange-300/70 uppercase tracking-wider font-medium mt-0.5">Views</div>
+                <div className="text-[10px] text-orange-200/80 uppercase tracking-wider font-medium mt-0.5">Views</div>
               </div>
             </div>
 
@@ -225,7 +225,7 @@ export default function MobileApp() {
                     className={`flex items-center gap-1.5 px-4 py-2.5 rounded-full text-xs font-semibold whitespace-nowrap transition-all active:scale-95 ${
                       isActive
                         ? 'bg-white text-ink-950 shadow-lg shadow-white/20'
-                        : 'bg-white/5 text-ink-300 border border-white/10 active:bg-white/10'
+                        : 'bg-white/10 text-white/70 border border-white/20 active:bg-white/15'
                     }`}
                   >
                     <Icon className="w-4 h-4" />
@@ -241,11 +241,11 @@ export default function MobileApp() {
         <div className="px-4 space-y-3">
           {articles.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-20 text-center">
-              <div className="w-20 h-20 rounded-full bg-gradient-to-br from-ink-800 to-ink-900 flex items-center justify-center mb-4 ring-1 ring-white/5">
-                <HiOutlinePlusCircle className="w-10 h-10 text-ink-500" />
+              <div className="w-20 h-20 rounded-full bg-gradient-to-br from-ink-800 to-ink-900 flex items-center justify-center mb-4 ring-1 ring-white/10">
+                <HiOutlinePlusCircle className="w-10 h-10 text-white/40" />
               </div>
-              <p className="text-ink-300 text-base font-medium">No stories yet</p>
-              <p className="text-ink-600 text-sm mt-1">Tap the + button to create your first</p>
+              <p className="text-white/80 text-base font-medium">No stories yet</p>
+              <p className="text-white/50 text-sm mt-1">Tap the + button to create your first</p>
             </div>
           ) : (
             articles.map((article) => (
@@ -311,20 +311,20 @@ function ArticleCard({ article }: { article: Article }) {
   
   const getStatusConfig = (status: string) => {
     const configs = {
-      PUBLISHED: { 
-        color: 'from-emerald-500/15 to-emerald-600/10 border-emerald-500/20 text-emerald-400',
+      PUBLISHED: {
+        color: 'from-emerald-500/25 to-emerald-600/15 border-emerald-400/40 text-emerald-300',
         dot: 'bg-emerald-400'
       },
-      DRAFT: { 
-        color: 'from-slate-500/15 to-slate-600/10 border-slate-500/20 text-slate-400',
-        dot: 'bg-slate-400'
+      DRAFT: {
+        color: 'from-slate-500/25 to-slate-600/15 border-slate-400/40 text-slate-200',
+        dot: 'bg-slate-300'
       },
-      SUBMITTED: { 
-        color: 'from-blue-500/15 to-blue-600/10 border-blue-500/20 text-blue-400',
+      SUBMITTED: {
+        color: 'from-blue-500/25 to-blue-600/15 border-blue-400/40 text-blue-300',
         dot: 'bg-blue-400 animate-pulse'
       },
-      APPROVED: { 
-        color: 'from-violet-500/15 to-violet-600/10 border-violet-500/20 text-violet-400',
+      APPROVED: {
+        color: 'from-violet-500/25 to-violet-600/15 border-violet-400/40 text-violet-300',
         dot: 'bg-violet-400'
       },
     };
@@ -350,7 +350,7 @@ function ArticleCard({ article }: { article: Article }) {
               </span>
             </div>
             {article.status === 'PUBLISHED' && article.totalPageviews > 0 && (
-              <div className="flex items-center gap-1 text-ink-400">
+              <div className="flex items-center gap-1 text-emerald-400">
                 <HiOutlineEye className="w-4 h-4" />
                 <span className="text-sm font-semibold">{article.totalPageviews.toLocaleString()}</span>
               </div>
@@ -364,19 +364,19 @@ function ArticleCard({ article }: { article: Article }) {
 
           {/* Subheadline */}
           {article.subHeadline && (
-            <p className="text-sm text-ink-400 line-clamp-2 leading-relaxed mb-3">
+            <p className="text-sm text-white/60 line-clamp-2 leading-relaxed mb-3">
               {article.subHeadline}
             </p>
           )}
 
           {/* Footer */}
-          <div className="flex items-center justify-between pt-3 border-t border-white/5">
-            <div className="flex items-center gap-2 text-xs text-ink-500">
+          <div className="flex items-center justify-between pt-3 border-t border-white/10">
+            <div className="flex items-center gap-2 text-xs text-white/50">
               <span>{article.author?.name || 'Unknown'}</span>
-              <span className="text-ink-700">•</span>
+              <span className="text-white/30">•</span>
               <span>{timeAgo}</span>
             </div>
-            <div className="text-ink-600 group-active:text-press-400 transition-colors">
+            <div className="text-white/40 group-active:text-press-400 transition-colors">
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
               </svg>
@@ -390,30 +390,30 @@ function ArticleCard({ article }: { article: Article }) {
 
 function HotTodayTab({ hotArticles, activeTab, onTabChange }: any) {
   return (
-    <div className="min-h-screen bg-gradient-to-b from-orange-950/20 via-ink-950 to-ink-900 pb-20">
-      <div className="sticky top-0 z-40 bg-gradient-to-b from-ink-950 via-ink-950/98 to-transparent backdrop-blur-xl border-b border-white/5">
+    <div className="min-h-screen bg-gradient-to-b from-orange-950/30 via-ink-950 to-ink-900 pb-20">
+      <div className="sticky top-0 z-40 bg-gradient-to-b from-ink-950 via-ink-950/98 to-transparent backdrop-blur-xl border-b border-white/10">
         <div className="px-4 pt-4 pb-4">
           <div className="flex items-center gap-2 mb-2">
             <HiOutlineFire className="w-6 h-6 text-orange-400 animate-pulse" />
             <h1 className="text-2xl font-bold text-white">Hot Today</h1>
           </div>
-          <p className="text-sm text-ink-400">Top stories from the last 24 hours</p>
+          <p className="text-sm text-white/60">Top stories from the last 24 hours</p>
         </div>
       </div>
 
       <div className="px-4 pt-4 space-y-3">
         {hotArticles.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-20 text-center">
-            <HiOutlineFire className="w-16 h-16 text-ink-700 mb-4" />
-            <p className="text-ink-400">No hot articles today</p>
-            <p className="text-ink-600 text-sm mt-1">Check back soon</p>
+            <HiOutlineFire className="w-16 h-16 text-white/20 mb-4" />
+            <p className="text-white/70">No hot articles today</p>
+            <p className="text-white/40 text-sm mt-1">Check back soon</p>
           </div>
         ) : (
           hotArticles.map((article: Article, index: number) => (
             <div key={article.id} className="relative">
               <Link href={`/editor/${article.id}`}>
                 <div className="group active:scale-[0.98] transition-transform">
-                  <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-orange-500/10 to-red-500/5 border border-orange-500/20">
+                  <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-orange-500/20 to-red-500/10 border border-orange-400/30">
                     <div className="p-4">
                       <div className="absolute top-3 right-3">
                         <div className="w-8 h-8 rounded-full bg-gradient-to-br from-orange-500 to-red-500 flex items-center justify-center shadow-lg shadow-orange-500/30">
@@ -426,11 +426,11 @@ function HotTodayTab({ hotArticles, activeTab, onTabChange }: any) {
                       </h3>
 
                       <div className="flex items-center gap-4 text-sm">
-                        <div className="flex items-center gap-1 text-orange-400">
+                        <div className="flex items-center gap-1 text-orange-300">
                           <HiOutlineEye className="w-4 h-4" />
                           <span className="font-semibold">{(article.totalPageviews || 0).toLocaleString()}</span>
                         </div>
-                        <div className="flex items-center gap-1 text-ink-500">
+                        <div className="flex items-center gap-1 text-white/50">
                           <HiOutlineArrowTrendingUp className="w-4 h-4" />
                           <span className="text-xs">{article.totalUniqueVisitors || 0} unique</span>
                         </div>
@@ -456,49 +456,49 @@ function AnalyticsTab({ stats, articles, activeTab, onTabChange }: any) {
     .slice(0, 5);
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-blue-950/20 via-ink-950 to-ink-900 pb-20">
-      <div className="sticky top-0 z-40 bg-gradient-to-b from-ink-950 via-ink-950/98 to-transparent backdrop-blur-xl border-b border-white/5">
+    <div className="min-h-screen bg-gradient-to-b from-blue-950/30 via-ink-950 to-ink-900 pb-20">
+      <div className="sticky top-0 z-40 bg-gradient-to-b from-ink-950 via-ink-950/98 to-transparent backdrop-blur-xl border-b border-white/10">
         <div className="px-4 pt-4 pb-4">
           <div className="flex items-center gap-2 mb-2">
             <HiOutlineChartBarSquare className="w-6 h-6 text-blue-400" />
             <h1 className="text-2xl font-bold text-white">Analytics</h1>
           </div>
-          <p className="text-sm text-ink-400">Performance overview</p>
+          <p className="text-sm text-white/60">Performance overview</p>
         </div>
       </div>
 
       <div className="px-4 pt-4 space-y-4">
         <div className="grid grid-cols-2 gap-3">
-          <div className="p-4 rounded-2xl bg-gradient-to-br from-blue-500/10 to-blue-600/5 border border-blue-500/10">
-            <div className="text-3xl font-bold text-blue-400 mb-1">{stats.totalViews.toLocaleString()}</div>
-            <div className="text-xs text-blue-300/70 uppercase tracking-wider">Total Views</div>
+          <div className="p-4 rounded-2xl bg-gradient-to-br from-blue-500/20 to-blue-600/10 border border-blue-400/30">
+            <div className="text-3xl font-bold text-blue-300 mb-1">{stats.totalViews.toLocaleString()}</div>
+            <div className="text-xs text-blue-200/80 uppercase tracking-wider">Total Views</div>
           </div>
-          <div className="p-4 rounded-2xl bg-gradient-to-br from-emerald-500/10 to-emerald-600/5 border border-emerald-500/10">
-            <div className="text-3xl font-bold text-emerald-400 mb-1">{stats.published}</div>
-            <div className="text-xs text-emerald-300/70 uppercase tracking-wider">Published</div>
+          <div className="p-4 rounded-2xl bg-gradient-to-br from-emerald-500/20 to-emerald-600/10 border border-emerald-400/30">
+            <div className="text-3xl font-bold text-emerald-300 mb-1">{stats.published}</div>
+            <div className="text-xs text-emerald-200/80 uppercase tracking-wider">Published</div>
           </div>
         </div>
 
         {topArticles.length > 0 && (
           <div>
-            <h2 className="text-sm font-semibold text-ink-300 uppercase tracking-wider mb-3 px-1">
+            <h2 className="text-sm font-semibold text-white/70 uppercase tracking-wider mb-3 px-1">
               Top Performers
             </h2>
             <div className="space-y-2">
               {topArticles.map((article: Article, index: number) => (
                 <Link key={article.id} href={`/editor/${article.id}`}>
                   <div className="group active:scale-[0.98] transition-transform">
-                    <div className="p-4 rounded-xl bg-white/[0.03] border border-white/5 group-active:border-white/10">
+                    <div className="p-4 rounded-xl bg-white/[0.06] border border-white/10 group-active:border-white/20">
                       <div className="flex items-start gap-3">
-                        <div className="flex-shrink-0 w-7 h-7 rounded-full bg-gradient-to-br from-blue-500/20 to-purple-500/20 flex items-center justify-center border border-blue-500/30">
-                          <span className="text-xs font-bold text-blue-400">{index + 1}</span>
+                        <div className="flex-shrink-0 w-7 h-7 rounded-full bg-gradient-to-br from-blue-500/30 to-purple-500/30 flex items-center justify-center border border-blue-400/40">
+                          <span className="text-xs font-bold text-blue-300">{index + 1}</span>
                         </div>
                         <div className="flex-1 min-w-0">
                           <h3 className="text-sm font-semibold text-white line-clamp-1 mb-1">
                             {article.headline}
                           </h3>
-                          <div className="flex items-center gap-3 text-xs text-ink-500">
-                            <span className="flex items-center gap-1">
+                          <div className="flex items-center gap-3 text-xs text-white/50">
+                            <span className="flex items-center gap-1 text-blue-300">
                               <HiOutlineEye className="w-3.5 h-3.5" />
                               {(article.totalPageviews || 0).toLocaleString()}
                             </span>
@@ -524,15 +524,15 @@ function ProfileTab({ session, activeTab, onTabChange }: any) {
     <div className="min-h-screen bg-gradient-to-b from-ink-950 via-ink-950 to-ink-900 pb-20">
       <div className="px-4 pt-8">
         <div className="flex flex-col items-center mb-8">
-          <div className="w-24 h-24 rounded-full bg-gradient-to-br from-press-500 to-press-600 flex items-center justify-center ring-4 ring-press-400/20 mb-4">
+          <div className="w-24 h-24 rounded-full bg-gradient-to-br from-press-500 to-press-600 flex items-center justify-center ring-4 ring-press-400/30 mb-4">
             <span className="text-white text-3xl font-bold">
               {session?.user?.name?.charAt(0).toUpperCase() || 'U'}
             </span>
           </div>
           <h1 className="text-2xl font-bold text-white mb-1">{session?.user?.name || 'User'}</h1>
-          <p className="text-sm text-ink-400">{session?.user?.email || ''}</p>
-          <div className="mt-3 px-3 py-1 rounded-full bg-press-500/10 border border-press-500/20">
-            <span className="text-xs font-semibold text-press-400 uppercase tracking-wider">
+          <p className="text-sm text-white/60">{session?.user?.email || ''}</p>
+          <div className="mt-3 px-3 py-1 rounded-full bg-press-500/20 border border-press-400/30">
+            <span className="text-xs font-semibold text-press-300 uppercase tracking-wider">
               {session?.user?.role || 'USER'}
             </span>
           </div>
@@ -541,7 +541,7 @@ function ProfileTab({ session, activeTab, onTabChange }: any) {
         <div className="space-y-2">
           <button
             onClick={() => signOut()}
-            className="w-full p-4 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 font-semibold active:scale-[0.98] transition-transform"
+            className="w-full p-4 rounded-xl bg-red-500/20 border border-red-400/30 text-red-300 font-semibold active:scale-[0.98] transition-transform"
           >
             Sign Out
           </button>
@@ -563,7 +563,7 @@ function BottomNav({ activeTab, onTabChange }: { activeTab: string; onTabChange:
 
   return (
     <div className="fixed bottom-0 left-0 right-0 z-50">
-      <div className="mx-3 mb-3 rounded-2xl bg-ink-900/95 backdrop-blur-xl border border-white/10 shadow-2xl shadow-black/40">
+      <div className="mx-3 mb-3 rounded-2xl bg-ink-900/98 backdrop-blur-xl border border-white/15 shadow-2xl shadow-black/50">
         <div className="flex items-center justify-around p-2">
           {tabs.map((tab) => {
             const Icon = tab.icon;
@@ -573,11 +573,11 @@ function BottomNav({ activeTab, onTabChange }: { activeTab: string; onTabChange:
                 key={tab.id}
                 onClick={() => onTabChange(tab.id)}
                 className={`flex flex-col items-center gap-1 px-5 py-2.5 rounded-xl transition-all active:scale-95 ${
-                  isActive ? 'bg-white/10' : ''
+                  isActive ? 'bg-white/15' : ''
                 }`}
               >
-                <Icon className={`w-6 h-6 ${isActive ? 'text-press-400' : 'text-ink-400'}`} />
-                <span className={`text-[10px] font-semibold ${isActive ? 'text-press-400' : 'text-ink-500'}`}>
+                <Icon className={`w-6 h-6 ${isActive ? 'text-white' : 'text-white/50'}`} />
+                <span className={`text-[10px] font-semibold ${isActive ? 'text-white' : 'text-white/40'}`}>
                   {tab.label}
                 </span>
               </button>
