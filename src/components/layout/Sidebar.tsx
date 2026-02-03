@@ -287,9 +287,11 @@ interface HotArticle {
   totalPageviews: number;
   totalUniqueVisitors: number;
   publishedUrl: string;
+  rankChange: number | null; // positive = moved up, negative = moved down, null = new
+  isNew: boolean;
 }
 
-function HotToday() {
+function BestPerformingPosts() {
   const [articles, setArticles] = useState<HotArticle[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -316,13 +318,13 @@ function HotToday() {
 
   return (
     <div className="mx-3 mb-3 p-3 rounded-lg bg-gradient-to-br from-amber-950/15 to-orange-950/10 border border-amber-500/10 shadow-[inset_0_1px_1px_rgba(251,191,36,0.05)]">
-      {/* Header with animated fire */}
+      {/* Header with chart icon */}
       <div className="flex items-center gap-1.5 px-1 mb-2.5">
-        <svg className="w-3.5 h-3.5 text-orange-400 animate-pulse" fill="currentColor" viewBox="0 0 16 16">
-          <path d="M8 1.5c0 0-2.5 2.5-2.5 5.5 0 1.5.7 2.3 1.2 2.7-.2-.8 0-2.2 1.3-3.2 0 0 .2 2.5 1.8 3.8.5.4.7 1 .7 1.7h.1c1.4-.4 2.4-1.7 2.4-3.2C13 5 8 1.5 8 1.5z" />
+        <svg className="w-3.5 h-3.5 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
         </svg>
         <span className="text-[11px] font-semibold text-amber-300/90 uppercase tracking-wider">
-          Hot Today
+          Best Performing
         </span>
         <div className="flex-1"></div>
         <span className="text-[9px] text-amber-500/60 font-medium">24H</span>
@@ -345,9 +347,27 @@ function HotToday() {
 
             {/* Content */}
             <div className="flex-1 min-w-0">
-              <p className="text-xs font-medium text-amber-100/80 group-hover:text-amber-50 transition-colors line-clamp-2 leading-snug">
-                {article.headline}
-              </p>
+              <div className="flex items-center gap-1">
+                <p className="text-xs font-medium text-amber-100/80 group-hover:text-amber-50 transition-colors line-clamp-2 leading-snug flex-1">
+                  {article.headline}
+                </p>
+                {/* Trending indicators */}
+                {article.isNew && (
+                  <span className="text-[8px] font-bold text-press-400 bg-press-500/15 px-1 rounded flex-shrink-0">
+                    NEW
+                  </span>
+                )}
+                {!article.isNew && article.rankChange !== null && article.rankChange > 0 && (
+                  <svg viewBox="0 0 8 8" className="w-2.5 h-2.5 text-emerald-400 flex-shrink-0">
+                    <path d="M4 1L7 5H1L4 1Z" fill="currentColor" />
+                  </svg>
+                )}
+                {!article.isNew && article.rankChange !== null && article.rankChange < 0 && (
+                  <svg viewBox="0 0 8 8" className="w-2.5 h-2.5 text-red-400/80 flex-shrink-0">
+                    <path d="M4 7L7 3H1L4 7Z" fill="currentColor" />
+                  </svg>
+                )}
+              </div>
               <div className="flex items-center gap-2 mt-1">
                 <span className="text-[10px] text-amber-400/60 group-hover:text-amber-400/80 transition-colors flex items-center gap-0.5">
                   <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -417,8 +437,8 @@ export default function Sidebar() {
       {/* Subtle divider */}
       <div className="mx-3 my-2 border-t border-white/5"></div>
 
-      {/* Hot Today - Top articles from last 24h */}
-      <HotToday />
+      {/* Best Performing Posts - Top articles from last 24h */}
+      <BestPerformingPosts />
 
       {/* User Section */}
       <div className="mt-4 p-4 border-t border-white/10">
