@@ -195,6 +195,15 @@
     @apply border border-ink-200 dark:border-ink-700 rounded-xl p-4 my-4 bg-white dark:bg-ink-900;
   }
 
+  /* Media Embed Styles */
+  .media-embed-wrapper {
+    @apply my-6;
+  }
+
+  .tiptap-editor .media-embed {
+    @apply border border-ink-200 dark:border-ink-700 rounded-xl my-4 bg-white dark:bg-ink-900 overflow-hidden;
+  }
+
   /* Placeholder styles */
   .tiptap-editor .is-editor-empty:first-child::before {
     @apply text-ink-300 dark:text-ink-600 pointer-events-none float-left h-0;

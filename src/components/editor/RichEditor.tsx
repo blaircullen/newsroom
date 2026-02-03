@@ -6,20 +6,19 @@ import Link from '@tiptap/extension-link';
 import Image from '@tiptap/extension-image';
 import Underline from '@tiptap/extension-underline';
 import Placeholder from '@tiptap/extension-placeholder';
-import { TweetEmbed } from './extensions/TweetEmbed';
+import { MediaEmbed, parseMediaUrl, SUPPORTED_PLATFORMS, PlatformType } from './extensions/MediaEmbed';
 import { useCallback, useState } from 'react';
 import {
   HiOutlineBold,
   HiOutlineItalic,
   HiOutlineStrikethrough,
   HiOutlineLink,
-  HiOutlinePhoto,
   HiOutlineListBullet,
   HiOutlineCodeBracket,
-  HiOutlineBars3BottomLeft,
   HiOutlineMinus,
+  HiOutlinePlayCircle,
 } from 'react-icons/hi2';
-import { RiDoubleQuotesL, RiTwitterXLine, RiUnderline, RiListOrdered2 } from 'react-icons/ri';
+import { RiDoubleQuotesL, RiUnderline, RiListOrdered2 } from 'react-icons/ri';
 
 interface RichEditorProps {
   content: string;
@@ -30,9 +29,9 @@ interface RichEditorProps {
 export default function RichEditor({ content, onChange, placeholder }: RichEditorProps) {
   const [showLinkInput, setShowLinkInput] = useState(false);
   const [linkUrl, setLinkUrl] = useState('');
-  const [showTweetInput, setShowTweetInput] = useState(false);
-  const [tweetUrl, setTweetUrl] = useState('');
-  const [tweetError, setTweetError] = useState('');
+  const [showEmbedInput, setShowEmbedInput] = useState(false);
+  const [embedUrl, setEmbedUrl] = useState('');
+  const [embedError, setEmbedError] = useState('');
 
   const editor = useEditor({
     extensions: [
@@ -56,7 +55,7 @@ export default function RichEditor({ content, onChange, placeholder }: RichEdito
       Placeholder.configure({
         placeholder: placeholder || 'Start writing your story...',
       }),
-      TweetEmbed,
+      MediaEmbed,
     ],
     content,
     onUpdate: ({ editor }) => {
@@ -89,28 +88,28 @@ export default function RichEditor({ content, onChange, placeholder }: RichEdito
     setShowLinkInput(false);
   }, [editor, linkUrl]);
 
-  const insertTweet = useCallback(() => {
-    if (!editor || !tweetUrl) return;
-    setTweetError('');
+  const insertEmbed = useCallback(() => {
+    if (!editor || !embedUrl) return;
+    setEmbedError('');
 
-    // Support twitter.com and x.com URLs
-    const tweetMatch = tweetUrl.match(/(?:twitter\.com|x\.com)\/\w+\/status\/(\d+)/);
-    if (!tweetMatch) {
-      setTweetError('Please enter a valid X/Twitter post URL (e.g. https://x.com/user/status/123...)');
+    const parsed = parseMediaUrl(embedUrl);
+    if (!parsed) {
+      const supportedList = Object.values(SUPPORTED_PLATFORMS)
+        .map((p) => p.name)
+        .join(', ');
+      setEmbedError(`Unsupported URL. Supported platforms: ${supportedList}`);
       return;
     }
 
-    const tweetId = tweetMatch[1];
-
-    // Use the custom TipTap command from our TweetEmbed extension
-    (editor.commands as any).insertTweet({
-      tweetId,
-      tweetUrl: tweetUrl.trim(),
+    (editor.commands as any).insertMediaEmbed({
+      platform: parsed.platform,
+      mediaId: parsed.id,
+      originalUrl: parsed.url,
     });
 
-    setTweetUrl('');
-    setShowTweetInput(false);
-  }, [editor, tweetUrl]);
+    setEmbedUrl('');
+    setShowEmbedInput(false);
+  }, [editor, embedUrl]);
 
   if (!editor) return null;
 
@@ -131,8 +130,8 @@ export default function RichEditor({ content, onChange, placeholder }: RichEdito
       title={title}
       className={`p-2 rounded-md transition-all duration-100 ${
         isActive
-          ? 'bg-ink-950 text-paper-100'
-          : 'text-ink-500 hover:bg-ink-100 hover:text-ink-800'
+          ? 'bg-ink-950 text-paper-100 dark:bg-ink-100 dark:text-ink-900'
+          : 'text-ink-500 hover:bg-ink-100 hover:text-ink-800 dark:text-ink-400 dark:hover:bg-ink-700 dark:hover:text-ink-100'
       }`}
     >
       {children}
@@ -142,7 +141,7 @@ export default function RichEditor({ content, onChange, placeholder }: RichEdito
   return (
     <div className="relative">
       {/* Toolbar */}
-      <div className="sticky top-0 z-20 bg-white/95 backdrop-blur-sm border-b border-ink-100 px-3 py-2">
+      <div className="sticky top-0 z-20 bg-white/95 dark:bg-ink-900/95 backdrop-blur-sm border-b border-ink-100 dark:border-ink-700 px-3 py-2">
         <div className="flex items-center gap-0.5 flex-wrap">
           {/* Text formatting */}
           <ToolbarButton
@@ -177,7 +176,7 @@ export default function RichEditor({ content, onChange, placeholder }: RichEdito
             <HiOutlineStrikethrough className="w-4 h-4" />
           </ToolbarButton>
 
-          <div className="w-px h-5 bg-ink-200 mx-1.5" />
+          <div className="w-px h-5 bg-ink-200 dark:bg-ink-600 mx-1.5" />
 
           {/* Headings */}
           <ToolbarButton
@@ -196,7 +195,7 @@ export default function RichEditor({ content, onChange, placeholder }: RichEdito
             <span className="text-xs font-bold">H3</span>
           </ToolbarButton>
 
-          <div className="w-px h-5 bg-ink-200 mx-1.5" />
+          <div className="w-px h-5 bg-ink-200 dark:bg-ink-600 mx-1.5" />
 
           {/* Lists */}
           <ToolbarButton
@@ -238,7 +237,7 @@ export default function RichEditor({ content, onChange, placeholder }: RichEdito
             <HiOutlineMinus className="w-4 h-4" />
           </ToolbarButton>
 
-          <div className="w-px h-5 bg-ink-200 mx-1.5" />
+          <div className="w-px h-5 bg-ink-200 dark:bg-ink-600 mx-1.5" />
 
           {/* Links */}
           <ToolbarButton
@@ -247,7 +246,7 @@ export default function RichEditor({ content, onChange, placeholder }: RichEdito
                 editor.chain().focus().unsetLink().run();
               } else {
                 setShowLinkInput(!showLinkInput);
-                setShowTweetInput(false);
+                setShowEmbedInput(false);
               }
             }}
             isActive={editor.isActive('link')}
@@ -256,28 +255,28 @@ export default function RichEditor({ content, onChange, placeholder }: RichEdito
             <HiOutlineLink className="w-4 h-4" />
           </ToolbarButton>
 
-          {/* Tweet embed */}
+          {/* Media embed */}
           <ToolbarButton
             onClick={() => {
-              setShowTweetInput(!showTweetInput);
+              setShowEmbedInput(!showEmbedInput);
               setShowLinkInput(false);
-              setTweetError('');
+              setEmbedError('');
             }}
-            title="Embed Post from X"
+            title="Embed Media (YouTube, X, TikTok, Facebook, Rumble)"
           >
-            <RiTwitterXLine className="w-4 h-4" />
+            <HiOutlinePlayCircle className="w-4 h-4" />
           </ToolbarButton>
         </div>
 
         {/* Link input bar */}
         {showLinkInput && (
-          <div className="flex items-center gap-2 mt-2 p-2 bg-ink-50 rounded-lg">
+          <div className="flex items-center gap-2 mt-2 p-2 bg-ink-50 dark:bg-ink-800 rounded-lg">
             <input
               type="url"
               value={linkUrl}
               onChange={(e) => setLinkUrl(e.target.value)}
               placeholder="https://example.com"
-              className="flex-1 px-3 py-1.5 text-sm rounded-md border border-ink-200 focus:outline-none focus:border-press-500"
+              className="flex-1 px-3 py-1.5 text-sm rounded-md border border-ink-200 dark:border-ink-600 bg-white dark:bg-ink-900 text-ink-900 dark:text-ink-100 focus:outline-none focus:border-press-500"
               onKeyDown={(e) => e.key === 'Enter' && setLink()}
               autoFocus
             />
@@ -291,43 +290,64 @@ export default function RichEditor({ content, onChange, placeholder }: RichEdito
             <button
               type="button"
               onClick={() => setShowLinkInput(false)}
-              className="px-3 py-1.5 text-sm text-ink-500 hover:text-ink-700"
+              className="px-3 py-1.5 text-sm text-ink-500 hover:text-ink-700 dark:hover:text-ink-300"
             >
               Cancel
             </button>
           </div>
         )}
 
-        {/* Tweet input bar */}
-        {showTweetInput && (
-          <div className="mt-2 p-2 bg-ink-50 rounded-lg">
-            <div className="flex items-center gap-2">
+        {/* Embed input bar */}
+        {showEmbedInput && (
+          <div className="mt-2 p-3 bg-ink-50 dark:bg-ink-800 rounded-lg">
+            <div className="flex items-center gap-2 mb-2">
               <input
                 type="url"
-                value={tweetUrl}
-                onChange={(e) => { setTweetUrl(e.target.value); setTweetError(''); }}
-                placeholder="https://x.com/user/status/123456789"
-                className="flex-1 px-3 py-1.5 text-sm rounded-md border border-ink-200 focus:outline-none focus:border-press-500"
-                onKeyDown={(e) => e.key === 'Enter' && insertTweet()}
+                value={embedUrl}
+                onChange={(e) => {
+                  setEmbedUrl(e.target.value);
+                  setEmbedError('');
+                }}
+                placeholder="Paste video or post URL..."
+                className="flex-1 px-3 py-2 text-sm rounded-md border border-ink-200 dark:border-ink-600 bg-white dark:bg-ink-900 text-ink-900 dark:text-ink-100 focus:outline-none focus:border-press-500"
+                onKeyDown={(e) => e.key === 'Enter' && insertEmbed()}
                 autoFocus
               />
               <button
                 type="button"
-                onClick={insertTweet}
-                className="px-3 py-1.5 text-sm bg-ink-950 text-paper-100 rounded-md hover:bg-ink-800"
+                onClick={insertEmbed}
+                className="px-4 py-2 text-sm bg-ink-950 text-paper-100 rounded-md hover:bg-ink-800 font-medium"
               >
                 Embed
               </button>
               <button
                 type="button"
-                onClick={() => { setShowTweetInput(false); setTweetError(''); }}
-                className="px-3 py-1.5 text-sm text-ink-500 hover:text-ink-700"
+                onClick={() => {
+                  setShowEmbedInput(false);
+                  setEmbedError('');
+                }}
+                className="px-3 py-2 text-sm text-ink-500 hover:text-ink-700 dark:hover:text-ink-300"
               >
                 Cancel
               </button>
             </div>
-            {tweetError && (
-              <p className="mt-1.5 text-xs text-red-600">{tweetError}</p>
+
+            {/* Supported platforms hint */}
+            <div className="flex items-center gap-3 text-xs text-ink-400">
+              <span>Supported:</span>
+              {Object.entries(SUPPORTED_PLATFORMS).map(([key, platform]) => {
+                const Icon = platform.icon;
+                return (
+                  <span key={key} className="flex items-center gap-1">
+                    <Icon className={`w-3.5 h-3.5 ${platform.color}`} />
+                    {platform.name}
+                  </span>
+                );
+              })}
+            </div>
+
+            {embedError && (
+              <p className="mt-2 text-xs text-red-600 dark:text-red-400">{embedError}</p>
             )}
           </div>
         )}
