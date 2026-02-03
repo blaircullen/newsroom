@@ -17,6 +17,8 @@ import {
   HiOutlineClock,
   HiOutlineArrowTrendingUp,
   HiOutlineSparkles,
+  HiOutlineLightBulb,
+  HiOutlineArrowTopRightOnSquare,
 } from 'react-icons/hi2';
 
 interface Article {
@@ -32,12 +34,19 @@ interface Article {
   author: { name: string };
 }
 
+interface StoryIdea {
+  headline: string;
+  sourceUrl: string;
+  source: string;
+}
+
 export default function MobileApp() {
   const { data: session, status } = useSession();
   const router = useRouter();
   const [activeTab, setActiveTab] = useState('home');
   const [articles, setArticles] = useState<Article[]>([]);
   const [hotArticles, setHotArticles] = useState<Article[]>([]);
+  const [storyIdeas, setStoryIdeas] = useState<StoryIdea[]>([]);
   const [activeFilter, setActiveFilter] = useState<string | null>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [pullDistance, setPullDistance] = useState(0);
@@ -80,6 +89,18 @@ export default function MobileApp() {
     }
   }, []);
 
+  const fetchStoryIdeas = useCallback(async () => {
+    try {
+      const res = await fetch('/api/story-ideas');
+      if (!res.ok) throw new Error('Failed to fetch story ideas');
+      const data = await res.json();
+      setStoryIdeas(data.ideas || []);
+    } catch (error) {
+      console.error('Failed to fetch story ideas:', error);
+      setStoryIdeas([]);
+    }
+  }, []);
+
   // Redirect if not authenticated
   useEffect(() => {
     if (status === 'unauthenticated') {
@@ -92,8 +113,9 @@ export default function MobileApp() {
     if (session) {
       fetchArticles();
       fetchHotArticles();
+      fetchStoryIdeas();
     }
-  }, [session, fetchArticles, fetchHotArticles]);
+  }, [session, fetchArticles, fetchHotArticles, fetchStoryIdeas]);
 
   // Show loading while checking auth - AFTER all hooks are defined
   if (status === 'loading' || status === 'unauthenticated') {
@@ -110,7 +132,7 @@ export default function MobileApp() {
 
   const handlePullToRefresh = async () => {
     setIsRefreshing(true);
-    await Promise.all([fetchArticles(), fetchHotArticles()]);
+    await Promise.all([fetchArticles(), fetchHotArticles(), fetchStoryIdeas()]);
     setTimeout(() => setIsRefreshing(false), 600);
   };
 
@@ -271,10 +293,11 @@ export default function MobileApp() {
 
   if (activeTab === 'hot') {
     return (
-      <HotTodayTab 
-        hotArticles={hotArticles} 
-        activeTab={activeTab} 
-        onTabChange={setActiveTab} 
+      <HotTodayTab
+        hotArticles={hotArticles}
+        storyIdeas={storyIdeas}
+        activeTab={activeTab}
+        onTabChange={setActiveTab}
       />
     );
   }
@@ -385,7 +408,7 @@ function ArticleCard({ article }: { article: Article }) {
   );
 }
 
-function HotTodayTab({ hotArticles, activeTab, onTabChange }: any) {
+function HotTodayTab({ hotArticles, storyIdeas, activeTab, onTabChange }: any) {
   return (
     <div className="min-h-screen bg-slate-900 pb-20">
       <div className="sticky top-0 z-40 bg-slate-900/95 backdrop-blur-xl border-b border-slate-700/50">
@@ -400,8 +423,8 @@ function HotTodayTab({ hotArticles, activeTab, onTabChange }: any) {
 
       <div className="px-4 pt-4 space-y-3">
         {hotArticles.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-20 text-center">
-            <HiOutlineFire className="w-16 h-16 text-white/30 mb-4" />
+          <div className="flex flex-col items-center justify-center py-12 text-center">
+            <HiOutlineFire className="w-12 h-12 text-white/30 mb-3" />
             <p className="text-white/80">No hot articles today</p>
             <p className="text-white/50 text-sm mt-1">Check back soon</p>
           </div>
@@ -440,6 +463,46 @@ function HotTodayTab({ hotArticles, activeTab, onTabChange }: any) {
           ))
         )}
       </div>
+
+      {/* Story Ideas Section */}
+      {storyIdeas && storyIdeas.length > 0 && (
+        <div className="px-4 pt-6 pb-4">
+          <div className="flex items-center gap-2 mb-3">
+            <HiOutlineLightBulb className="w-5 h-5 text-yellow-400" />
+            <h2 className="text-lg font-bold text-white">Story Ideas</h2>
+          </div>
+          <p className="text-xs text-white/50 mb-3">Trending topics from around the web</p>
+          <div className="space-y-2">
+            {storyIdeas.slice(0, 5).map((idea: StoryIdea, index: number) => (
+              <a
+                key={index}
+                href={idea.sourceUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="block"
+              >
+                <div className="group active:scale-[0.98] transition-transform">
+                  <div className="p-3 rounded-xl bg-slate-800/60 border border-yellow-500/20 group-active:border-yellow-500/40">
+                    <div className="flex items-start gap-3">
+                      <div className="flex-1 min-w-0">
+                        <h4 className="text-sm font-medium text-white/90 line-clamp-2 leading-snug">
+                          {idea.headline}
+                        </h4>
+                        <div className="flex items-center gap-2 mt-1.5">
+                          <span className="text-[10px] text-yellow-400/80 uppercase tracking-wider font-medium">
+                            {idea.source}
+                          </span>
+                          <HiOutlineArrowTopRightOnSquare className="w-3 h-3 text-white/40" />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </a>
+            ))}
+          </div>
+        </div>
+      )}
 
       <BottomNav activeTab={activeTab} onTabChange={onTabChange} />
     </div>
