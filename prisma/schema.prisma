@@ -90,6 +90,10 @@ model Article {
   @@index([createdAt])
   @@index([status, publishedUrl]) // For analytics cron queries
   @@index([updatedAt]) // For dashboard sorting
+  @@index([status, publishedAt]) // For analytics leaderboard and trending
+  @@index([authorId, status]) // For writer dashboard filtering
+  @@index([publishedAt]) // For hot-today and trending queries
+  @@index([status, scheduledPublishAt]) // For scheduled publish cron
   @@map("articles")
 }
 

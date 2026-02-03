@@ -23,6 +23,7 @@ export async function GET(request: NextRequest) {
       _count: { select: { articles: true } },
     },
     orderBy: { name: 'asc' },
+    take: 500, // Reasonable limit for admin user list
   });
 
   return NextResponse.json(users);

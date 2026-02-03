@@ -89,9 +89,10 @@ function DesktopDashboard() {
       params.set('sortBy', sortBy);
 
       // Fetch filtered articles and stats in parallel for better performance
+      // Use dedicated stats endpoint to avoid loading all articles
       const [filteredRes, statsRes] = await Promise.all([
         fetch(`/api/articles?${params}`),
-        fetch('/api/articles?limit=1000'),
+        fetch('/api/articles/stats'),
       ]);
 
       const [filteredData, statsData] = await Promise.all([
@@ -102,20 +103,13 @@ function DesktopDashboard() {
       setArticles(filteredData.articles || []);
       setTotalPages(filteredData.pagination?.pages || 1);
 
-      // Calculate stats from all articles using reduce for efficiency
-      const all = statsData.articles || [];
-      const calculatedStats = all.reduce(
-        (acc: { total: number; submitted: number; approved: number; published: number }, a: { status: string }) => {
-          acc.total++;
-          if (a.status === 'SUBMITTED') acc.submitted++;
-          else if (a.status === 'APPROVED') acc.approved++;
-          else if (a.status === 'PUBLISHED') acc.published++;
-          return acc;
-        },
-        { total: 0, submitted: 0, approved: 0, published: 0 }
-      );
-
-      setStats(calculatedStats);
+      // Stats are now calculated server-side efficiently
+      setStats({
+        total: statsData.total || 0,
+        submitted: statsData.submitted || 0,
+        approved: statsData.approved || 0,
+        published: statsData.published || 0,
+      });
       setLastUpdated(new Date());
     } catch (error) {
       console.error('Failed to fetch articles:', error);
