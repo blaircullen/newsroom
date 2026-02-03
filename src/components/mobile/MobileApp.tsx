@@ -394,7 +394,7 @@ function HotTodayTab({ hotArticles, activeTab, onTabChange }: any) {
             <HiOutlineFire className="w-6 h-6 text-orange-400 animate-pulse" />
             <h1 className="text-2xl font-bold text-white">Hot Today</h1>
           </div>
-          <p className="text-sm text-white/70">Top stories from the last 24 hours</p>
+          <p className="text-sm text-white/70">Most read posts from the past 24 hours</p>
         </div>
       </div>
 
