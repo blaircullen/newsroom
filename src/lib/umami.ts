@@ -9,6 +9,15 @@ interface UmamiMetrics {
   visitors: { value: number };
 }
 
+interface TokenCache {
+  token: string;
+  expiresAt: number;
+}
+
+// Token cache: key is username, value is token + expiry
+const tokenCache = new Map<string, TokenCache>();
+const TOKEN_TTL = 50 * 60 * 1000; // 50 minutes (Umami tokens last 1 hour)
+
 const WEBSITE_CONFIGS: Record<string, WebsiteConfig> = {
   'lizpeek.com': {
     websiteId: process.env.UMAMI_LIZPEEK_WEBSITE_ID || '',
@@ -28,6 +37,13 @@ const WEBSITE_CONFIGS: Record<string, WebsiteConfig> = {
 };
 
 async function getAuthToken(username: string, password: string): Promise<string> {
+  // Check cache first
+  const cached = tokenCache.get(username);
+  if (cached && cached.expiresAt > Date.now()) {
+    return cached.token;
+  }
+
+  // Cache miss or expired - get fresh token
   const baseUrl = process.env.UMAMI_URL;
   
   const response = await fetch(`${baseUrl}/api/auth/login`, {
@@ -43,6 +59,13 @@ async function getAuthToken(username: string, password: string): Promise<string>
   }
 
   const data = await response.json();
+  
+  // Cache the token
+  tokenCache.set(username, {
+    token: data.token,
+    expiresAt: Date.now() + TOKEN_TTL,
+  });
+  
   return data.token;
 }
 
