@@ -74,6 +74,11 @@ export async function GET(request: NextRequest) {
         totalPageviews: true,
         totalUniqueVisitors: true,
         publishedUrl: true,
+        author: {
+          select: {
+            name: true,
+          },
+        },
       },
       orderBy: {
         totalPageviews: 'desc'

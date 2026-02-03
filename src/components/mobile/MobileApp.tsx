@@ -441,9 +441,15 @@ function HotTodayTab({ hotArticles, storyIdeas, activeTab, onTabChange }: any) {
                         </div>
                       </div>
 
-                      <h3 className="text-base font-bold text-white line-clamp-2 leading-snug mb-3 pr-10">
+                      <h3 className="text-base font-bold text-white line-clamp-2 leading-snug mb-2 pr-10">
                         {article.headline}
                       </h3>
+
+                      {article.author?.name && (
+                        <p className="text-xs text-white/50 mb-2">
+                          by <span className="text-white/70 font-medium">{article.author.name}</span>
+                        </p>
+                      )}
 
                       <div className="flex items-center gap-4 text-sm">
                         <div className="flex items-center gap-1 text-orange-300 font-semibold">

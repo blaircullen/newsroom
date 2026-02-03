@@ -27,6 +27,11 @@ import {
   HiOutlineExclamationTriangle,
   HiOutlineArrowPath,
   HiOutlineChartBarSquare,
+  HiOutlineLightBulb,
+  HiOutlineArrowTopRightOnSquare,
+  HiOutlineSparkles,
+  HiOutlineChevronDown,
+  HiOutlineChevronUp,
 } from 'react-icons/hi2';
 
 const STATUS_CONFIG: Record<string, { label: string; class: string; icon: React.ComponentType<{ className?: string }> }> = {
@@ -63,6 +68,12 @@ interface Article {
   tags: { tag: { name: string } }[];
 }
 
+interface StoryIdea {
+  headline: string;
+  sourceUrl: string;
+  source: string;
+}
+
 function DesktopDashboard() {
   const { data: session } = useSession();
   const router = useRouter();
@@ -81,8 +92,53 @@ function DesktopDashboard() {
   const [deleteConfirm, setDeleteConfirm] = useState<{ id: string; headline: string } | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [isRefreshingAnalytics, setIsRefreshingAnalytics] = useState(false);
+  const [storyIdeas, setStoryIdeas] = useState<StoryIdea[]>([]);
+  const [isLoadingIdeas, setIsLoadingIdeas] = useState(false);
+  const [showStoryIdeas, setShowStoryIdeas] = useState(true);
+  const [creatingFromIdea, setCreatingFromIdea] = useState<string | null>(null);
 
   const isAdmin = session?.user?.role === 'ADMIN' || session?.user?.role === 'EDITOR';
+
+  const fetchStoryIdeas = async () => {
+    setIsLoadingIdeas(true);
+    try {
+      const res = await fetch('/api/story-ideas');
+      if (res.ok) {
+        const data = await res.json();
+        setStoryIdeas(data.ideas || []);
+      }
+    } catch (error) {
+      console.error('Failed to fetch story ideas:', error);
+    } finally {
+      setIsLoadingIdeas(false);
+    }
+  };
+
+  const handleCreateFromIdea = async (idea: StoryIdea) => {
+    setCreatingFromIdea(idea.headline);
+    try {
+      // Create a new draft article with the headline pre-filled
+      const res = await fetch('/api/articles', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          headline: idea.headline,
+          content: `<p>Source: <a href="${idea.sourceUrl}" target="_blank">${idea.source}</a></p><p></p>`,
+          status: 'DRAFT',
+        }),
+      });
+
+      if (!res.ok) throw new Error('Failed to create article');
+
+      const newArticle = await res.json();
+      toast.success('Draft created! Opening editor...');
+      router.push(`/editor/${newArticle.id}`);
+    } catch (error) {
+      toast.error('Failed to create draft');
+    } finally {
+      setCreatingFromIdea(null);
+    }
+  };
 
   const fetchArticles = async () => {
     setIsLoading(true);
@@ -125,14 +181,23 @@ function DesktopDashboard() {
 
   useEffect(() => {
     fetchArticles();
-    
+    fetchStoryIdeas();
+
     // Auto-refresh every 30 seconds for live updates
     const interval = setInterval(() => {
       setIsAutoRefreshing(true);
       fetchArticles();
     }, 30000); // 30 seconds
-    
-    return () => clearInterval(interval);
+
+    // Refresh story ideas every 15 minutes
+    const ideasInterval = setInterval(() => {
+      fetchStoryIdeas();
+    }, 15 * 60 * 1000);
+
+    return () => {
+      clearInterval(interval);
+      clearInterval(ideasInterval);
+    };
   }, [activeFilter, currentPage, sortBy]);
 
   const handleFilterChange = (filter: string) => {
@@ -278,6 +343,84 @@ function DesktopDashboard() {
         />
       </div>
 
+      {/* Story Ideas Panel */}
+      {storyIdeas.length > 0 && (
+        <div className="mb-8 bg-gradient-to-r from-amber-50 to-yellow-50 dark:from-amber-900/20 dark:to-yellow-900/20 rounded-xl border border-amber-200 dark:border-amber-800 overflow-hidden">
+          <button
+            onClick={() => setShowStoryIdeas(!showStoryIdeas)}
+            className="w-full px-5 py-4 flex items-center justify-between hover:bg-amber-100/50 dark:hover:bg-amber-900/30 transition-colors"
+          >
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 rounded-lg bg-amber-100 dark:bg-amber-800 flex items-center justify-center">
+                <HiOutlineLightBulb className="w-5 h-5 text-amber-600 dark:text-amber-400" />
+              </div>
+              <div className="text-left">
+                <h3 className="font-display font-semibold text-ink-900 dark:text-ink-100">
+                  Story Ideas
+                </h3>
+                <p className="text-xs text-ink-500 dark:text-ink-400">
+                  {storyIdeas.length} trending topics from around the web
+                </p>
+              </div>
+            </div>
+            {showStoryIdeas ? (
+              <HiOutlineChevronUp className="w-5 h-5 text-ink-400" />
+            ) : (
+              <HiOutlineChevronDown className="w-5 h-5 text-ink-400" />
+            )}
+          </button>
+
+          {showStoryIdeas && (
+            <div className="px-5 pb-5">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                {storyIdeas.slice(0, 6).map((idea, index) => (
+                  <div
+                    key={index}
+                    className="bg-white dark:bg-ink-900 rounded-lg border border-amber-200/50 dark:border-amber-800/50 p-4 hover:shadow-md transition-all group"
+                  >
+                    <h4 className="text-sm font-medium text-ink-800 dark:text-ink-200 line-clamp-2 mb-3 leading-snug">
+                      {idea.headline}
+                    </h4>
+                    <div className="flex items-center justify-between">
+                      <a
+                        href={idea.sourceUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center gap-1 text-xs text-amber-600 dark:text-amber-400 hover:underline"
+                      >
+                        <span className="uppercase tracking-wider font-medium">{idea.source}</span>
+                        <HiOutlineArrowTopRightOnSquare className="w-3 h-3" />
+                      </a>
+                      <button
+                        onClick={() => handleCreateFromIdea(idea)}
+                        disabled={creatingFromIdea === idea.headline}
+                        className="flex items-center gap-1.5 px-3 py-1.5 bg-ink-950 dark:bg-ink-700 text-white text-xs font-semibold rounded-lg hover:bg-ink-800 dark:hover:bg-ink-600 disabled:opacity-50 transition-all active:scale-95"
+                      >
+                        {creatingFromIdea === idea.headline ? (
+                          <>
+                            <div className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                            Creating...
+                          </>
+                        ) : (
+                          <>
+                            <HiOutlineSparkles className="w-3.5 h-3.5" />
+                            Write This
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              {storyIdeas.length > 6 && (
+                <p className="text-xs text-ink-400 text-center mt-3">
+                  Showing 6 of {storyIdeas.length} ideas
+                </p>
+              )}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Filter tabs */}
       <div className="flex items-center gap-1 mb-6 bg-white dark:bg-ink-900 rounded-xl border border-ink-100 dark:border-ink-800 p-1.5 w-fit">
