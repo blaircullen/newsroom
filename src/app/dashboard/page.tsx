@@ -1,18 +1,13 @@
 'use client';
 
 import dynamic from 'next/dynamic';
-import { useState, useEffect } from 'react';
-import { useMobileDetection } from '@/components/mobile/MobileDetector';
+import { useState, useEffect, Suspense } from 'react';
 
-// Dynamically import MobileApp to prevent SSR issues with hooks
+// Dynamically import MobileApp with no SSR to prevent hook issues
 const MobileApp = dynamic(() => import('@/components/mobile/MobileApp'), {
   ssr: false,
-  loading: () => (
-    <div className="flex items-center justify-center min-h-screen bg-ink-950">
-      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-press-400" />
-    </div>
-  ),
 });
+
 import { useSession } from 'next-auth/react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
@@ -685,28 +680,49 @@ function StatCard({
 }
 
 
-// Use mobile detection hook for proper client-side rendering
+// Loading spinner component
+function LoadingSpinner() {
+  return (
+    <div className="flex items-center justify-center min-h-screen bg-ink-950">
+      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-press-400" />
+    </div>
+  );
+}
+
+// Client-side mobile detection with proper hydration handling
 export default function DashboardPage() {
-  const isMobile = useMobileDetection();
-  const [mounted, setMounted] = useState(false);
+  const [isMobile, setIsMobile] = useState<boolean | null>(null);
 
   useEffect(() => {
-    setMounted(true);
+    const checkMobile = () => {
+      const userAgent = navigator.userAgent.toLowerCase();
+      const isMobileUA = /iphone|ipad|ipod|android|blackberry|windows phone/g.test(userAgent);
+      const isMobileScreen = window.innerWidth < 768;
+      const hasTouch = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+      return (isMobileUA || isMobileScreen) && hasTouch;
+    };
+
+    setIsMobile(checkMobile());
+
+    const handleResize = () => setIsMobile(checkMobile());
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
   }, []);
 
-  // Show loading state until mounted to prevent hydration mismatch
-  if (!mounted) {
+  // Show loading until we detect device type (prevents hydration mismatch)
+  if (isMobile === null) {
+    return <LoadingSpinner />;
+  }
+
+  // Render mobile app (dynamically loaded, no SSR)
+  if (isMobile) {
     return (
-      <div className="flex items-center justify-center min-h-screen bg-ink-950">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-press-400" />
-      </div>
+      <Suspense fallback={<LoadingSpinner />}>
+        <MobileApp />
+      </Suspense>
     );
   }
 
-  // Render mobile or desktop based on detection
-  if (isMobile) {
-    return <MobileApp />;
-  }
-
+  // Render desktop dashboard
   return <DesktopDashboard />;
 }
