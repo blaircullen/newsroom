@@ -849,32 +849,42 @@ export async function publishArticle(
     return { success: false, error: 'Article must be approved or already published' };
   }
 
-  // Use raw SQL to avoid Prisma schema mismatch
-  const targets: any[] = await prisma.$queryRaw`
-    SELECT id, name, type, url, api_key, username, password, blog_id,
-           client_id, client_secret, myshopify_domain, is_active
-    FROM publish_targets
-    WHERE id = ${targetId}
-    LIMIT 1
-  `;
+  // Try full query first, fall back if Shopify columns don't exist
+  let targetRows: any[];
+  try {
+    targetRows = await prisma.$queryRaw`
+      SELECT id, name, type, url, api_key, username, password, blog_id,
+             client_id, client_secret, myshopify_domain, is_active
+      FROM publish_targets
+      WHERE id = ${targetId}
+      LIMIT 1
+    `;
+  } catch (err) {
+    targetRows = await prisma.$queryRaw`
+      SELECT id, name, type, url, api_key, username, password, is_active
+      FROM publish_targets
+      WHERE id = ${targetId}
+      LIMIT 1
+    `;
+  }
 
-  if (targets.length === 0 || !targets[0].is_active) {
+  if (targetRows.length === 0 || !targetRows[0].is_active) {
     return { success: false, error: 'Publish target not found or inactive' };
   }
 
   const target = {
-    id: targets[0].id,
-    name: targets[0].name,
-    type: targets[0].type,
-    url: targets[0].url,
-    apiKey: targets[0].api_key,
-    username: targets[0].username,
-    password: targets[0].password,
-    blogId: targets[0].blog_id,
-    clientId: targets[0].client_id,
-    clientSecret: targets[0].client_secret,
-    myshopifyDomain: targets[0].myshopify_domain,
-    isActive: targets[0].is_active,
+    id: targetRows[0].id,
+    name: targetRows[0].name,
+    type: targetRows[0].type,
+    url: targetRows[0].url,
+    apiKey: targetRows[0].api_key,
+    username: targetRows[0].username,
+    password: targetRows[0].password,
+    blogId: targetRows[0].blog_id || null,
+    clientId: targetRows[0].client_id || null,
+    clientSecret: targetRows[0].client_secret || null,
+    myshopifyDomain: targetRows[0].myshopify_domain || null,
+    isActive: targetRows[0].is_active,
   };
 
   console.log(`[Publish] Article "${article.headline}" -> ${target.name} (${target.type})`);
@@ -919,14 +929,25 @@ export async function publishArticle(
 }
 
 export async function getPublishTargets() {
-  // Use raw SQL to avoid Prisma schema mismatch in production
-  const targets: any[] = await prisma.$queryRaw`
-    SELECT id, name, type, url, api_key, username, password, blog_id,
-           client_id, client_secret, myshopify_domain, is_active, created_at, updated_at
-    FROM publish_targets
-    WHERE is_active = true
-    ORDER BY name ASC
-  `;
+  // Try full query first, fall back if Shopify columns don't exist
+  let targets: any[];
+  try {
+    targets = await prisma.$queryRaw`
+      SELECT id, name, type, url, api_key, username, password, blog_id,
+             client_id, client_secret, myshopify_domain, is_active, created_at, updated_at
+      FROM publish_targets
+      WHERE is_active = true
+      ORDER BY name ASC
+    `;
+  } catch (err) {
+    // Shopify columns don't exist - use basic query
+    targets = await prisma.$queryRaw`
+      SELECT id, name, type, url, api_key, username, password, is_active, created_at, updated_at
+      FROM publish_targets
+      WHERE is_active = true
+      ORDER BY name ASC
+    `;
+  }
 
   return targets.map((t: any) => ({
     id: t.id,
@@ -936,10 +957,10 @@ export async function getPublishTargets() {
     apiKey: t.api_key,
     username: t.username,
     password: t.password,
-    blogId: t.blog_id,
-    clientId: t.client_id,
-    clientSecret: t.client_secret,
-    myshopifyDomain: t.myshopify_domain,
+    blogId: t.blog_id || null,
+    clientId: t.client_id || null,
+    clientSecret: t.client_secret || null,
+    myshopifyDomain: t.myshopify_domain || null,
     isActive: t.is_active,
     createdAt: t.created_at,
     updatedAt: t.updated_at,

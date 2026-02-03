@@ -10,13 +10,24 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
-    // Use raw SQL to avoid Prisma schema mismatch issues
-    const sites: any[] = await prisma.$queryRaw`
-      SELECT id, name, type, url, api_key, username, password, blog_id,
-             client_id, client_secret, myshopify_domain, is_active, created_at, updated_at
-      FROM publish_targets
-      ORDER BY created_at DESC
-    `;
+    // Try full query first, fall back to basic query if Shopify columns don't exist
+    let sites: any[];
+    try {
+      sites = await prisma.$queryRaw`
+        SELECT id, name, type, url, api_key, username, password, blog_id,
+               client_id, client_secret, myshopify_domain, is_active, created_at, updated_at
+        FROM publish_targets
+        ORDER BY created_at DESC
+      `;
+    } catch (colErr: any) {
+      // Shopify columns don't exist yet - use basic query
+      console.log('[Sites API] Falling back to basic query:', colErr.message);
+      sites = await prisma.$queryRaw`
+        SELECT id, name, type, url, api_key, username, password, is_active, created_at, updated_at
+        FROM publish_targets
+        ORDER BY created_at DESC
+      `;
+    }
 
     const mapped = sites.map((s: any) => ({
       id: s.id,
@@ -26,10 +37,10 @@ export async function GET(request: NextRequest) {
       apiKey: s.api_key ? '••••••••' : null,
       username: s.username,
       password: s.password ? '••••••••' : null,
-      blogId: s.blog_id,
-      clientId: s.client_id,
+      blogId: s.blog_id || null,
+      clientId: s.client_id || null,
       clientSecret: s.client_secret ? '••••••••' : null,
-      myshopifyDomain: s.myshopify_domain,
+      myshopifyDomain: s.myshopify_domain || null,
       isActive: s.is_active,
       createdAt: s.created_at,
       updatedAt: s.updated_at,
