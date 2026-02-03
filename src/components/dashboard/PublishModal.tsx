@@ -130,14 +130,19 @@ export default function PublishModal({ articleId, onClose, onPublished }: Publis
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-ink-950/60 dark:bg-black/70 backdrop-blur-sm" onClick={onClose} />
-      <div className="relative bg-white dark:bg-ink-900 rounded-2xl shadow-elevated w-full max-w-md overflow-hidden">
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="publish-modal-title"
+        className="relative bg-white dark:bg-ink-900 rounded-2xl shadow-elevated w-full max-w-md overflow-hidden"
+      >
         <div className="flex items-center justify-between p-5 border-b border-ink-100 dark:border-ink-800">
           <div className="flex items-center gap-3">
             <div className="w-9 h-9 rounded-lg bg-emerald-50 flex items-center justify-center">
               <HiOutlineGlobeAlt className="w-5 h-5 text-emerald-600" />
             </div>
             <div>
-              <h3 className="font-display font-semibold text-lg text-ink-900 dark:text-ink-100">
+              <h3 id="publish-modal-title" className="font-display font-semibold text-lg text-ink-900 dark:text-ink-100">
                 {hasResults ? 'Publish Results' : 'Publish Article'}
               </h3>
               <p className="text-ink-400 text-xs">
@@ -145,7 +150,11 @@ export default function PublishModal({ articleId, onClose, onPublished }: Publis
               </p>
             </div>
           </div>
-          <button onClick={onClose} className="p-2 rounded-lg text-ink-400 hover:bg-ink-50 dark:hover:bg-ink-800">
+          <button
+            onClick={onClose}
+            className="p-2 rounded-lg text-ink-400 hover:bg-ink-50 dark:hover:bg-ink-800 focus:outline-none focus:ring-2 focus:ring-press-500"
+            aria-label="Close publish dialog"
+          >
             <HiOutlineXMark className="w-5 h-5" />
           </button>
         </div>

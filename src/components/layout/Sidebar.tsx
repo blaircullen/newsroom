@@ -5,18 +5,12 @@ import { useSession, signOut } from 'next-auth/react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
-  HiOutlineNewspaper,
-  HiOutlineClipboardDocumentCheck,
-  HiOutlineUserGroup,
-  HiOutlineGlobeAlt,
   HiOutlineArrowRightOnRectangle,
-  HiOutlinePlusCircle,
   HiOutlineArrowTrendingUp,
-  HiOutlineCalendarDays,
-  HiOutlineChartBar,
   HiOutlineMagnifyingGlass,
 } from 'react-icons/hi2';
 import ThemeToggle from '@/components/ui/ThemeToggle';
+import { getNavItemsForRole, isNavItemActive } from '@/lib/navigation';
 
 interface TrendingTopic {
   rank: number;
@@ -221,21 +215,10 @@ export default function Sidebar() {
 
   if (!session) return null;
 
-  const isAdmin = ['ADMIN', 'EDITOR'].includes(session.user.role);
-
-  const navItems = [
-    { href: '/dashboard', label: 'Dashboard', icon: HiOutlineNewspaper, show: true },
-    { href: '/editor/new', label: 'New Story', icon: HiOutlinePlusCircle, show: true },
-    { href: '/dashboard?filter=submitted', label: 'For Review', icon: HiOutlineClipboardDocumentCheck, show: isAdmin },
-    { href: '/calendar', label: 'Calendar', icon: HiOutlineCalendarDays, show: isAdmin },
-    { href: '/analytics', label: 'Analytics', icon: HiOutlineChartBar, show: true },
-    { href: '/admin/users', label: 'Manage Writers', icon: HiOutlineUserGroup, show: session.user.role === 'ADMIN' },
-    { href: '/admin/sites', label: 'Publish Sites', icon: HiOutlineGlobeAlt, show: session.user.role === 'ADMIN' },
-  ];
+  const navItems = getNavItemsForRole(session.user.role);
 
   return (
-    <aside className="fixed left-0 top-0 h-screen w-64 flex flex-col z-40"
-           style={{ background: 'linear-gradient(180deg, #111c30 0%, #192842 100%)' }}>
+    <aside className="fixed left-0 top-0 h-screen w-64 flex flex-col z-40 bg-gradient-to-b from-ink-950 to-ink-900">
       {/* Logo */}
       <div className="px-5 pt-5 pb-4 border-b border-white/10">
         <Link href="/dashboard" className="inline-flex items-center gap-0 group">
@@ -248,15 +231,17 @@ export default function Sidebar() {
       </div>
 
       {/* Navigation */}
-      <nav className="py-4 px-3 space-y-0.5">
-        {navItems.filter((item) => item.show).map((item) => {
-          const isActive = pathname === item.href ||
-            (item.href !== '/dashboard' && pathname.startsWith(item.href.split('?')[0]));
+      <nav className="py-4 px-3 space-y-0.5" aria-label="Main navigation">
+        {navItems.map((item) => {
+          const isActive = isNavItemActive(item.href, pathname);
+          const Icon = item.icon;
           return (
             <Link key={item.href} href={item.href}
               className={`flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-150
-                ${isActive ? 'bg-press-500/15 text-press-400' : 'text-ink-300 hover:bg-white/5 hover:text-white'}`}>
-              <item.icon className={`w-5 h-5 flex-shrink-0 ${isActive ? 'text-press-400' : ''}`} />
+                ${isActive ? 'bg-press-500/15 text-press-400' : 'text-ink-200 hover:bg-white/5 hover:text-white'}
+                focus:outline-none focus:ring-2 focus:ring-press-500/50 focus:ring-offset-2 focus:ring-offset-ink-900`}
+              aria-current={isActive ? 'page' : undefined}>
+              <Icon className={`w-5 h-5 flex-shrink-0 ${isActive ? 'text-press-400' : ''}`} />
               {item.label}
             </Link>
           );
@@ -292,8 +277,9 @@ export default function Sidebar() {
           </div>
           <button
             onClick={() => signOut({ callbackUrl: '/login' })}
-            className="p-1.5 rounded-md text-ink-400 hover:text-press-400 hover:bg-white/5 transition-colors"
+            className="p-1.5 rounded-md text-ink-400 hover:text-press-400 hover:bg-white/5 transition-colors focus:outline-none focus:ring-2 focus:ring-press-500/50"
             title="Sign out"
+            aria-label="Sign out"
           >
             <HiOutlineArrowRightOnRectangle className="w-4 h-4" />
           </button>

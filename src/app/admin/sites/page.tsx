@@ -99,7 +99,7 @@ export default function AdminSitesPage() {
             </div>
           </div>
           <button type="button" onClick={() => { resetForm(); setShowForm(true); }}
-            className="flex items-center gap-2 px-5 py-2.5 bg-ink-950 text-paper-100 rounded-lg font-semibold text-sm hover:bg-ink-800 transition-all">
+            className="flex items-center gap-2 px-5 py-2.5 bg-ink-950 text-paper-100 rounded-lg font-semibold text-sm hover:bg-ink-800 transition-all focus:outline-none focus:ring-2 focus:ring-press-500 focus:ring-offset-2">
             <HiOutlinePlusCircle className="w-5 h-5" /> Add Site
           </button>
         </div>
@@ -153,7 +153,7 @@ export default function AdminSitesPage() {
               )}
             </div>
             <button type="button" onClick={doSave} disabled={isSaving}
-              className="px-5 py-2.5 bg-ink-950 text-paper-100 rounded-lg font-semibold text-sm hover:bg-ink-800 transition-all disabled:opacity-50">
+              className="px-5 py-2.5 bg-ink-950 text-paper-100 rounded-lg font-semibold text-sm hover:bg-ink-800 transition-all disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-press-500 focus:ring-offset-2">
               {isSaving ? 'Saving...' : 'Save Site'}
             </button>
           </div>
@@ -178,7 +178,12 @@ export default function AdminSitesPage() {
                   <span className={`text-xs font-medium px-2 py-1 rounded-full ${site.type === 'wordpress' ? 'bg-blue-50 text-blue-700' : 'bg-emerald-50 text-emerald-700'}`}>
                     {site.type === 'wordpress' ? 'WordPress' : 'Ghost'}
                   </span>
-                  <button type="button" onClick={() => handleDelete(site)} className="p-2 text-ink-300 hover:text-red-500 transition-colors">
+                  <button
+                    type="button"
+                    onClick={() => handleDelete(site)}
+                    className="p-2 text-ink-300 hover:text-red-500 transition-colors focus:outline-none focus:ring-2 focus:ring-red-500 rounded-lg"
+                    aria-label={`Delete ${site.name}`}
+                  >
                     <HiOutlineTrash className="w-4 h-4" />
                   </button>
                 </div>

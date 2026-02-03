@@ -203,7 +203,7 @@ export default function NewEditorPage() {
             <button
               onClick={() => saveArticle(false)}
               disabled={isSaving || isSubmitting}
-              className="flex items-center gap-2 px-4 py-2.5 text-sm font-medium text-ink-700 bg-white border border-ink-200 rounded-lg hover:bg-ink-50 disabled:opacity-50 transition-all"
+              className="flex items-center gap-2 px-4 py-2.5 text-sm font-medium text-ink-700 bg-white border border-ink-200 rounded-lg hover:bg-ink-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all focus:outline-none focus:ring-2 focus:ring-press-500 focus:ring-offset-2"
             >
               <HiOutlineCloudArrowUp className="w-4 h-4" />
               {isSaving ? 'Saving...' : 'Save Draft'}
@@ -211,7 +211,7 @@ export default function NewEditorPage() {
             <button
               onClick={() => saveArticle(true)}
               disabled={isSaving || isSubmitting}
-              className="flex items-center gap-2 px-5 py-2.5 text-sm font-semibold text-paper-100 bg-ink-950 rounded-lg hover:bg-ink-800 disabled:opacity-50 transition-all active:scale-[0.98]"
+              className="flex items-center gap-2 px-5 py-2.5 text-sm font-semibold text-paper-100 bg-ink-950 rounded-lg hover:bg-ink-800 disabled:opacity-50 disabled:cursor-not-allowed transition-all active:scale-[0.98] focus:outline-none focus:ring-2 focus:ring-press-500 focus:ring-offset-2"
             >
               <HiOutlinePaperAirplane className="w-4 h-4" />
               {isSubmitting ? 'Submitting...' : 'Submit for Review'}

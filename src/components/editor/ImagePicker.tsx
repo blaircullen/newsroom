@@ -209,7 +209,12 @@ export default function ImagePicker({ isOpen, onClose, onSelect, selectedImageId
       />
 
       {/* Modal */}
-      <div className="relative bg-white rounded-2xl shadow-elevated w-full max-w-4xl max-h-[80vh] flex flex-col overflow-hidden">
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="image-picker-title"
+        className="relative bg-white rounded-2xl shadow-elevated w-full max-w-4xl max-h-[80vh] flex flex-col overflow-hidden"
+      >
         {/* Header */}
         <div className="flex items-center justify-between p-5 border-b border-ink-100">
           <div className="flex items-center gap-3">
@@ -217,7 +222,7 @@ export default function ImagePicker({ isOpen, onClose, onSelect, selectedImageId
               <HiOutlinePhoto className="w-5 h-5 text-press-600" />
             </div>
             <div>
-              <h3 className="font-display font-semibold text-lg text-ink-900">
+              <h3 id="image-picker-title" className="font-display font-semibold text-lg text-ink-900">
                 Featured Image
               </h3>
               <p className="text-ink-400 text-xs">
@@ -227,7 +232,8 @@ export default function ImagePicker({ isOpen, onClose, onSelect, selectedImageId
           </div>
           <button
             onClick={onClose}
-            className="p-2 rounded-lg text-ink-400 hover:bg-ink-50 hover:text-ink-700 transition-colors"
+            className="p-2 rounded-lg text-ink-400 hover:bg-ink-50 hover:text-ink-700 transition-colors focus:outline-none focus:ring-2 focus:ring-press-500"
+            aria-label="Close image picker"
           >
             <HiOutlineXMark className="w-5 h-5" />
           </button>
@@ -298,7 +304,7 @@ export default function ImagePicker({ isOpen, onClose, onSelect, selectedImageId
                 </div>
               ) : (
                 <>
-                  <div className="grid grid-cols-4 gap-3">
+                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
                     {images.map((image) => (
                       <button
                         key={image.id}

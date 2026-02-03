@@ -105,7 +105,8 @@ export default function TagInput({ tags, onChange }: TagInputProps) {
             <button
               type="button"
               onClick={() => removeTag(index)}
-              className="text-ink-400 hover:text-ink-700 transition-colors"
+              className="text-ink-400 hover:text-ink-700 transition-colors focus:outline-none focus:ring-1 focus:ring-press-500 rounded"
+              aria-label={`Remove tag ${tag}`}
             >
               <HiOutlineXMark className="w-3.5 h-3.5" />
             </button>

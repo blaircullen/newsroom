@@ -7,17 +7,11 @@ import Image from 'next/image';
 import Link from 'next/link';
 import Sidebar from './Sidebar';
 import {
-  HiOutlineNewspaper,
-  HiOutlineClipboardDocumentCheck,
-  HiOutlineUserGroup,
-  HiOutlineGlobeAlt,
   HiOutlineArrowRightOnRectangle,
-  HiOutlinePlusCircle,
-  HiOutlineCalendarDays,
-  HiOutlineChartBar,
   HiOutlineBars3,
   HiOutlineXMark,
 } from 'react-icons/hi2';
+import { getNavItemsForRole, isNavItemActive } from '@/lib/navigation';
 
 export default function AppShell({ children }: { children: React.ReactNode }) {
   const { data: session, status } = useSession();
@@ -57,22 +51,19 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
 
   if (!session) return null;
 
-  const isAdmin = ['ADMIN', 'EDITOR'].includes(session.user.role);
-
-  const navItems = [
-    { href: '/dashboard', label: 'Dashboard', icon: HiOutlineNewspaper, show: true },
-    { href: '/editor/new', label: 'New Story', icon: HiOutlinePlusCircle, show: true },
-    { href: '/dashboard?filter=submitted', label: 'For Review', icon: HiOutlineClipboardDocumentCheck, show: isAdmin },
-    { href: '/calendar', label: 'Calendar', icon: HiOutlineCalendarDays, show: isAdmin },
-    { href: '/analytics', label: 'Analytics', icon: HiOutlineChartBar, show: true },
-    { href: '/admin/users', label: 'Manage Writers', icon: HiOutlineUserGroup, show: session.user.role === 'ADMIN' },
-    { href: '/admin/sites', label: 'Publish Sites', icon: HiOutlineGlobeAlt, show: session.user.role === 'ADMIN' },
-  ];
+  const navItems = getNavItemsForRole(session.user.role);
 
   return (
     <div className="min-h-screen flex flex-col lg:flex-row bg-paper-100 dark:bg-ink-950 transition-colors">
+      {/* Skip to content link for accessibility */}
+      <a
+        href="#main-content"
+        className="sr-only focus:not-sr-only focus:absolute focus:top-4 focus:left-4 focus:z-[100] focus:px-4 focus:py-2 focus:bg-press-600 focus:text-white focus:rounded-lg focus:outline-none focus:ring-2 focus:ring-press-400"
+      >
+        Skip to main content
+      </a>
       {/* Mobile Header */}
-      <header className="lg:hidden fixed top-0 left-0 right-0 z-50 bg-[#111c30] border-b border-white/10">
+      <header className="lg:hidden fixed top-0 left-0 right-0 z-50 bg-ink-950 border-b border-white/10">
         <div className="flex items-center justify-between px-4 py-3">
           <Link href="/dashboard" className="inline-flex items-center gap-0">
             <span className="font-black text-xl leading-none tracking-[-1px] text-white">N</span>
@@ -83,7 +74,9 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
           </Link>
           <button
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-            className="p-2 rounded-md text-white/70 hover:text-white hover:bg-white/10 transition-colors"
+            className="p-2 rounded-md text-white/70 hover:text-white hover:bg-white/10 transition-colors focus:outline-none focus:ring-2 focus:ring-press-500/50"
+            aria-label={mobileMenuOpen ? 'Close menu' : 'Open menu'}
+            aria-expanded={mobileMenuOpen}
           >
             {mobileMenuOpen ? (
               <HiOutlineXMark className="w-6 h-6" />
@@ -103,21 +96,23 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
       )}
 
       {/* Mobile Slide-out Menu */}
-      <div className={`lg:hidden fixed top-14 left-0 bottom-0 w-64 z-50 transform transition-transform duration-200 ease-in-out ${
+      <div className={`lg:hidden fixed top-14 left-0 bottom-0 w-64 z-50 transform transition-transform duration-200 ease-in-out bg-gradient-to-b from-ink-950 to-ink-900 ${
         mobileMenuOpen ? 'translate-x-0' : '-translate-x-full'
-      }`} style={{ background: 'linear-gradient(180deg, #111c30 0%, #192842 100%)' }}>
-        <nav className="py-4 px-3 space-y-0.5">
-          {navItems.filter((item) => item.show).map((item) => {
-            const isActive = pathname === item.href ||
-              (item.href !== '/dashboard' && pathname.startsWith(item.href.split('?')[0]));
+      }`}>
+        <nav className="py-4 px-3 space-y-0.5" aria-label="Mobile navigation">
+          {navItems.map((item) => {
+            const isActive = isNavItemActive(item.href, pathname);
+            const Icon = item.icon;
             return (
               <Link
                 key={item.href}
                 href={item.href}
                 className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-150
-                  ${isActive ? 'bg-press-500/15 text-press-400' : 'text-ink-300 hover:bg-white/5 hover:text-white'}`}
+                  ${isActive ? 'bg-press-500/15 text-press-400' : 'text-ink-200 hover:bg-white/5 hover:text-white'}
+                  focus:outline-none focus:ring-2 focus:ring-press-500/50 focus:ring-offset-2 focus:ring-offset-ink-900`}
+                aria-current={isActive ? 'page' : undefined}
               >
-                <item.icon className={`w-5 h-5 flex-shrink-0 ${isActive ? 'text-press-400' : ''}`} />
+                <Icon className={`w-5 h-5 flex-shrink-0 ${isActive ? 'text-press-400' : ''}`} />
                 {item.label}
               </Link>
             );
@@ -138,8 +133,9 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
             </div>
             <button
               onClick={() => signOut({ callbackUrl: '/login' })}
-              className="p-2 rounded-md text-ink-400 hover:text-press-400 hover:bg-white/5 transition-colors"
+              className="p-2 rounded-md text-ink-400 hover:text-press-400 hover:bg-white/5 transition-colors focus:outline-none focus:ring-2 focus:ring-press-500/50"
               title="Sign out"
+              aria-label="Sign out"
             >
               <HiOutlineArrowRightOnRectangle className="w-5 h-5" />
             </button>
@@ -153,7 +149,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
       </div>
 
       {/* Main Content */}
-      <main className="flex-1 lg:ml-64 pt-14 lg:pt-0">
+      <main id="main-content" className="flex-1 lg:ml-64 pt-14 lg:pt-0">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6 lg:py-8">
           {children}
         </div>

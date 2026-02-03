@@ -251,25 +251,25 @@ export default function EditArticlePage() {
           <div className="flex items-center gap-3">
             {canReview && (
               <button onClick={() => setShowReviewPanel(!showReviewPanel)}
-                className="flex items-center gap-2 px-4 py-2.5 text-sm font-medium text-press-700 bg-press-50 border border-press-200 rounded-lg hover:bg-press-100 transition-all">
+                className="flex items-center gap-2 px-4 py-2.5 text-sm font-medium text-press-700 bg-press-50 border border-press-200 rounded-lg hover:bg-press-100 transition-all focus:outline-none focus:ring-2 focus:ring-press-500 focus:ring-offset-2">
                 <HiOutlineCheckCircle className="w-4 h-4" /> Review
               </button>
             )}
             {canPublish && (
               <button onClick={() => setShowPublishModal(true)}
-                className="flex items-center gap-2 px-4 py-2.5 text-sm font-semibold text-paper-100 bg-emerald-600 rounded-lg hover:bg-emerald-700 transition-all">
+                className="flex items-center gap-2 px-4 py-2.5 text-sm font-semibold text-paper-100 bg-emerald-600 rounded-lg hover:bg-emerald-700 transition-all focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2">
                 <HiOutlineGlobeAlt className="w-4 h-4" /> Publish
               </button>
             )}
             {canEdit && (
               <>
                 <button onClick={() => saveArticle(false)} disabled={isSaving || isSubmitting}
-                  className="flex items-center gap-2 px-4 py-2.5 text-sm font-medium text-ink-700 bg-white border border-ink-200 rounded-lg hover:bg-ink-50 disabled:opacity-50 transition-all">
+                  className="flex items-center gap-2 px-4 py-2.5 text-sm font-medium text-ink-700 bg-white border border-ink-200 rounded-lg hover:bg-ink-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all focus:outline-none focus:ring-2 focus:ring-press-500 focus:ring-offset-2">
                   <HiOutlineCloudArrowUp className="w-4 h-4" /> {isSaving ? 'Saving...' : 'Save'}
                 </button>
                 {canSubmit && (
                   <button onClick={() => saveArticle(true)} disabled={isSaving || isSubmitting}
-                    className="flex items-center gap-2 px-5 py-2.5 text-sm font-semibold text-paper-100 bg-ink-950 rounded-lg hover:bg-ink-800 disabled:opacity-50 transition-all">
+                    className="flex items-center gap-2 px-5 py-2.5 text-sm font-semibold text-paper-100 bg-ink-950 rounded-lg hover:bg-ink-800 disabled:opacity-50 disabled:cursor-not-allowed transition-all focus:outline-none focus:ring-2 focus:ring-press-500 focus:ring-offset-2">
                     <HiOutlinePaperAirplane className="w-4 h-4" /> {isSubmitting ? 'Submitting...' : 'Submit'}
                   </button>
                 )}
@@ -286,11 +286,11 @@ export default function EditArticlePage() {
               className="w-full px-4 py-3 rounded-lg border border-ink-200 text-sm focus:outline-none focus:border-press-500 resize-none h-24 mb-4" />
             <div className="flex items-center gap-3">
               <button onClick={() => handleReview('approved')}
-                className="px-4 py-2 text-sm font-semibold text-white bg-emerald-600 rounded-lg hover:bg-emerald-700 transition-all">Approve</button>
+                className="px-4 py-2 text-sm font-semibold text-white bg-emerald-600 rounded-lg hover:bg-emerald-700 transition-all focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2">Approve</button>
               <button onClick={() => handleReview('revision_requested')}
-                className="px-4 py-2 text-sm font-medium text-amber-700 bg-amber-50 border border-amber-200 rounded-lg hover:bg-amber-100 transition-all">Request Revision</button>
+                className="px-4 py-2 text-sm font-medium text-amber-700 bg-amber-50 border border-amber-200 rounded-lg hover:bg-amber-100 transition-all focus:outline-none focus:ring-2 focus:ring-amber-500 focus:ring-offset-2">Request Revision</button>
               <button onClick={() => handleReview('rejected')}
-                className="px-4 py-2 text-sm font-medium text-red-700 bg-red-50 border border-red-200 rounded-lg hover:bg-red-100 transition-all">Reject</button>
+                className="px-4 py-2 text-sm font-medium text-red-700 bg-red-50 border border-red-200 rounded-lg hover:bg-red-100 transition-all focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2">Reject</button>
             </div>
           </div>
         )}

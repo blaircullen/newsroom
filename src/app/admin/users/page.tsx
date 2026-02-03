@@ -182,7 +182,7 @@ export default function AdminUsersPage() {
           </div>
           <button
             onClick={() => setShowCreateForm(true)}
-            className="flex items-center gap-2 px-5 py-2.5 bg-ink-950 text-paper-100 rounded-lg font-semibold text-sm hover:bg-ink-800 transition-all"
+            className="flex items-center gap-2 px-5 py-2.5 bg-ink-950 text-paper-100 rounded-lg font-semibold text-sm hover:bg-ink-800 transition-all focus:outline-none focus:ring-2 focus:ring-press-500 focus:ring-offset-2"
           >
             <HiOutlinePlusCircle className="w-5 h-5" />
             Add Writer
@@ -237,7 +237,7 @@ export default function AdminUsersPage() {
             </div>
             <button
               onClick={createUser}
-              className="px-5 py-2.5 bg-ink-950 text-paper-100 rounded-lg font-semibold text-sm hover:bg-ink-800 transition-all"
+              className="px-5 py-2.5 bg-ink-950 text-paper-100 rounded-lg font-semibold text-sm hover:bg-ink-800 transition-all focus:outline-none focus:ring-2 focus:ring-press-500 focus:ring-offset-2"
             >
               Create User
             </button>
@@ -247,15 +247,21 @@ export default function AdminUsersPage() {
         {/* Reset Password Modal */}
         {resetPasswordUser && (
           <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
-            <div className="bg-white rounded-xl border border-ink-200 p-6 w-full max-w-md shadow-xl">
+            <div
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="reset-password-title"
+              className="bg-white rounded-xl border border-ink-200 p-6 w-full max-w-md shadow-xl"
+            >
               <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-2">
                   <HiOutlineKey className="w-5 h-5 text-press-600" />
-                  <h3 className="font-display font-semibold text-ink-900">Reset Password</h3>
+                  <h3 id="reset-password-title" className="font-display font-semibold text-ink-900">Reset Password</h3>
                 </div>
                 <button
                   onClick={() => { setResetPasswordUser(null); setNewPassword(''); }}
-                  className="p-1 text-ink-400 hover:text-ink-600"
+                  className="p-1 text-ink-400 hover:text-ink-600 focus:outline-none focus:ring-2 focus:ring-press-500 rounded"
+                  aria-label="Close dialog"
                 >
                   <HiOutlineXMark className="w-5 h-5" />
                 </button>
@@ -266,13 +272,14 @@ export default function AdminUsersPage() {
               <div className="mb-4">
                 <label className="block text-sm font-medium text-ink-600 mb-1">New Password</label>
                 <input
-                  type="text"
+                  type="password"
                   value={newPassword}
                   onChange={(e) => setNewPassword(e.target.value)}
                   onKeyDown={(e) => { if (e.key === 'Enter' && !isResetting) handleResetPassword(); }}
-                  className="w-full px-3 py-2.5 rounded-lg border border-ink-200 text-sm focus:outline-none focus:border-press-500"
+                  className="w-full px-3 py-2.5 rounded-lg border border-ink-200 text-sm focus:outline-none focus:border-press-500 focus:ring-2 focus:ring-press-500/20"
                   placeholder="Enter new password"
                   autoFocus
+                  autoComplete="new-password"
                 />
                 <p className="text-xs text-ink-400 mt-1">Minimum 6 characters. Share this with the writer securely.</p>
               </div>
@@ -363,17 +370,17 @@ export default function AdminUsersPage() {
                       <div className="flex items-center justify-end gap-3">
                         <button
                           onClick={() => setResetPasswordUser(user)}
-                          className="text-xs font-medium text-press-600 hover:text-press-700"
+                          className="text-xs font-medium text-press-600 hover:text-press-700 focus:outline-none focus:ring-2 focus:ring-press-500 focus:ring-offset-1 rounded px-1"
                           title="Reset password"
                         >
                           Reset Password
                         </button>
                         <button
                           onClick={() => toggleUserActive(user.id, user.isActive)}
-                          className={`text-xs font-medium ${
+                          className={`text-xs font-medium focus:outline-none focus:ring-2 focus:ring-offset-1 rounded px-1 ${
                             user.isActive
-                              ? 'text-red-600 hover:text-red-700'
-                              : 'text-emerald-600 hover:text-emerald-700'
+                              ? 'text-red-600 hover:text-red-700 focus:ring-red-500'
+                              : 'text-emerald-600 hover:text-emerald-700 focus:ring-emerald-500'
                           }`}
                         >
                           {user.isActive ? 'Deactivate' : 'Activate'}

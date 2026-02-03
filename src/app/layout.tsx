@@ -3,6 +3,7 @@ import { Toaster } from 'react-hot-toast';
 import AuthProvider from '@/components/layout/AuthProvider';
 import { ThemeProvider } from '@/contexts/ThemeContext';
 import CommandPalette from '@/components/ui/CommandPalette';
+import ErrorBoundary from '@/components/ui/ErrorBoundary';
 import './globals.css';
 import './mobile.css';
 
@@ -24,7 +25,9 @@ export default function RootLayout({
       <body className="min-h-screen bg-paper-100 dark:bg-ink-950 transition-colors">
         <AuthProvider>
           <ThemeProvider>
-            {children}
+            <ErrorBoundary>
+              {children}
+            </ErrorBoundary>
             <CommandPalette />
             <Toaster
               position="bottom-right"

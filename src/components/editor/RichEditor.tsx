@@ -128,7 +128,8 @@ export default function RichEditor({ content, onChange, placeholder }: RichEdito
       type="button"
       onClick={onClick}
       title={title}
-      className={`p-2 rounded-md transition-all duration-100 ${
+      aria-pressed={isActive}
+      className={`p-2 rounded-md transition-all duration-100 focus:outline-none focus:ring-2 focus:ring-press-500 focus:ring-offset-1 ${
         isActive
           ? 'bg-ink-950 text-paper-100 dark:bg-ink-100 dark:text-ink-900'
           : 'text-ink-500 hover:bg-ink-100 hover:text-ink-800 dark:text-ink-400 dark:hover:bg-ink-700 dark:hover:text-ink-100'
@@ -377,12 +378,15 @@ export default function RichEditor({ content, onChange, placeholder }: RichEdito
           <button
             type="button"
             onClick={() => {
-              const url = window.prompt('Enter URL:');
-              if (url) {
-                editor.chain().focus().setLink({ href: url }).run();
+              if (editor.isActive('link')) {
+                editor.chain().focus().unsetLink().run();
+              } else {
+                setShowLinkInput(true);
+                setLinkUrl('');
               }
             }}
             className={`p-1.5 rounded ${editor.isActive('link') ? 'bg-ink-700 text-press-400' : 'text-ink-300 hover:text-paper-100'}`}
+            aria-label={editor.isActive('link') ? 'Remove link' : 'Add link'}
           >
             <HiOutlineLink className="w-3.5 h-3.5" />
           </button>
