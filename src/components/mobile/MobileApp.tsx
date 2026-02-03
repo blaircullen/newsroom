@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useSession, signOut } from 'next-auth/react';
@@ -64,7 +64,7 @@ export default function MobileApp() {
 
   const isAdmin = ['ADMIN', 'EDITOR'].includes(session.user?.role || '');
 
-  const fetchArticles = async () => {
+  const fetchArticles = useCallback(async () => {
     try {
       const params = new URLSearchParams();
       if (activeFilter) params.set('status', activeFilter);
@@ -73,7 +73,7 @@ export default function MobileApp() {
       if (!res.ok) throw new Error('Failed to fetch');
       const data = await res.json();
       setArticles(data.articles || []);
-      
+
       const all = data.articles || [];
       setStats({
         total: all.length,
@@ -85,9 +85,9 @@ export default function MobileApp() {
       console.error('Failed to fetch articles:', error);
       setArticles([]);
     }
-  };
+  }, [activeFilter]);
 
-  const fetchHotArticles = async () => {
+  const fetchHotArticles = useCallback(async () => {
     try {
       const res = await fetch('/api/articles/hot-today');
       if (!res.ok) throw new Error('Failed to fetch hot articles');
@@ -97,14 +97,14 @@ export default function MobileApp() {
       console.error('Failed to fetch hot articles:', error);
       setHotArticles([]);
     }
-  };
+  }, []);
 
   useEffect(() => {
     if (session) {
       fetchArticles();
       fetchHotArticles();
     }
-  }, [activeFilter, session]);
+  }, [session, fetchArticles, fetchHotArticles]);
 
   const handlePullToRefresh = async () => {
     setIsRefreshing(true);

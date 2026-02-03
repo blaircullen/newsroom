@@ -57,11 +57,22 @@ export const authOptions: NextAuthOptions = {
           throw new Error('Invalid credentials');
         }
 
-        // Update last login asynchronously (fire-and-forget) to not slow down auth
-        prisma.user.update({
-          where: { id: user.id },
-          data: { lastLoginAt: new Date() },
-        }).catch((err) => console.error('Failed to update lastLoginAt:', err));
+        // Update last login asynchronously - don't block auth but track failures
+        void (async () => {
+          try {
+            await prisma.user.update({
+              where: { id: user.id },
+              data: { lastLoginAt: new Date() },
+            });
+          } catch (err) {
+            // Log with structured data for observability tools (Sentry, DataDog, etc.)
+            console.error('[AUTH] Failed to update lastLoginAt', {
+              userId: user.id,
+              error: err instanceof Error ? err.message : 'Unknown error',
+              timestamp: new Date().toISOString(),
+            });
+          }
+        })();
 
         return {
           id: user.id,
