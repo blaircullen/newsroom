@@ -42,10 +42,10 @@ function areRelated(headline1: string, headline2: string): boolean {
   return overlap >= 3 || (minSize > 0 && overlap / minSize >= 0.4);
 }
 
-// Fetch BizPac Review RSS feed
-async function fetchBizPacHeadlines(): Promise<string[]> {
+// Fetch RSS feed headlines
+async function fetchRssHeadlines(url: string, name: string): Promise<string[]> {
   try {
-    const response = await fetch('https://www.bizpacreview.com/feed/', {
+    const response = await fetch(url, {
       headers: {
         'User-Agent': 'Mozilla/5.0 (compatible; NewsroomBot/1.0)',
       },
@@ -62,12 +62,27 @@ async function fetchBizPacHeadlines(): Promise<string[]> {
       if (title) headlines.push(title);
     });
 
-    console.log(`[BizPac] Found ${headlines.length} headlines`);
+    console.log(`[${name}] Found ${headlines.length} headlines`);
     return headlines;
   } catch (error) {
-    console.error('[BizPac] Error fetching RSS:', error);
+    console.error(`[${name}] Error fetching RSS:`, error);
     return [];
   }
+}
+
+// Fetch all cross-reference sources
+async function fetchCrossReferenceHeadlines(): Promise<string[]> {
+  const sources = [
+    { url: 'https://www.bizpacreview.com/feed/', name: 'BizPac' },
+    { url: 'https://bonginoreport.com/index.rss', name: 'Bongino' },
+  ];
+
+  const results = await Promise.all(
+    sources.map(src => fetchRssHeadlines(src.url, src.name))
+  );
+
+  // Combine all headlines
+  return results.flat();
 }
 
 export async function scrapeStoryIdeas(): Promise<StoryIdea[]> {
@@ -77,14 +92,14 @@ export async function scrapeStoryIdeas(): Promise<StoryIdea[]> {
   }
 
   try {
-    // Fetch both sources in parallel
-    const [cfpResponse, bizpacHeadlines] = await Promise.all([
+    // Fetch CFP and cross-reference sources in parallel
+    const [cfpResponse, crossRefHeadlines] = await Promise.all([
       fetch('https://citizenfreepress.com/', {
         headers: {
           'User-Agent': 'Mozilla/5.0 (compatible; NewsroomBot/1.0)',
         },
       }),
-      fetchBizPacHeadlines(),
+      fetchCrossReferenceHeadlines(),
     ]);
 
     if (!cfpResponse.ok) {
@@ -172,8 +187,8 @@ export async function scrapeStoryIdeas(): Promise<StoryIdea[]> {
           // Keep as Web
         }
 
-        // Check if this story is also in BizPac Review (trending)
-        const isTrending = bizpacHeadlines.some(bpHeadline => areRelated(text, bpHeadline));
+        // Check if this story appears in any cross-reference source (trending)
+        const isTrending = crossRefHeadlines.some(refHeadline => areRelated(text, refHeadline));
 
         ideas.push({
           headline: text,
