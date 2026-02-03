@@ -153,7 +153,7 @@ export default function DashboardPage() {
           </p>
         </div>
         <div className="flex items-center gap-3">
-          {isAdmin && activeFilter === 'PUBLISHED' && (
+          {isAdmin && (activeFilter === null || activeFilter === 'PUBLISHED') && (
             <button
               onClick={handleRefreshAnalytics}
               disabled={isRefreshingAnalytics}
