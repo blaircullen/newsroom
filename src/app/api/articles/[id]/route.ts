@@ -80,7 +80,7 @@ export async function PUT(
   }
 
   const body = await request.json();
-  const { headline, subHeadline, bodyContent, bodyHtml, featuredImage, featuredImageId, imageCredit, tags } = body;
+  const { headline, subHeadline, bodyContent, bodyHtml, featuredImage, featuredImageId, imageCredit, tags, scheduledPublishAt } = body;
 
   const updateData: any = {};
 
@@ -94,6 +94,9 @@ export async function PUT(
   if (featuredImage !== undefined) updateData.featuredImage = featuredImage;
   if (featuredImageId !== undefined) updateData.featuredImageId = featuredImageId;
   if (imageCredit !== undefined) updateData.imageCredit = imageCredit;
+  if (scheduledPublishAt !== undefined) {
+    updateData.scheduledPublishAt = scheduledPublishAt ? new Date(scheduledPublishAt) : null;
+  }
 
   // Update tags if provided
   if (tags && Array.isArray(tags)) {

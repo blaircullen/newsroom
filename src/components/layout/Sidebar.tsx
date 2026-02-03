@@ -13,7 +13,11 @@ import {
   HiOutlineArrowRightOnRectangle,
   HiOutlinePlusCircle,
   HiOutlineArrowTrendingUp,
+  HiOutlineCalendarDays,
+  HiOutlineChartBar,
+  HiOutlineMagnifyingGlass,
 } from 'react-icons/hi2';
+import ThemeToggle from '@/components/ui/ThemeToggle';
 
 interface TrendingTopic {
   rank: number;
@@ -397,6 +401,8 @@ export default function Sidebar() {
     { href: '/dashboard', label: 'Dashboard', icon: HiOutlineNewspaper, show: true },
     { href: '/editor/new', label: 'New Story', icon: HiOutlinePlusCircle, show: true },
     { href: '/dashboard?filter=submitted', label: 'For Review', icon: HiOutlineClipboardDocumentCheck, show: isAdmin },
+    { href: '/calendar', label: 'Calendar', icon: HiOutlineCalendarDays, show: isAdmin },
+    { href: '/analytics', label: 'Analytics', icon: HiOutlineChartBar, show: isAdmin },
     { href: '/admin/users', label: 'Manage Writers', icon: HiOutlineUserGroup, show: session.user.role === 'ADMIN' },
     { href: '/admin/sites', label: 'Publish Sites', icon: HiOutlineGlobeAlt, show: session.user.role === 'ADMIN' },
   ];
@@ -440,8 +446,17 @@ export default function Sidebar() {
       {/* Best Performing Posts - Top articles from last 24h */}
       <BestPerformingPosts />
 
+      {/* Keyboard Shortcut Hint */}
+      <div className="mx-3 mb-2">
+        <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-white/5 text-ink-400 text-xs">
+          <HiOutlineMagnifyingGlass className="w-3.5 h-3.5" />
+          <span>Quick search</span>
+          <kbd className="ml-auto px-1.5 py-0.5 bg-white/10 rounded text-[10px] font-mono">⌘K</kbd>
+        </div>
+      </div>
+
       {/* User Section */}
-      <div className="mt-4 p-4 border-t border-white/10">
+      <div className="p-4 border-t border-white/10">
         <div className="flex items-center gap-3 mb-3">
           <div className="w-8 h-8 rounded-full bg-press-500/20 flex items-center justify-center">
             <span className="text-press-400 text-xs font-semibold">
@@ -453,11 +468,14 @@ export default function Sidebar() {
             <p className="text-ink-500 text-xs capitalize">{session.user.role.toLowerCase()}</p>
           </div>
         </div>
-        <button onClick={() => signOut({ callbackUrl: '/login' })}
-          className="flex items-center gap-2 text-ink-400 hover:text-press-400 text-sm transition-colors w-full px-1">
-          <HiOutlineArrowRightOnRectangle className="w-4 h-4" />
-          Sign out
-        </button>
+        <div className="flex items-center justify-between">
+          <button onClick={() => signOut({ callbackUrl: '/login' })}
+            className="flex items-center gap-2 text-ink-400 hover:text-press-400 text-sm transition-colors px-1">
+            <HiOutlineArrowRightOnRectangle className="w-4 h-4" />
+            Sign out
+          </button>
+          <ThemeToggle />
+        </div>
       </div>
     </aside>
   );

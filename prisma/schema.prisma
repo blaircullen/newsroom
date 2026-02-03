@@ -64,9 +64,10 @@ model Article {
   author          User          @relation("AuthoredArticles", fields: [authorId], references: [id])
 
   // Publishing
-  publishedUrl    String?       @map("published_url")
-  publishedSite   String?       @map("published_site")
-  publishedAt     DateTime?     @map("published_at")
+  publishedUrl        String?       @map("published_url")
+  publishedSite       String?       @map("published_site")
+  publishedAt         DateTime?     @map("published_at")
+  scheduledPublishAt  DateTime?     @map("scheduled_publish_at")
 
   // Analytics
   totalPageviews       Int       @default(0) @map("total_pageviews")
@@ -82,6 +83,7 @@ model Article {
   tags            ArticleTag[]
   reviews         Review[]
   comments        Comment[]
+  versions        ArticleVersion[]
 
   @@index([authorId])
   @@index([status])
@@ -139,6 +141,25 @@ model Comment {
 
   @@index([articleId])
   @@map("comments")
+}
+
+model ArticleVersion {
+  id          String   @id @default(cuid())
+  articleId   String   @map("article_id")
+  version     Int
+  headline    String
+  subHeadline String?  @map("sub_headline")
+  body        String   @db.Text
+  bodyHtml    String?  @db.Text @map("body_html")
+  createdById String   @map("created_by_id")
+  createdAt   DateTime @default(now()) @map("created_at")
+  changeNote  String?  @map("change_note")
+
+  article     Article  @relation(fields: [articleId], references: [id], onDelete: Cascade)
+
+  @@index([articleId])
+  @@index([createdAt])
+  @@map("article_versions")
 }
 
 model PublishTarget {

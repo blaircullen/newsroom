@@ -6,6 +6,8 @@ import {
   HiOutlineXMark,
   HiOutlineCheck,
   HiOutlineExclamationTriangle,
+  HiOutlineClock,
+  HiOutlineCalendarDays,
 } from 'react-icons/hi2';
 import toast from 'react-hot-toast';
 
@@ -36,6 +38,9 @@ export default function PublishModal({ articleId, onClose, onPublished }: Publis
   const [isLoading, setIsLoading] = useState(true);
   const [isPublishing, setIsPublishing] = useState(false);
   const [results, setResults] = useState<SiteResult[] | null>(null);
+  const [publishMode, setPublishMode] = useState<'now' | 'schedule'>('now');
+  const [scheduledDate, setScheduledDate] = useState('');
+  const [scheduledTime, setScheduledTime] = useState('');
 
   useEffect(() => {
     async function fetchTargets() {
@@ -67,30 +72,56 @@ export default function PublishModal({ articleId, onClose, onPublished }: Publis
   };
 
   const handlePublish = async () => {
-    if (selectedTargets.size === 0) { toast.error('Select at least one site'); return; }
+    if (publishMode === 'now' && selectedTargets.size === 0) {
+      toast.error('Select at least one site');
+      return;
+    }
+    if (publishMode === 'schedule' && (!scheduledDate || !scheduledTime)) {
+      toast.error('Select a date and time for scheduling');
+      return;
+    }
+
     setIsPublishing(true);
     setResults(null);
+
     try {
-      const res = await fetch('/api/articles/' + articleId + '/publish', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ targetIds: Array.from(selectedTargets) }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Failed to publish');
-      setResults(data.results);
-      const successes = data.results.filter((r: SiteResult) => r.success);
-      const failures = data.results.filter((r: SiteResult) => !r.success);
-      if (successes.length > 0 && failures.length === 0) {
-        toast.success('Published to ' + successes.length + ' site' + (successes.length > 1 ? 's' : '') + '!');
-        setTimeout(() => onPublished(successes[0].url || ''), 1500);
-      } else if (successes.length > 0) {
-        toast.success('Published to ' + successes.length + ', ' + failures.length + ' failed');
+      if (publishMode === 'schedule') {
+        // Schedule the article
+        const scheduledAt = new Date(`${scheduledDate}T${scheduledTime}`);
+        const res = await fetch('/api/articles/' + articleId, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ scheduledPublishAt: scheduledAt.toISOString() }),
+        });
+        if (!res.ok) throw new Error('Failed to schedule article');
+        toast.success(`Scheduled for ${scheduledAt.toLocaleString()}`);
+        setTimeout(() => onClose(), 1500);
       } else {
-        toast.error('All publish attempts failed');
+        // Publish now
+        const res = await fetch('/api/articles/' + articleId + '/publish', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ targetIds: Array.from(selectedTargets) }),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Failed to publish');
+        setResults(data.results);
+        const successes = data.results.filter((r: SiteResult) => r.success);
+        const failures = data.results.filter((r: SiteResult) => !r.success);
+        if (successes.length > 0 && failures.length === 0) {
+          toast.success('Published to ' + successes.length + ' site' + (successes.length > 1 ? 's' : '') + '!');
+          setTimeout(() => onPublished(successes[0].url || ''), 1500);
+        } else if (successes.length > 0) {
+          toast.success('Published to ' + successes.length + ', ' + failures.length + ' failed');
+        } else {
+          toast.error('All publish attempts failed');
+        }
       }
-    } catch (error: any) { toast.error(error.message); }
-    finally { setIsPublishing(false); }
+    } catch (error: any) {
+      toast.error(error.message);
+    } finally {
+      setIsPublishing(false);
+    }
   };
 
   const allSelected = targets.length > 0 && selectedTargets.size === targets.length;
@@ -158,14 +189,75 @@ export default function PublishModal({ articleId, onClose, onPublished }: Publis
               ))}
             </div>
           ) : (
-            <div className="space-y-2">
-              {targets.length > 1 && (
-                <button type="button" onClick={selectAll}
-                  className="text-xs font-medium text-press-600 hover:text-press-700 mb-1">
-                  {allSelected ? 'Deselect all' : 'Select all'}
+            <div className="space-y-4">
+              {/* Publish mode toggle */}
+              <div className="flex items-center gap-2 p-1 bg-ink-100 rounded-lg">
+                <button
+                  type="button"
+                  onClick={() => setPublishMode('now')}
+                  className={`flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-md text-sm font-medium transition-all ${
+                    publishMode === 'now'
+                      ? 'bg-white shadow-sm text-ink-900'
+                      : 'text-ink-500 hover:text-ink-700'
+                  }`}
+                >
+                  <HiOutlineGlobeAlt className="w-4 h-4" />
+                  Publish Now
                 </button>
-              )}
-              {targets.map((target) => {
+                <button
+                  type="button"
+                  onClick={() => setPublishMode('schedule')}
+                  className={`flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-md text-sm font-medium transition-all ${
+                    publishMode === 'schedule'
+                      ? 'bg-white shadow-sm text-ink-900'
+                      : 'text-ink-500 hover:text-ink-700'
+                  }`}
+                >
+                  <HiOutlineClock className="w-4 h-4" />
+                  Schedule
+                </button>
+              </div>
+
+              {publishMode === 'schedule' ? (
+                <div className="p-4 rounded-xl border-2 border-ink-100 bg-ink-50/50">
+                  <div className="flex items-center gap-2 mb-3">
+                    <HiOutlineCalendarDays className="w-5 h-5 text-ink-500" />
+                    <p className="font-medium text-ink-700 text-sm">Schedule for later</p>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-xs font-medium text-ink-500 mb-1">Date</label>
+                      <input
+                        type="date"
+                        value={scheduledDate}
+                        onChange={(e) => setScheduledDate(e.target.value)}
+                        min={new Date().toISOString().split('T')[0]}
+                        className="w-full px-3 py-2 border border-ink-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-press-500/20 focus:border-press-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-ink-500 mb-1">Time</label>
+                      <input
+                        type="time"
+                        value={scheduledTime}
+                        onChange={(e) => setScheduledTime(e.target.value)}
+                        className="w-full px-3 py-2 border border-ink-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-press-500/20 focus:border-press-500"
+                      />
+                    </div>
+                  </div>
+                  <p className="text-xs text-ink-400 mt-2">
+                    Article will be automatically published at the scheduled time.
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {targets.length > 1 && (
+                    <button type="button" onClick={selectAll}
+                      className="text-xs font-medium text-press-600 hover:text-press-700 mb-1">
+                      {allSelected ? 'Deselect all' : 'Select all'}
+                    </button>
+                  )}
+                  {targets.map((target) => {
                 const isSelected = selectedTargets.has(target.id);
                 return (
                   <button key={target.id} type="button" onClick={() => toggleTarget(target.id)}
@@ -188,6 +280,8 @@ export default function PublishModal({ articleId, onClose, onPublished }: Publis
                   </button>
                 );
               })}
+                </div>
+              )}
             </div>
           )}
         </div>
@@ -199,9 +293,15 @@ export default function PublishModal({ articleId, onClose, onPublished }: Publis
           </button>
           {!hasResults && (
             <button type="button" onClick={handlePublish}
-              disabled={selectedTargets.size === 0 || isPublishing}
+              disabled={(publishMode === 'now' && selectedTargets.size === 0) || (publishMode === 'schedule' && (!scheduledDate || !scheduledTime)) || isPublishing}
               className="px-6 py-2.5 text-sm font-semibold text-white bg-emerald-600 rounded-lg hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all">
-              {isPublishing ? 'Publishing...' : selectedTargets.size > 1 ? 'Publish to ' + selectedTargets.size + ' Sites' : 'Publish Now'}
+              {isPublishing
+                ? (publishMode === 'schedule' ? 'Scheduling...' : 'Publishing...')
+                : publishMode === 'schedule'
+                ? 'Schedule Publish'
+                : selectedTargets.size > 1
+                ? 'Publish to ' + selectedTargets.size + ' Sites'
+                : 'Publish Now'}
             </button>
           )}
         </div>

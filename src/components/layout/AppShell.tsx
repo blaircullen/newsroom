@@ -18,7 +18,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
 
   if (status === 'loading') {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-paper-100">
+      <div className="min-h-screen flex items-center justify-center bg-paper-100 dark:bg-ink-950">
         <div className="text-center">
           <div className="mx-auto mb-4 animate-pulse">
             <Image
@@ -38,7 +38,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   if (!session) return null;
 
   return (
-    <div className="min-h-screen flex">
+    <div className="min-h-screen flex bg-paper-100 dark:bg-ink-950 transition-colors">
       <Sidebar />
       <main className="flex-1 ml-64">
         <div className="max-w-7xl mx-auto px-8 py-8">

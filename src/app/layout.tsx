@@ -1,6 +1,8 @@
 import type { Metadata } from 'next';
 import { Toaster } from 'react-hot-toast';
 import AuthProvider from '@/components/layout/AuthProvider';
+import { ThemeProvider } from '@/contexts/ThemeContext';
+import CommandPalette from '@/components/ui/CommandPalette';
 import './globals.css';
 import './mobile.css';
 
@@ -18,29 +20,32 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en">
-      <body className="min-h-screen">
+    <html lang="en" suppressHydrationWarning>
+      <body className="min-h-screen bg-paper-100 dark:bg-ink-950 transition-colors">
         <AuthProvider>
-          {children}
-          <Toaster
-            position="bottom-right"
-            toastOptions={{
-              duration: 4000,
-              style: {
-                background: '#111c30',
-                color: '#f8f9fa',
-                borderRadius: '8px',
-                fontFamily: '"Source Sans 3", system-ui, sans-serif',
-                fontSize: '14px',
-              },
-              success: {
-                iconTheme: {
-                  primary: '#D42B2B',
-                  secondary: '#f8f9fa',
+          <ThemeProvider>
+            {children}
+            <CommandPalette />
+            <Toaster
+              position="bottom-right"
+              toastOptions={{
+                duration: 4000,
+                style: {
+                  background: '#111c30',
+                  color: '#f8f9fa',
+                  borderRadius: '8px',
+                  fontFamily: '"Source Sans 3", system-ui, sans-serif',
+                  fontSize: '14px',
                 },
-              },
-            }}
-          />
+                success: {
+                  iconTheme: {
+                    primary: '#D42B2B',
+                    secondary: '#f8f9fa',
+                  },
+                },
+              }}
+            />
+          </ThemeProvider>
         </AuthProvider>
       </body>
     </html>
