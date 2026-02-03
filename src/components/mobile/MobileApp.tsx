@@ -14,7 +14,7 @@ import {
   HiOutlineEye,
   HiOutlineCheckCircle,
   HiOutlinePencilSquare,
-  HiOutlineClockClock,
+  HiOutlineClock,
   HiOutlineArrowTrendingUp,
   HiOutlineSparkles,
 } from 'react-icons/hi2';
@@ -211,7 +211,7 @@ export default function MobileApp() {
                 { label: 'All', value: null, icon: HiOutlineHome },
                 { label: 'Published', value: 'PUBLISHED', icon: HiOutlineCheckCircle },
                 { label: 'Drafts', value: 'DRAFT', icon: HiOutlinePencilSquare },
-                ...(isAdmin ? [{ label: 'Review', value: 'SUBMITTED', icon: HiOutlineClockClock }] : []),
+                ...(isAdmin ? [{ label: 'Review', value: 'SUBMITTED', icon: HiOutlineClock }] : []),
               ].map((filter) => {
                 const Icon = filter.icon;
                 const isActive = activeFilter === filter.value;
