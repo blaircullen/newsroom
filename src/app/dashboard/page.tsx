@@ -278,14 +278,15 @@ function DashboardContent() {
   const handleCreateFromIdea = async (idea: StoryIdea) => {
     setCreatingFromIdea(idea.headline);
     try {
-      const initialContent = `<p>Source: <a href="${idea.sourceUrl}" target="_blank">${idea.source}</a></p><p></p>`;
+      const bodyHtml = `<p>Source: <a href="${idea.sourceUrl}" target="_blank">${idea.source}</a></p><p></p>`;
+      const bodyContent = `Source: ${idea.source}`; // Plain text version
       const res = await fetch('/api/articles', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           headline: idea.headline,
-          bodyContent: initialContent,
-          bodyHtml: initialContent,
+          bodyContent,
+          bodyHtml,
         }),
       });
 
