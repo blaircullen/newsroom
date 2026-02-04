@@ -446,6 +446,7 @@ export default function DashboardPage() {
               storyIdeas={storyIdeas}
               showAllHot={showAllHot}
               setShowAllHot={setShowAllHot}
+              onDismissIdea={(idea) => setStoryIdeas(prev => prev.filter(i => i.headline !== idea.headline))}
             />
           </div>
         )}

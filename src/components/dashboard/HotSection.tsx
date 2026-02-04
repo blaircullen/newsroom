@@ -7,6 +7,7 @@ import {
   HiOutlineArrowTrendingUp,
   HiOutlineLightBulb,
   HiOutlineArrowTopRightOnSquare,
+  HiOutlineXMark,
 } from 'react-icons/hi2';
 import type { Article } from './ArticleCard';
 
@@ -22,6 +23,7 @@ interface HotSectionProps {
   storyIdeas: StoryIdea[];
   showAllHot: boolean;
   setShowAllHot: (show: boolean) => void;
+  onDismissIdea?: (idea: StoryIdea) => void;
 }
 
 export default function HotSection({
@@ -29,6 +31,7 @@ export default function HotSection({
   storyIdeas,
   showAllHot,
   setShowAllHot,
+  onDismissIdea,
 }: HotSectionProps) {
   const safeHotArticles = Array.isArray(hotArticles) ? hotArticles : [];
   const safeStoryIdeas = Array.isArray(storyIdeas) ? storyIdeas : [];
@@ -121,30 +124,46 @@ export default function HotSection({
           <p className="text-xs text-white/50 md:text-ink-400 mb-3">Trending topics from around the web</p>
           <div className="space-y-2">
             {safeStoryIdeas.slice(0, 5).map((idea, index) => (
-              <a
-                key={index}
-                href={idea.sourceUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="block"
-              >
-                <div className="group active:scale-[0.98] transition-transform">
-                  <div className={`p-3 rounded-xl relative overflow-hidden ${
-                    idea.trending
-                      ? 'bg-gradient-to-r from-purple-900/40 to-pink-900/40 md:from-purple-50 md:to-pink-50 md:dark:from-purple-900/30 md:dark:to-pink-900/30 border border-purple-500/50 md:border-purple-300 md:dark:border-purple-600 ring-1 ring-purple-400/20'
-                      : 'bg-slate-800/60 md:bg-white md:dark:bg-ink-900 border border-yellow-500/20 md:border-amber-200 md:dark:border-amber-800/50 group-active:border-yellow-500/40'
-                  }`}>
-                    {idea.trending && (
-                      <div className="absolute top-0 right-0">
-                        <div className="bg-gradient-to-r from-purple-500 to-pink-500 text-white text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-bl-lg">
-                          Multi-Source
-                        </div>
+              <div key={index} className="group active:scale-[0.98] transition-transform">
+                <div className={`p-3 rounded-xl relative overflow-hidden ${
+                  idea.trending
+                    ? 'bg-gradient-to-r from-purple-900/40 to-pink-900/40 md:from-purple-50 md:to-pink-50 md:dark:from-purple-900/30 md:dark:to-pink-900/30 border border-purple-500/50 md:border-purple-300 md:dark:border-purple-600 ring-1 ring-purple-400/20'
+                    : 'bg-slate-800/60 md:bg-white md:dark:bg-ink-900 border border-yellow-500/20 md:border-amber-200 md:dark:border-amber-800/50 group-active:border-yellow-500/40'
+                }`}>
+                  {idea.trending && (
+                    <div className="absolute top-0 right-0">
+                      <div className="bg-gradient-to-r from-purple-500 to-pink-500 text-white text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-bl-lg">
+                        Multi-Source
                       </div>
-                    )}
+                    </div>
+                  )}
+                  {/* Dismiss button */}
+                  {onDismissIdea && (
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onDismissIdea(idea);
+                      }}
+                      className={`absolute top-2 right-2 p-1 rounded-full transition-colors z-10 ${
+                        idea.trending
+                          ? 'top-7 text-purple-300/60 hover:text-purple-200 hover:bg-purple-500/20 md:text-purple-400 md:hover:text-purple-600 md:hover:bg-purple-100'
+                          : 'text-white/40 hover:text-white/80 hover:bg-white/10 md:text-ink-400 md:hover:text-ink-600 md:hover:bg-ink-100'
+                      }`}
+                      title="Dismiss suggestion"
+                    >
+                      <HiOutlineXMark className="w-4 h-4" />
+                    </button>
+                  )}
+                  <a
+                    href={idea.sourceUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="block"
+                  >
                     <div className="flex items-start gap-3">
-                      <div className="flex-1 min-w-0">
+                      <div className="flex-1 min-w-0 pr-6">
                         <h4 className={`text-sm font-medium line-clamp-2 leading-snug ${
-                          idea.trending ? 'text-white md:text-purple-900 md:dark:text-purple-100 pr-16' : 'text-white/90 md:text-ink-800 md:dark:text-ink-200'
+                          idea.trending ? 'text-white md:text-purple-900 md:dark:text-purple-100 pr-10' : 'text-white/90 md:text-ink-800 md:dark:text-ink-200'
                         }`}>
                           {idea.headline}
                         </h4>
@@ -164,9 +183,9 @@ export default function HotSection({
                         </div>
                       </div>
                     </div>
-                  </div>
+                  </a>
                 </div>
-              </a>
+              </div>
             ))}
           </div>
         </div>
