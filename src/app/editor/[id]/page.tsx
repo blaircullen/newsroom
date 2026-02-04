@@ -20,6 +20,7 @@ import {
   HiOutlineExclamationTriangle,
   HiOutlineGlobeAlt,
   HiOutlineCheck,
+  HiOutlineShieldCheck,
 } from 'react-icons/hi2';
 
 const STATUS_CONFIG: Record<string, { label: string; class: string }> = {
@@ -54,6 +55,7 @@ export default function EditArticlePage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isRunningAIReview, setIsRunningAIReview] = useState(false);
   const [autoSaveStatus, setAutoSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
   const autoSaveTimer = useRef<NodeJS.Timeout | null>(null);
   const hasUnsavedChanges = useRef(false);
@@ -220,6 +222,24 @@ export default function EditArticlePage() {
     }
   };
 
+  const runAIReview = async () => {
+    setIsRunningAIReview(true);
+    try {
+      const res = await fetch(`/api/articles/${articleId}/ai-review`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+      });
+      if (!res.ok) throw new Error('Failed to run AI review');
+      const data = await res.json();
+      setArticle({ ...article, aiReviewStatus: data.status, aiReviewFindings: data.findings, aiReviewedAt: new Date().toISOString() });
+      toast.success('AI review complete!');
+    } catch (error: any) {
+      toast.error(error.message);
+    } finally {
+      setIsRunningAIReview(false);
+    }
+  };
+
   if (isLoading) {
     return (
       <AppShell>
@@ -250,6 +270,12 @@ export default function EditArticlePage() {
             </div>
           </div>
           <div className="flex items-center gap-3">
+            {isAdmin && (
+              <button onClick={runAIReview} disabled={isRunningAIReview}
+                className="flex items-center gap-2 px-4 py-2.5 text-sm font-medium text-amber-700 bg-amber-50 border border-amber-200 rounded-lg hover:bg-amber-100 disabled:opacity-50 disabled:cursor-not-allowed transition-all focus:outline-none focus:ring-2 focus:ring-amber-500 focus:ring-offset-2">
+                <HiOutlineShieldCheck className="w-4 h-4" /> {isRunningAIReview ? 'Checking...' : 'AI Check'}
+              </button>
+            )}
             {canReview && (
               <button onClick={() => setShowReviewPanel(!showReviewPanel)}
                 className="flex items-center gap-2 px-4 py-2.5 text-sm font-medium text-press-700 bg-press-50 border border-press-200 rounded-lg hover:bg-press-100 transition-all focus:outline-none focus:ring-2 focus:ring-press-500 focus:ring-offset-2">
@@ -296,8 +322,8 @@ export default function EditArticlePage() {
           </div>
         )}
 
-        {/* AI Review Panel - shows for submitted+ articles */}
-        {article.status !== 'DRAFT' && article.aiReviewStatus && (
+        {/* AI Review Panel - shows when AI review has been run */}
+        {article.aiReviewStatus && (
           <AIReviewPanel
             status={article.aiReviewStatus}
             findings={article.aiReviewFindings}
