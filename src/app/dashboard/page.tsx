@@ -81,7 +81,7 @@ function DashboardContent() {
   const [deleteConfirm, setDeleteConfirm] = useState<{ id: string; headline: string } | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [isRefreshingAnalytics, setIsRefreshingAnalytics] = useState(false);
-  const [showStoryIdeas, setShowStoryIdeas] = useState(true);
+  const [showStoryIdeas, setShowStoryIdeas] = useState(false);
   const [creatingFromIdea, setCreatingFromIdea] = useState<string | null>(null);
   const [showAllHot, setShowAllHot] = useState(false);
 
