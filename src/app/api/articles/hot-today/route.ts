@@ -52,7 +52,7 @@ async function saveCurrentRankings(rankings: Record<string, number>) {
 
 export async function GET(request: NextRequest) {
   try {
-    const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+    const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
 
     // Get previous rankings before fetching new data
     const previousRankings = await readPreviousRankings();
@@ -61,7 +61,7 @@ export async function GET(request: NextRequest) {
       where: {
         status: 'PUBLISHED',
         publishedAt: {
-          gte: twentyFourHoursAgo
+          gte: sevenDaysAgo
         },
         totalPageviews: {
           gt: 0

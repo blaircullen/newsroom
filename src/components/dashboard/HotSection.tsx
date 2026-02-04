@@ -46,7 +46,7 @@ export default function HotSection({
         <HiOutlineFire className="w-5 h-5 md:w-6 md:h-6 text-orange-400 animate-pulse" />
         <h2 className="text-lg md:text-xl font-bold text-white md:text-ink-900 md:dark:text-ink-100">Hot Today</h2>
       </div>
-      <p className="text-xs md:text-sm text-white/70 md:text-ink-500 mb-4">Most read posts from the past 24 hours</p>
+      <p className="text-xs md:text-sm text-white/70 md:text-ink-500 mb-4">Most read posts from the past week</p>
 
       {/* Hot Articles */}
       <div className="space-y-3">
