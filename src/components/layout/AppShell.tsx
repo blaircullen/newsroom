@@ -42,7 +42,7 @@ export default function AppShell({ children, hideOnMobile = false }: AppShellPro
         <div className="text-center">
           <div className="mx-auto mb-4 animate-pulse">
             <Image
-              src="/newsroom-logo.jpeg"
+              src="/newsroom-logo.png"
               alt="NewsRoom"
               width={160}
               height={45}
