@@ -27,6 +27,7 @@ import {
   HiOutlinePencilSquare,
   HiOutlineClock,
   HiOutlineExclamationTriangle,
+  HiOutlineXMark,
 } from 'react-icons/hi2';
 
 type TabId = 'home' | 'hot' | 'analytics' | 'profile';
@@ -563,6 +564,18 @@ export default function DashboardPage() {
                           : 'bg-white dark:bg-ink-900 border border-amber-200/50 dark:border-amber-800/50'
                       }`}
                     >
+                      {/* Dismiss button */}
+                      <button
+                        onClick={() => setStoryIdeas(prev => prev.filter(i => i.headline !== idea.headline))}
+                        className={`absolute top-2 right-2 p-1 rounded-full transition-colors z-10 opacity-0 group-hover:opacity-100 ${
+                          idea.trending
+                            ? 'top-8 text-purple-400 hover:text-purple-600 hover:bg-purple-100 dark:hover:bg-purple-800'
+                            : 'text-ink-400 hover:text-ink-600 hover:bg-ink-100 dark:hover:bg-ink-800'
+                        }`}
+                        title="Dismiss suggestion"
+                      >
+                        <HiOutlineXMark className="w-4 h-4" />
+                      </button>
                       {idea.trending && (
                         <div className="absolute top-0 right-0">
                           <div className="bg-gradient-to-r from-purple-500 to-pink-500 text-white text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-bl-lg flex items-center gap-1">
