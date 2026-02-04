@@ -6,13 +6,16 @@ import { publishArticle } from '@/lib/publish';
 // Should be called every minute by an external scheduler
 export async function GET(request: NextRequest) {
   try {
-    // Verify cron secret if configured
+    // Verify cron secret - REQUIRED for security (fail closed)
     const cronSecret = process.env.CRON_SECRET;
-    if (cronSecret) {
-      const authHeader = request.headers.get('authorization');
-      if (authHeader !== `Bearer ${cronSecret}`) {
-        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-      }
+    if (!cronSecret) {
+      console.error('[Scheduled Publish] CRON_SECRET not configured');
+      return NextResponse.json({ error: 'Server configuration error' }, { status: 500 });
+    }
+
+    const authHeader = request.headers.get('authorization');
+    if (authHeader !== `Bearer ${cronSecret}`) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
     const now = new Date();

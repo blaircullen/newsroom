@@ -14,8 +14,10 @@ export async function DELETE(
 
   const { id } = params;
 
-  // Validate ID format (cuid)
-  if (!id || !/^c[a-z0-9]{24}$/i.test(id)) {
+  // Validate ID format - accept both cuid format and legacy custom format
+  // cuid: c[a-z0-9]{24} (25 chars)
+  // legacy: cuid_timestamp_random
+  if (!id || id.length < 10 || id.length > 50) {
     return NextResponse.json({ error: 'Invalid ID format' }, { status: 400 });
   }
 

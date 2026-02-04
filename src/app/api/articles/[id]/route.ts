@@ -4,6 +4,13 @@ import { authOptions } from '@/lib/auth';
 import prisma from '@/lib/prisma';
 import slugify from 'slugify';
 
+// Input validation constants (same as POST endpoint)
+const MAX_HEADLINE_LENGTH = 500;
+const MAX_SUBHEADLINE_LENGTH = 1000;
+const MAX_BODY_LENGTH = 500000; // 500KB
+const MAX_TAGS = 20;
+const MAX_TAG_NAME_LENGTH = 100;
+
 // GET /api/articles/[id]
 export async function GET(
   request: NextRequest,
@@ -79,39 +86,86 @@ export async function PUT(
     }
   }
 
-  const body = await request.json();
+  let body: Record<string, unknown>;
+  try {
+    body = await request.json();
+  } catch {
+    return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 });
+  }
+
   const { headline, subHeadline, bodyContent, bodyHtml, featuredImage, featuredImageId, imageCredit, tags, scheduledPublishAt } = body;
 
-  const updateData: any = {};
-
+  // Validate field types and lengths (consistent with POST endpoint)
   if (headline !== undefined) {
-    updateData.headline = headline;
-    updateData.slug = slugify(headline, { lower: true, strict: true });
-  }
-  if (subHeadline !== undefined) updateData.subHeadline = subHeadline;
-  if (bodyContent !== undefined) updateData.body = bodyContent;
-  if (bodyHtml !== undefined) updateData.bodyHtml = bodyHtml;
-  if (featuredImage !== undefined) updateData.featuredImage = featuredImage;
-  if (featuredImageId !== undefined) updateData.featuredImageId = featuredImageId;
-  if (imageCredit !== undefined) updateData.imageCredit = imageCredit;
-  if (scheduledPublishAt !== undefined) {
-    updateData.scheduledPublishAt = scheduledPublishAt ? new Date(scheduledPublishAt) : null;
+    if (typeof headline !== 'string') {
+      return NextResponse.json({ error: 'Headline must be a string' }, { status: 400 });
+    }
+    if (headline.length > MAX_HEADLINE_LENGTH) {
+      return NextResponse.json({ error: `Headline must be under ${MAX_HEADLINE_LENGTH} characters` }, { status: 400 });
+    }
   }
 
-  // Update tags if provided
+  if (subHeadline !== undefined && subHeadline !== null) {
+    if (typeof subHeadline !== 'string') {
+      return NextResponse.json({ error: 'Subheadline must be a string' }, { status: 400 });
+    }
+    if (subHeadline.length > MAX_SUBHEADLINE_LENGTH) {
+      return NextResponse.json({ error: `Subheadline must be under ${MAX_SUBHEADLINE_LENGTH} characters` }, { status: 400 });
+    }
+  }
+
+  if (bodyContent !== undefined) {
+    if (typeof bodyContent !== 'string') {
+      return NextResponse.json({ error: 'Body content must be a string' }, { status: 400 });
+    }
+    if (bodyContent.length > MAX_BODY_LENGTH) {
+      return NextResponse.json({ error: 'Article body is too long' }, { status: 400 });
+    }
+  }
+
+  if (tags !== undefined && !Array.isArray(tags)) {
+    return NextResponse.json({ error: 'Tags must be an array' }, { status: 400 });
+  }
+
+  const updateData: Record<string, unknown> = {};
+
+  if (headline !== undefined && typeof headline === 'string') {
+    updateData.headline = headline.trim();
+    updateData.slug = slugify(headline.trim(), { lower: true, strict: true });
+  }
+  if (subHeadline !== undefined) updateData.subHeadline = typeof subHeadline === 'string' ? subHeadline.trim() || null : null;
+  if (bodyContent !== undefined) updateData.body = typeof bodyContent === 'string' ? bodyContent.trim() : bodyContent;
+  if (bodyHtml !== undefined) updateData.bodyHtml = typeof bodyHtml === 'string' ? bodyHtml : null;
+  if (featuredImage !== undefined) updateData.featuredImage = typeof featuredImage === 'string' ? featuredImage : null;
+  if (featuredImageId !== undefined) updateData.featuredImageId = typeof featuredImageId === 'string' ? featuredImageId : null;
+  if (imageCredit !== undefined) updateData.imageCredit = typeof imageCredit === 'string' ? imageCredit.trim() || null : null;
+  if (scheduledPublishAt !== undefined) {
+    updateData.scheduledPublishAt = scheduledPublishAt ? new Date(scheduledPublishAt as string) : null;
+  }
+
+  // Update tags if provided (with validation consistent with POST)
   if (tags && Array.isArray(tags)) {
     // Remove existing tags
     await prisma.articleTag.deleteMany({
       where: { articleId: params.id },
     });
 
+    // Validate and dedupe tags
+    const uniqueTags = Array.from(new Set(
+      tags.slice(0, MAX_TAGS)
+        .filter((t): t is string => typeof t === 'string' && Boolean(t.trim()) && t.length <= MAX_TAG_NAME_LENGTH)
+    ));
+
     // Create new tags
-    for (const tagName of tags) {
-      const tagSlug = slugify(tagName, { lower: true, strict: true });
+    for (const tagName of uniqueTags) {
+      const trimmedName = tagName.trim();
+      const tagSlug = slugify(trimmedName, { lower: true, strict: true });
+      if (!tagSlug) continue;
+
       const tag = await prisma.tag.upsert({
         where: { slug: tagSlug },
         update: {},
-        create: { name: tagName, slug: tagSlug },
+        create: { name: trimmedName, slug: tagSlug },
       });
       await prisma.articleTag.create({
         data: {

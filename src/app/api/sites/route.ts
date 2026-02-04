@@ -84,7 +84,10 @@ export async function POST(request: NextRequest) {
 
     // Insert using raw query to avoid schema mismatch
     const cleanUrl = url.replace(/\/+$/, '');
-    const id = `cuid_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    // Generate a cuid-compatible ID (25 chars starting with 'c')
+    const timestamp = Date.now().toString(36);
+    const randomPart = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+    const id = 'c' + (timestamp + randomPart).substring(0, 24);
 
     await prisma.$executeRaw`
       INSERT INTO publish_targets (id, name, type, url, api_key, username, password, blog_id, client_id, client_secret, myshopify_domain, is_active, created_at, updated_at)
