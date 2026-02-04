@@ -162,8 +162,8 @@ export default function AppShell({ children, hideOnMobile = false }: AppShellPro
       </div>
 
       {/* Main Content */}
-      <main id="main-content" className={`flex-1 md:ml-64 ${hideOnMobile ? 'pt-0 md:pt-0' : 'pt-14 md:pt-0'}`}>
-        <div className={`mx-auto ${hideOnMobile ? 'px-0 md:px-4 md:sm:px-6 md:lg:px-8 py-0 md:py-4 md:sm:py-6 md:lg:py-8 max-w-none md:max-w-7xl' : 'max-w-7xl px-4 sm:px-6 lg:px-8 py-4 sm:py-6 lg:py-8'}`}>
+      <main id="main-content" className={`flex-1 md:ml-64 ${hideOnMobile ? 'pt-0' : 'pt-14 md:pt-0'}`}>
+        <div className={`mx-auto ${hideOnMobile ? 'px-0 md:px-4 lg:px-8 py-0 md:py-6 lg:py-8 max-w-none md:max-w-7xl' : 'max-w-7xl px-4 sm:px-6 lg:px-8 py-4 sm:py-6 lg:py-8'}`}>
           {children}
         </div>
       </main>
