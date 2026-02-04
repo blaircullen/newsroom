@@ -63,11 +63,8 @@ function DashboardContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
-  // Tab state from URL (for mobile) - handle null searchParams during hydration
-  const tabParam = (searchParams?.get('tab') as TabId) || 'home';
-  const filterParam = searchParams?.get('filter') || '';
-
-  const [activeTab, setActiveTab] = useState<TabId>(tabParam);
+  // Initialize with defaults - sync from URL in useEffect to avoid hydration mismatch
+  const [activeTab, setActiveTab] = useState<TabId>('home');
   const [articles, setArticles] = useState<Article[]>([]);
   const [hotArticles, setHotArticles] = useState<Article[]>([]);
   const [storyIdeas, setStoryIdeas] = useState<StoryIdea[]>([]);
@@ -76,7 +73,7 @@ function DashboardContent() {
   const [totalPages, setTotalPages] = useState(1);
   const [sortBy, setSortBy] = useState('createdAt');
   const [isAutoRefreshing, setIsAutoRefreshing] = useState(false);
-  const [activeFilter, setActiveFilter] = useState(filterParam);
+  const [activeFilter, setActiveFilter] = useState('');
   const [isLoading, setIsLoading] = useState(true);
   const [deleteConfirm, setDeleteConfirm] = useState<{ id: string; headline: string } | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -161,6 +158,20 @@ function DashboardContent() {
       console.error('Failed to fetch story ideas:', error);
     }
   }, []);
+
+  // Sync URL params after mount to avoid hydration mismatch
+  useEffect(() => {
+    if (searchParams) {
+      const tab = searchParams.get('tab') as TabId;
+      const filter = searchParams.get('filter');
+      if (tab && ['home', 'hot', 'analytics', 'profile'].includes(tab)) {
+        setActiveTab(tab);
+      }
+      if (filter) {
+        setActiveFilter(filter);
+      }
+    }
+  }, [searchParams]);
 
   // Redirect if not authenticated
   useEffect(() => {
@@ -313,6 +324,10 @@ function DashboardContent() {
       if (!res.ok) throw new Error('Failed to create article');
 
       const newArticle = await res.json();
+
+      // Remove this idea from the list
+      setStoryIdeas(prev => prev.filter(i => i.headline !== idea.headline));
+
       toast.success('AI article generated! Review before publishing.');
       router.push(`/editor/${newArticle.id}`);
     } catch (error) {
