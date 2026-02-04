@@ -278,25 +278,47 @@ function DashboardContent() {
   const handleCreateFromIdea = async (idea: StoryIdea) => {
     setCreatingFromIdea(idea.headline);
     try {
-      const bodyHtml = `<p>Source: <a href="${idea.sourceUrl}" target="_blank">${idea.source}</a></p><p></p>`;
-      const bodyContent = `Source: ${idea.source}`; // Plain text version
+      // Step 1: Use AI to generate article content from the source URL
+      toast.loading('Generating article with AI...', { id: 'ai-import' });
+
+      const importRes = await fetch('/api/articles/import', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url: idea.sourceUrl }),
+      });
+
+      if (!importRes.ok) {
+        const errorData = await importRes.json();
+        throw new Error(errorData.error || 'Failed to generate article');
+      }
+
+      const aiContent = await importRes.json();
+      toast.dismiss('ai-import');
+
+      // Step 2: Create the article with AI-generated content
+      const sourceDomain = new URL(idea.sourceUrl).hostname.replace(/^www\./, '');
+      const sourceLink = `<p><em>Source: <a href="${idea.sourceUrl}" target="_blank" rel="noopener noreferrer">${sourceDomain}</a></em></p>`;
+
       const res = await fetch('/api/articles', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          headline: idea.headline,
-          bodyContent,
-          bodyHtml,
+          headline: aiContent.headline,
+          subHeadline: aiContent.subHeadline || null,
+          bodyContent: aiContent.bodyText || '',
+          bodyHtml: aiContent.bodyHtml + sourceLink,
         }),
       });
 
       if (!res.ok) throw new Error('Failed to create article');
 
       const newArticle = await res.json();
-      toast.success('Draft created! Opening editor...');
+      toast.success('AI article generated! Review before publishing.');
       router.push(`/editor/${newArticle.id}`);
     } catch (error) {
-      toast.error('Failed to create draft');
+      toast.dismiss('ai-import');
+      const message = error instanceof Error ? error.message : 'Failed to generate article';
+      toast.error(message);
     } finally {
       setCreatingFromIdea(null);
     }
