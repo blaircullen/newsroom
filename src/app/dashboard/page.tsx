@@ -556,7 +556,7 @@ export default function DashboardPage() {
                       key={index}
                       className={`rounded-lg p-4 hover:shadow-md transition-all group relative overflow-hidden ${
                         idea.trending
-                          ? 'bg-gradient-to-br from-purple-50 to-pink-50 dark:from-purple-900/30 dark:to-pink-900/30 border-2 border-purple-300 dark:border-purple-600 ring-1 ring-purple-200 dark:ring-purple-800'
+                          ? 'bg-gradient-to-br from-red-50 to-orange-50 dark:from-red-900/20 dark:to-orange-900/20 border-2 border-press-300 dark:border-press-700 ring-1 ring-press-200 dark:ring-press-800'
                           : 'bg-white dark:bg-ink-900 border border-amber-200/50 dark:border-amber-800/50'
                       }`}
                     >
@@ -565,7 +565,7 @@ export default function DashboardPage() {
                         onClick={() => setStoryIdeas(prev => prev.filter(i => i.headline !== idea.headline))}
                         className={`absolute top-2 right-2 p-1 rounded-full transition-colors z-10 opacity-0 group-hover:opacity-100 ${
                           idea.trending
-                            ? 'top-8 text-purple-400 hover:text-purple-600 hover:bg-purple-100 dark:hover:bg-purple-800'
+                            ? 'top-8 text-press-400 hover:text-press-600 hover:bg-press-100 dark:hover:bg-press-900'
                             : 'text-ink-400 hover:text-ink-600 hover:bg-ink-100 dark:hover:bg-ink-800'
                         }`}
                         title="Dismiss suggestion"
@@ -574,7 +574,7 @@ export default function DashboardPage() {
                       </button>
                       {idea.trending && (
                         <div className="absolute top-0 right-0">
-                          <div className="bg-gradient-to-r from-purple-500 to-pink-500 text-white text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-bl-lg flex items-center gap-1">
+                          <div className="bg-gradient-to-r from-press-500 to-orange-500 text-white text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-bl-lg flex items-center gap-1">
                             <HiOutlineArrowTrendingUp className="w-3 h-3" />
                             Multi-Source
                           </div>
@@ -582,7 +582,7 @@ export default function DashboardPage() {
                       )}
                       <h4 className={`text-sm font-medium line-clamp-2 mb-3 leading-snug ${
                         idea.trending
-                          ? 'text-purple-900 dark:text-purple-100 pr-20'
+                          ? 'text-press-900 dark:text-red-100 pr-20'
                           : 'text-ink-800 dark:text-ink-200'
                       }`}>
                         {idea.headline}
@@ -594,7 +594,7 @@ export default function DashboardPage() {
                           rel="noopener noreferrer"
                           className={`flex items-center gap-1 text-xs hover:underline ${
                             idea.trending
-                              ? 'text-purple-600 dark:text-purple-400'
+                              ? 'text-press-600 dark:text-press-400'
                               : 'text-amber-600 dark:text-amber-400'
                           }`}
                         >
@@ -606,7 +606,7 @@ export default function DashboardPage() {
                           disabled={creatingFromIdea === idea.headline}
                           className={`flex items-center gap-1.5 px-3 py-1.5 text-white text-xs font-semibold rounded-lg disabled:opacity-50 transition-all active:scale-95 ${
                             idea.trending
-                              ? 'bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700'
+                              ? 'bg-gradient-to-r from-press-600 to-orange-500 hover:from-press-700 hover:to-orange-600'
                               : 'bg-ink-950 dark:bg-ink-700 hover:bg-ink-800 dark:hover:bg-ink-600'
                           }`}
                         >

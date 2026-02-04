@@ -127,12 +127,12 @@ export default function HotSection({
               <div key={index} className="group active:scale-[0.98] transition-transform">
                 <div className={`p-3 rounded-xl relative overflow-hidden ${
                   idea.trending
-                    ? 'bg-gradient-to-r from-purple-900/40 to-pink-900/40 md:from-purple-50 md:to-pink-50 md:dark:from-purple-900/30 md:dark:to-pink-900/30 border border-purple-500/50 md:border-purple-300 md:dark:border-purple-600 ring-1 ring-purple-400/20'
+                    ? 'bg-gradient-to-r from-red-900/40 to-orange-900/40 md:from-red-50 md:to-orange-50 md:dark:from-red-900/20 md:dark:to-orange-900/20 border border-red-500/50 md:border-red-300 md:dark:border-red-700 ring-1 ring-red-400/20'
                     : 'bg-slate-800/60 md:bg-white md:dark:bg-ink-900 border border-yellow-500/20 md:border-amber-200 md:dark:border-amber-800/50 group-active:border-yellow-500/40'
                 }`}>
                   {idea.trending && (
                     <div className="absolute top-0 right-0">
-                      <div className="bg-gradient-to-r from-purple-500 to-pink-500 text-white text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-bl-lg">
+                      <div className="bg-gradient-to-r from-red-500 to-orange-500 text-white text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-bl-lg">
                         Multi-Source
                       </div>
                     </div>
@@ -146,7 +146,7 @@ export default function HotSection({
                       }}
                       className={`absolute top-2 right-2 p-1 rounded-full transition-colors z-10 ${
                         idea.trending
-                          ? 'top-7 text-purple-300/60 hover:text-purple-200 hover:bg-purple-500/20 md:text-purple-400 md:hover:text-purple-600 md:hover:bg-purple-100'
+                          ? 'top-7 text-red-300/60 hover:text-red-200 hover:bg-red-500/20 md:text-red-400 md:hover:text-red-600 md:hover:bg-red-100'
                           : 'text-white/40 hover:text-white/80 hover:bg-white/10 md:text-ink-400 md:hover:text-ink-600 md:hover:bg-ink-100'
                       }`}
                       title="Dismiss suggestion"
@@ -163,19 +163,19 @@ export default function HotSection({
                     <div className="flex items-start gap-3">
                       <div className="flex-1 min-w-0 pr-6">
                         <h4 className={`text-sm font-medium line-clamp-2 leading-snug ${
-                          idea.trending ? 'text-white md:text-purple-900 md:dark:text-purple-100 pr-10' : 'text-white/90 md:text-ink-800 md:dark:text-ink-200'
+                          idea.trending ? 'text-white md:text-red-900 md:dark:text-red-100 pr-10' : 'text-white/90 md:text-ink-800 md:dark:text-ink-200'
                         }`}>
                           {idea.headline}
                         </h4>
                         <div className="flex items-center gap-2 mt-1.5">
                           {idea.trending && (
-                            <span className="flex items-center gap-1 text-[10px] text-purple-300 md:text-purple-600 font-semibold">
+                            <span className="flex items-center gap-1 text-[10px] text-orange-300 md:text-red-600 font-semibold">
                               <HiOutlineArrowTrendingUp className="w-3 h-3" />
                               HOT
                             </span>
                           )}
                           <span className={`text-[10px] uppercase tracking-wider font-medium ${
-                            idea.trending ? 'text-purple-300/80 md:text-purple-600/80' : 'text-yellow-400/80 md:text-amber-600'
+                            idea.trending ? 'text-orange-300/80 md:text-red-600/80' : 'text-yellow-400/80 md:text-amber-600'
                           }`}>
                             {idea.source}
                           </span>
