@@ -1,0 +1,11 @@
+{
+  "project": "newsroom",
+  "description": "M3 Media NewsRoom - Editorial CMS for writers and editors",
+  "notes": [
+    "Production database is on Hetzner Docker (newsroom-db-1), NOT Neon",
+    "Local development uses Neon database",
+    "See CLAUDE.md in project root for full database documentation",
+    "Production URL: https://newsroom.m3media.com",
+    "App deployed via Docker Compose at /opt/newsroom/ on Hetzner"
+  ]
+}
