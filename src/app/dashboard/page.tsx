@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, Suspense } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
@@ -40,7 +40,25 @@ const FILTERS = [
   { value: 'REVISION_REQUESTED', label: 'Needs Revision' },
 ];
 
+// Loading fallback for Suspense
+function DashboardLoading() {
+  return (
+    <div className="flex items-center justify-center min-h-screen bg-ink-950">
+      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-press-400" />
+    </div>
+  );
+}
+
+// Main page wrapper with Suspense boundary for useSearchParams
 export default function DashboardPage() {
+  return (
+    <Suspense fallback={<DashboardLoading />}>
+      <DashboardContent />
+    </Suspense>
+  );
+}
+
+function DashboardContent() {
   const { data: session, status } = useSession();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -260,13 +278,14 @@ export default function DashboardPage() {
   const handleCreateFromIdea = async (idea: StoryIdea) => {
     setCreatingFromIdea(idea.headline);
     try {
+      const initialContent = `<p>Source: <a href="${idea.sourceUrl}" target="_blank">${idea.source}</a></p><p></p>`;
       const res = await fetch('/api/articles', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           headline: idea.headline,
-          content: `<p>Source: <a href="${idea.sourceUrl}" target="_blank">${idea.source}</a></p><p></p>`,
-          status: 'DRAFT',
+          bodyContent: initialContent,
+          bodyHtml: initialContent,
         }),
       });
 
