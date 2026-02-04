@@ -25,7 +25,7 @@ export const navItems: NavItem[] = [
     showFor: () => true,
   },
   {
-    href: '/editor/new',
+    href: '/editor',
     label: 'New Story',
     icon: HiOutlinePlusCircle,
     showFor: () => true,

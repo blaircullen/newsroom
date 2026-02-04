@@ -408,7 +408,7 @@ export default function DashboardPage() {
             </div>
 
             {/* Mobile FAB */}
-            <Link href="/editor/new" className="fixed bottom-24 right-5 z-50 group">
+            <Link href="/editor" className="fixed bottom-24 right-5 z-50 group">
               <div className="relative">
                 <div className="absolute inset-0 bg-gradient-to-r from-press-500 to-press-600 rounded-full blur-xl opacity-60 group-active:opacity-80 transition-opacity" />
                 <div className="relative w-16 h-16 rounded-full bg-gradient-to-br from-press-500 to-press-600 shadow-2xl shadow-press-500/40 flex items-center justify-center ring-4 ring-ink-950 group-active:scale-90 transition-transform">
