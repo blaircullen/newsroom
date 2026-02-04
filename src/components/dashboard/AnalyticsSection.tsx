@@ -84,7 +84,7 @@ export default function AnalyticsSection({ stats, articles }: AnalyticsSectionPr
         </h1>
         <p className="text-xs text-white/50 mt-1 flex items-center gap-1">
           <HiOutlineSparkles className="w-3 h-3" />
-          Your Performance
+          Stories by the Numbers
         </p>
       </div>
 
