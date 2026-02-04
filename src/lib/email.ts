@@ -217,3 +217,39 @@ export async function sendReviewDecision(
     `,
   });
 }
+
+export async function sendPasswordResetEmail(
+  email: string,
+  name: string,
+  resetToken: string
+) {
+  const safeName = escapeHtml(name);
+  const resetUrl = `${process.env.NEXTAUTH_URL || ''}/reset-password?token=${resetToken}`;
+
+  return sendEmail({
+    to: email,
+    subject: 'Reset your NewsRoom password',
+    html: `
+      <p style="color:#192842;font-size:15px;line-height:1.6;">
+        Hi ${safeName},
+      </p>
+      <p style="color:#192842;font-size:15px;line-height:1.6;">
+        We received a request to reset your password. Click the button below to choose a new password:
+      </p>
+      <div style="margin:28px 0;text-align:center;">
+        <a href="${resetUrl}"
+           style="display:inline-block;padding:14px 32px;background:#111c30;color:#ffffff;text-decoration:none;border-radius:6px;font-size:15px;font-weight:600;">
+          Reset Password
+        </a>
+      </div>
+      <p style="color:#6580b0;font-size:13px;line-height:1.6;">
+        This link will expire in 1 hour.
+      </p>
+      <div style="margin:24px 0;padding:16px;background:#f0f3f8;border-radius:6px;">
+        <p style="margin:0;color:#465f94;font-size:13px;">
+          If you didn't request this password reset, you can safely ignore this email. Your password will remain unchanged.
+        </p>
+      </div>
+    `,
+  });
+}
