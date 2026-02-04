@@ -1,8 +1,8 @@
 'use client';
 
-import { useState, useEffect, useRef, useCallback, Suspense } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useSession } from 'next-auth/react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import toast from 'react-hot-toast';
 import AppShell from '@/components/layout/AppShell';
@@ -40,30 +40,10 @@ const FILTERS = [
   { value: 'REVISION_REQUESTED', label: 'Needs Revision' },
 ];
 
-// Loading fallback for Suspense
-function DashboardLoading() {
-  return (
-    <div className="flex items-center justify-center min-h-screen bg-ink-950">
-      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-press-400" />
-    </div>
-  );
-}
-
-// Main page wrapper with Suspense boundary for useSearchParams
 export default function DashboardPage() {
-  return (
-    <Suspense fallback={<DashboardLoading />}>
-      <DashboardContent />
-    </Suspense>
-  );
-}
-
-function DashboardContent() {
   const { data: session, status } = useSession();
   const router = useRouter();
-  const searchParams = useSearchParams();
 
-  // Initialize with defaults - sync from URL in useEffect to avoid hydration mismatch
   const [activeTab, setActiveTab] = useState<TabId>('home');
   const [articles, setArticles] = useState<Article[]>([]);
   const [hotArticles, setHotArticles] = useState<Article[]>([]);
@@ -89,11 +69,9 @@ function DashboardContent() {
 
   const isAdmin = session?.user?.role === 'ADMIN' || session?.user?.role === 'EDITOR';
 
-  // Handle tab change with URL update
+  // Handle tab change (state only - no URL update to avoid hydration issues)
   const handleTabChange = (tab: TabId) => {
     setActiveTab(tab);
-    const url = tab === 'home' ? '/dashboard' : `/dashboard?tab=${tab}`;
-    router.replace(url, { scroll: false });
   };
 
   // Fetch functions
@@ -158,20 +136,6 @@ function DashboardContent() {
       console.error('Failed to fetch story ideas:', error);
     }
   }, []);
-
-  // Sync URL params after mount to avoid hydration mismatch
-  useEffect(() => {
-    if (searchParams) {
-      const tab = searchParams.get('tab') as TabId;
-      const filter = searchParams.get('filter');
-      if (tab && ['home', 'hot', 'analytics', 'profile'].includes(tab)) {
-        setActiveTab(tab);
-      }
-      if (filter) {
-        setActiveFilter(filter);
-      }
-    }
-  }, [searchParams]);
 
   // Redirect if not authenticated
   useEffect(() => {
@@ -238,8 +202,6 @@ function DashboardContent() {
   const handleFilterChange = (filter: string) => {
     setActiveFilter(filter);
     setCurrentPage(1);
-    const url = filter ? `/dashboard?filter=${filter.toLowerCase()}` : '/dashboard';
-    router.replace(url, { scroll: false });
   };
 
   const handleDelete = async (id: string) => {
