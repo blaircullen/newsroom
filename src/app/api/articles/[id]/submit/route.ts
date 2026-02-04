@@ -50,7 +50,24 @@ export async function POST(
     data: {
       status: 'SUBMITTED',
       submittedAt: new Date(),
+      aiReviewStatus: 'pending', // Mark as pending for AI review
     },
+  });
+
+  // Trigger AI review in background (fire and forget)
+  const baseUrl = process.env.NEXTAUTH_URL || process.env.VERCEL_URL
+    ? `https://${process.env.VERCEL_URL}`
+    : 'http://localhost:3000';
+
+  fetch(`${baseUrl}/api/articles/${params.id}/ai-review`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      // Pass the session cookie for auth
+      'Cookie': request.headers.get('cookie') || '',
+    },
+  }).catch((err) => {
+    console.error('Failed to trigger AI review:', err);
   });
 
   // Send confirmation email to writer

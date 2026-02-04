@@ -6,6 +6,8 @@ import {
   HiOutlineChartBarSquare,
   HiOutlineClock,
   HiOutlineTrash,
+  HiOutlineShieldCheck,
+  HiOutlineShieldExclamation,
 } from 'react-icons/hi2';
 
 export interface Article {
@@ -23,6 +25,15 @@ export interface Article {
   createdAt?: string;
   author: { name: string };
   tags?: { tag: { name: string } }[];
+  // AI Review fields
+  aiReviewStatus?: string | null;
+  aiReviewedAt?: string | null;
+  aiReviewFindings?: Array<{
+    type: 'grammar' | 'fact' | 'style';
+    severity: 'error' | 'warning' | 'suggestion';
+    text: string;
+    suggestion: string;
+  }> | null;
 }
 
 interface ArticleCardProps {
@@ -94,6 +105,51 @@ function getTimeAgo(date: Date): string {
   }
 }
 
+// AI Review Shield Badge
+function AIReviewBadge({ status, findings }: { status?: string | null; findings?: Article['aiReviewFindings'] }) {
+  if (!status) return null;
+
+  const issueCount = findings?.length || 0;
+
+  if (status === 'pending') {
+    return (
+      <div className="flex items-center gap-1 px-2 py-1 rounded-full bg-slate-500/20 border border-slate-400/30" title="AI Review in progress...">
+        <div className="w-3.5 h-3.5 border-2 border-slate-400/50 border-t-slate-300 rounded-full animate-spin" />
+        <span className="text-[10px] font-medium text-slate-400 hidden sm:inline">Checking</span>
+      </div>
+    );
+  }
+
+  if (status === 'clean') {
+    return (
+      <div className="flex items-center gap-1 px-2 py-1 rounded-full bg-emerald-500/20 border border-emerald-400/30" title="AI Review: No issues found">
+        <HiOutlineShieldCheck className="w-4 h-4 text-emerald-400" />
+        <span className="text-[10px] font-medium text-emerald-400 hidden sm:inline">Clean</span>
+      </div>
+    );
+  }
+
+  if (status === 'has_issues') {
+    return (
+      <div className="flex items-center gap-1 px-2 py-1 rounded-full bg-amber-500/20 border border-amber-400/30" title={`AI Review: ${issueCount} item${issueCount !== 1 ? 's' : ''} to review`}>
+        <HiOutlineShieldExclamation className="w-4 h-4 text-amber-400" />
+        <span className="text-[10px] font-bold text-amber-400">{issueCount}</span>
+      </div>
+    );
+  }
+
+  if (status === 'error') {
+    return (
+      <div className="flex items-center gap-1 px-2 py-1 rounded-full bg-slate-500/20 border border-slate-400/30" title="AI Review failed">
+        <HiOutlineShieldExclamation className="w-4 h-4 text-slate-400" />
+        <span className="text-[10px] font-medium text-slate-400 hidden sm:inline">Error</span>
+      </div>
+    );
+  }
+
+  return null;
+}
+
 export default function ArticleCard({
   article,
   isAdmin = false,
@@ -130,11 +186,17 @@ export default function ArticleCard({
         <div className="p-4 md:p-5">
           {/* Mobile Header - Status Badge */}
           <div className="flex items-center justify-between mb-3 md:hidden">
-            <div className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-gradient-to-r ${config.mobileClass} border`}>
-              <span className={`w-1.5 h-1.5 rounded-full ${dotClass}`} />
-              <span className="text-[10px] font-bold uppercase tracking-wider">
-                {article.status}
-              </span>
+            <div className="flex items-center gap-2">
+              <div className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-gradient-to-r ${config.mobileClass} border`}>
+                <span className={`w-1.5 h-1.5 rounded-full ${dotClass}`} />
+                <span className="text-[10px] font-bold uppercase tracking-wider">
+                  {article.status}
+                </span>
+              </div>
+              {/* AI Review Badge - Mobile */}
+              {article.status !== 'DRAFT' && (
+                <AIReviewBadge status={article.aiReviewStatus} findings={article.aiReviewFindings} />
+              )}
             </div>
             {article.status === 'PUBLISHED' && article.totalPageviews > 0 && (
               <div className="flex items-center gap-1 text-emerald-400">
@@ -171,6 +233,10 @@ export default function ArticleCard({
                   )}
                 </div>
                 <div className="flex items-center gap-2 flex-shrink-0">
+                  {/* AI Review Badge - Desktop */}
+                  {article.status !== 'DRAFT' && (
+                    <AIReviewBadge status={article.aiReviewStatus} findings={article.aiReviewFindings} />
+                  )}
                   <span className={`status-badge ${config.class}`}>
                     {config.label}
                   </span>

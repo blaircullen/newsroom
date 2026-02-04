@@ -74,6 +74,11 @@ model Article {
   totalUniqueVisitors  Int       @default(0) @map("total_unique_visitors")
   analyticsUpdatedAt   DateTime? @map("analytics_updated_at")
 
+  // AI Review
+  aiReviewedAt      DateTime?  @map("ai_reviewed_at")
+  aiReviewStatus    String?    @map("ai_review_status")  // "clean" | "has_issues" | "pending" | "error"
+  aiReviewFindings  Json?      @map("ai_review_findings")
+
   // Timestamps
   submittedAt     DateTime?     @map("submitted_at")
   createdAt       DateTime      @default(now()) @map("created_at")

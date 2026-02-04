@@ -9,6 +9,7 @@ import RichEditor from '@/components/editor/RichEditor';
 import TagInput from '@/components/editor/TagInput';
 import ImagePicker from '@/components/editor/ImagePicker';
 import PublishModal from '@/components/dashboard/PublishModal';
+import AIReviewPanel from '@/components/editor/AIReviewPanel';
 import {
   HiOutlinePhoto,
   HiOutlineCloudArrowUp,
@@ -293,6 +294,15 @@ export default function EditArticlePage() {
                 className="px-4 py-2 text-sm font-medium text-red-700 bg-red-50 border border-red-200 rounded-lg hover:bg-red-100 transition-all focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2">Reject</button>
             </div>
           </div>
+        )}
+
+        {/* AI Review Panel - shows for submitted+ articles */}
+        {article.status !== 'DRAFT' && article.aiReviewStatus && (
+          <AIReviewPanel
+            status={article.aiReviewStatus}
+            findings={article.aiReviewFindings}
+            reviewedAt={article.aiReviewedAt}
+          />
         )}
 
         {article.reviews && article.reviews.length > 0 && (
