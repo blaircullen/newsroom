@@ -152,23 +152,36 @@ export async function POST(request: NextRequest) {
   const slug = slugify(headline.trim(), { lower: true, strict: true });
 
   // Process and validate tags
+  // Optimized to reduce N+1 queries by running upserts in parallel
   const tagConnections: { tag: { connect: { id: string } } }[] = [];
   if (tags && Array.isArray(tags)) {
-    const uniqueTags = Array.from(new Set(tags.slice(0, MAX_TAGS).filter((t): t is string => typeof t === 'string' && Boolean(t.trim()))));
+    const uniqueTags = Array.from(new Set(
+      tags.slice(0, MAX_TAGS).filter((t): t is string => typeof t === 'string' && Boolean(t.trim()))
+    ));
 
-    for (const tagName of uniqueTags) {
-      if (tagName.length > MAX_TAG_NAME_LENGTH) continue;
+    // Prepare tag data
+    const tagData = uniqueTags
+      .filter(tagName => tagName.length <= MAX_TAG_NAME_LENGTH)
+      .map(tagName => {
+        const trimmedName = tagName.trim();
+        const tagSlug = slugify(trimmedName, { lower: true, strict: true });
+        return tagSlug ? { name: trimmedName, slug: tagSlug } : null;
+      })
+      .filter((t): t is { name: string; slug: string } => t !== null);
 
-      const trimmedName = tagName.trim();
-      const tagSlug = slugify(trimmedName, { lower: true, strict: true });
+    // Upsert all tags in parallel (concurrent, not sequential)
+    const tagRecords = await Promise.all(
+      tagData.map(({ name, slug }) =>
+        prisma.tag.upsert({
+          where: { slug },
+          update: {},
+          create: { name, slug },
+        })
+      )
+    );
 
-      if (!tagSlug) continue;
-
-      const tag = await prisma.tag.upsert({
-        where: { slug: tagSlug },
-        update: {},
-        create: { name: trimmedName, slug: tagSlug },
-      });
+    // Build connections for article creation
+    for (const tag of tagRecords) {
       tagConnections.push({
         tag: { connect: { id: tag.id } },
       });

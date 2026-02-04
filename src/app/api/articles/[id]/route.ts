@@ -144,36 +144,51 @@ export async function PUT(
   }
 
   // Update tags if provided (with validation consistent with POST)
+  // Optimized to reduce N+1 queries by batching operations
   if (tags && Array.isArray(tags)) {
-    // Remove existing tags
-    await prisma.articleTag.deleteMany({
-      where: { articleId: params.id },
-    });
-
-    // Validate and dedupe tags
+    // Validate and dedupe tags, prepare slugs
     const uniqueTags = Array.from(new Set(
       tags.slice(0, MAX_TAGS)
         .filter((t): t is string => typeof t === 'string' && Boolean(t.trim()) && t.length <= MAX_TAG_NAME_LENGTH)
     ));
 
-    // Create new tags
-    for (const tagName of uniqueTags) {
-      const trimmedName = tagName.trim();
-      const tagSlug = slugify(trimmedName, { lower: true, strict: true });
-      if (!tagSlug) continue;
+    const tagData = uniqueTags
+      .map(tagName => {
+        const trimmedName = tagName.trim();
+        const tagSlug = slugify(trimmedName, { lower: true, strict: true });
+        return tagSlug ? { name: trimmedName, slug: tagSlug } : null;
+      })
+      .filter((t): t is { name: string; slug: string } => t !== null);
 
-      const tag = await prisma.tag.upsert({
-        where: { slug: tagSlug },
-        update: {},
-        create: { name: trimmedName, slug: tagSlug },
+    // Use transaction to batch all tag operations
+    await prisma.$transaction(async (tx) => {
+      // Remove existing tags
+      await tx.articleTag.deleteMany({
+        where: { articleId: params.id },
       });
-      await prisma.articleTag.create({
-        data: {
-          articleId: params.id,
-          tagId: tag.id,
-        },
-      });
-    }
+
+      // Upsert all tags in parallel (concurrent, not sequential)
+      const tagRecords = await Promise.all(
+        tagData.map(({ name, slug }) =>
+          tx.tag.upsert({
+            where: { slug },
+            update: {},
+            create: { name, slug },
+          })
+        )
+      );
+
+      // Bulk create article-tag relationships
+      if (tagRecords.length > 0) {
+        await tx.articleTag.createMany({
+          data: tagRecords.map(tag => ({
+            articleId: params.id,
+            tagId: tag.id,
+          })),
+          skipDuplicates: true,
+        });
+      }
+    });
   }
 
   const updated = await prisma.article.update({
