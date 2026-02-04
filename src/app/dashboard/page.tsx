@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import toast from 'react-hot-toast';
 import AppShell from '@/components/layout/AppShell';
-import BottomNav, { BottomNavLight } from '@/components/layout/BottomNav';
+import BottomNav from '@/components/layout/BottomNav';
 import ArticleCard, { Article } from '@/components/dashboard/ArticleCard';
 import StatsGrid from '@/components/dashboard/StatsGrid';
 import HotSection, { StoryIdea } from '@/components/dashboard/HotSection';
@@ -466,12 +466,8 @@ export default function DashboardPage() {
           </div>
         )}
 
-        {/* Mobile Bottom Nav */}
-        {activeTab === 'analytics' ? (
-          <BottomNavLight activeTab={activeTab} onTabChange={handleTabChange} />
-        ) : (
-          <BottomNav activeTab={activeTab} onTabChange={handleTabChange} />
-        )}
+        {/* Mobile Bottom Nav - consistent dark nav across all tabs */}
+        <BottomNav activeTab={activeTab} onTabChange={handleTabChange} />
       </div>
 
       {/* Desktop View */}
