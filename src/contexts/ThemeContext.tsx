@@ -61,13 +61,14 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     localStorage.setItem('theme', newTheme);
   };
 
-  // Prevent flash of wrong theme
-  if (!mounted) {
-    return <>{children}</>;
-  }
+  // Always render Provider to keep tree structure consistent (prevents React hooks errors)
+  // Use default values when not mounted to prevent flash of wrong theme
+  const contextValue: ThemeContextType = mounted
+    ? { theme, resolvedTheme, setTheme: handleSetTheme }
+    : { theme: 'system', resolvedTheme: 'light', setTheme: () => {} };
 
   return (
-    <ThemeContext.Provider value={{ theme, resolvedTheme, setTheme: handleSetTheme }}>
+    <ThemeContext.Provider value={contextValue}>
       {children}
     </ThemeContext.Provider>
   );
