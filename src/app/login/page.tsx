@@ -3,6 +3,7 @@
 import { useState, FormEvent } from 'react';
 import { signIn } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import toast from 'react-hot-toast';
 
 export default function LoginPage() {
@@ -84,12 +85,21 @@ export default function LoginPage() {
                 required
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="w-full px-4 py-3.5 rounded-lg border-[1.5px] border-[#e8eaed] bg-white text-[#111c30] 
-                          text-[15px] placeholder-[#c4c9d2] focus:outline-none focus:border-[#111c30] 
+                className="w-full px-4 py-3.5 rounded-lg border-[1.5px] border-[#e8eaed] bg-white text-[#111c30]
+                          text-[15px] placeholder-[#c4c9d2] focus:outline-none focus:border-[#111c30]
                           focus:shadow-[0_0_0_3px_rgba(17,28,48,0.06)] transition-all"
                 placeholder="••••••••"
               />
             </div>
+
+              <div className="flex justify-end">
+                <Link
+                  href="/forgot-password"
+                  className="text-[13px] text-[#8892a4] hover:text-press-500 transition-colors"
+                >
+                  Forgot password?
+                </Link>
+              </div>
 
             <button
               type="submit"
