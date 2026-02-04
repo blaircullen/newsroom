@@ -331,10 +331,8 @@ export default function MobileApp() {
 }
 
 function ArticleCard({ article }: { article: Article }) {
-  const router = useRouter();
-  
   const getStatusConfig = (status: string) => {
-    const configs = {
+    const configs: Record<string, { color: string; dot: string }> = {
       PUBLISHED: {
         color: 'from-emerald-500/25 to-emerald-600/15 border-emerald-400/40 text-emerald-300',
         dot: 'bg-emerald-400'
@@ -352,17 +350,14 @@ function ArticleCard({ article }: { article: Article }) {
         dot: 'bg-violet-400'
       },
     };
-    return configs[status as keyof typeof configs] || configs.DRAFT;
+    return configs[status] || configs.DRAFT;
   };
 
   const statusConfig = getStatusConfig(article.status);
   const timeAgo = getTimeAgo(new Date(article.updatedAt));
 
   return (
-    <div
-      onClick={() => router.push(`/editor/${article.id}`)}
-      className="group active:scale-[0.98] transition-transform"
-    >
+    <Link href={`/editor/${article.id}`} className="group active:scale-[0.98] transition-transform block">
       <div className="relative overflow-hidden rounded-2xl bg-slate-800/70 border border-slate-600/50 group-active:border-slate-500/70 transition-colors">
         <div className="p-4">
           {/* Header */}
@@ -408,7 +403,7 @@ function ArticleCard({ article }: { article: Article }) {
           </div>
         </div>
       </div>
-    </div>
+    </Link>
   );
 }
 
