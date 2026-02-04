@@ -33,9 +33,9 @@ function areRelated(headline1: string, headline2: string): boolean {
 
   // Count overlapping keywords
   let overlap = 0;
-  for (const word of keywords1) {
+  keywords1.forEach(word => {
     if (keywords2.has(word)) overlap++;
-  }
+  });
 
   // Need at least 3 matching keywords or 40% overlap
   const minSize = Math.min(keywords1.size, keywords2.size);
