@@ -63,9 +63,9 @@ function DashboardContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
-  // Tab state from URL (for mobile)
-  const tabParam = (searchParams.get('tab') as TabId) || 'home';
-  const filterParam = searchParams.get('filter') || '';
+  // Tab state from URL (for mobile) - handle null searchParams during hydration
+  const tabParam = (searchParams?.get('tab') as TabId) || 'home';
+  const filterParam = searchParams?.get('filter') || '';
 
   const [activeTab, setActiveTab] = useState<TabId>(tabParam);
   const [articles, setArticles] = useState<Article[]>([]);
