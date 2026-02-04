@@ -73,6 +73,7 @@ interface StoryIdea {
   headline: string;
   sourceUrl: string;
   source: string;
+  trending?: boolean;
 }
 
 function DesktopDashboard() {

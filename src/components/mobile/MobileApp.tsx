@@ -38,6 +38,7 @@ interface StoryIdea {
   headline: string;
   sourceUrl: string;
   source: string;
+  trending?: boolean;
 }
 
 export default function MobileApp() {
@@ -408,10 +409,15 @@ function ArticleCard({ article }: { article: Article }) {
   );
 }
 
-function HotTodayTab({ hotArticles, storyIdeas, activeTab, onTabChange }: any) {
+function HotTodayTab({ hotArticles = [], storyIdeas = [], activeTab, onTabChange }: any) {
   const [showAllHot, setShowAllHot] = useState(false);
-  const displayedArticles = showAllHot ? hotArticles : hotArticles.slice(0, 3);
-  const hasMoreArticles = hotArticles.length > 3;
+
+  // Ensure arrays are valid before operations
+  const safeHotArticles = Array.isArray(hotArticles) ? hotArticles : [];
+  const safeStoryIdeas = Array.isArray(storyIdeas) ? storyIdeas : [];
+
+  const displayedArticles = showAllHot ? safeHotArticles : safeHotArticles.slice(0, 3);
+  const hasMoreArticles = safeHotArticles.length > 3;
 
   return (
     <div className="min-h-screen bg-slate-900 pb-20">
@@ -426,7 +432,7 @@ function HotTodayTab({ hotArticles, storyIdeas, activeTab, onTabChange }: any) {
       </div>
 
       <div className="px-4 pt-4 space-y-3">
-        {hotArticles.length === 0 ? (
+        {safeHotArticles.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-12 text-center">
             <HiOutlineFire className="w-12 h-12 text-white/30 mb-3" />
             <p className="text-white/80">No hot articles today</p>
@@ -482,8 +488,8 @@ function HotTodayTab({ hotArticles, storyIdeas, activeTab, onTabChange }: any) {
                   <>Show Less</>
                 ) : (
                   <>
-                    <span>Show {hotArticles.length - 3} More</span>
-                    <span className="text-orange-400">#{4}-{hotArticles.length}</span>
+                    <span>Show {safeHotArticles.length - 3} More</span>
+                    <span className="text-orange-400">#{4}-{safeHotArticles.length}</span>
                   </>
                 )}
               </button>
@@ -493,7 +499,7 @@ function HotTodayTab({ hotArticles, storyIdeas, activeTab, onTabChange }: any) {
       </div>
 
       {/* Story Ideas Section */}
-      {storyIdeas && storyIdeas.length > 0 && (
+      {safeStoryIdeas.length > 0 && (
         <div className="px-4 pt-6 pb-4">
           <div className="flex items-center gap-2 mb-3">
             <HiOutlineLightBulb className="w-5 h-5 text-yellow-400" />
@@ -501,7 +507,7 @@ function HotTodayTab({ hotArticles, storyIdeas, activeTab, onTabChange }: any) {
           </div>
           <p className="text-xs text-white/50 mb-3">Trending topics from around the web</p>
           <div className="space-y-2">
-            {storyIdeas.slice(0, 5).map((idea: StoryIdea, index: number) => (
+            {safeStoryIdeas.slice(0, 5).map((idea: StoryIdea, index: number) => (
               <a
                 key={index}
                 href={idea.sourceUrl}
