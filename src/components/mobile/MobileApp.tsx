@@ -571,53 +571,81 @@ function AnalyticsTab({ stats, articles, activeTab, onTabChange }: any) {
     .sort((a: Article, b: Article) => (b.totalPageviews || 0) - (a.totalPageviews || 0))
     .slice(0, 5);
 
+  // Get current date for dateline
+  const today = new Date().toLocaleDateString('en-US', {
+    weekday: 'long',
+    month: 'long',
+    day: 'numeric'
+  });
+
+  // Rank border colors
+  const getRankStyle = (index: number) => {
+    if (index === 0) return 'border-[#B8860B] bg-[#B8860B]/10'; // Gold
+    if (index === 1) return 'border-[#71717A] bg-[#71717A]/10'; // Silver
+    if (index === 2) return 'border-[#A16207] bg-[#A16207]/10'; // Bronze
+    return 'border-[#6B6B6B]/40 bg-transparent';
+  };
+
   return (
-    <div className="min-h-screen bg-slate-900 pb-20">
-      <div className="sticky top-0 z-40 bg-slate-900/95 backdrop-blur-xl border-b border-slate-700/50">
-        <div className="px-4 pt-4 pb-4">
-          <div className="flex items-center gap-2 mb-2">
-            <HiOutlineChartBarSquare className="w-6 h-6 text-blue-400" />
-            <h1 className="text-2xl font-bold text-white">Analytics</h1>
-          </div>
-          <p className="text-sm text-white/70">Performance overview</p>
+    <div className="min-h-screen bg-[#FAFAF8] pb-24">
+      {/* Header */}
+      <div className="sticky top-0 z-40 bg-[#FAFAF8] border-b border-[#E5E5E5]">
+        <div className="px-5 pt-4 pb-3">
+          <h1 className="text-2xl font-bold text-[#1A1A1A]">Analytics</h1>
+          <p className="text-[11px] text-[#6B6B6B] uppercase tracking-widest mt-1">{today}</p>
         </div>
       </div>
 
-      <div className="px-4 pt-4 space-y-4">
-        <div className="grid grid-cols-2 gap-3">
-          <div className="p-4 rounded-2xl bg-slate-800/80 border border-blue-400/40">
-            <div className="text-3xl font-bold text-blue-300 mb-1">{stats.totalViews.toLocaleString()}</div>
-            <div className="text-xs text-white/70 uppercase tracking-wider font-medium">Total Views</div>
+      <div className="px-5 pt-6">
+        {/* Hero Stat */}
+        <div className="mb-6">
+          <div className="text-[56px] font-bold text-[#1A1A1A] leading-none tracking-tight">
+            {stats.totalViews.toLocaleString()}
           </div>
-          <div className="p-4 rounded-2xl bg-slate-800/80 border border-emerald-400/40">
-            <div className="text-3xl font-bold text-emerald-300 mb-1">{stats.published}</div>
-            <div className="text-xs text-white/70 uppercase tracking-wider font-medium">Published</div>
+          <div className="text-sm text-[#6B6B6B] mt-1">views today</div>
+        </div>
+
+        {/* Secondary Stats Row */}
+        <div className="flex items-center gap-4 pb-6 border-b border-[#E5E5E5]">
+          <div className="flex items-center gap-1">
+            <span className="text-sm font-semibold text-[#1A1A1A]">{stats.total}</span>
+            <span className="text-xs text-[#6B6B6B] uppercase tracking-wide">total</span>
+          </div>
+          <div className="w-px h-4 bg-[#E5E5E5]" />
+          <div className="flex items-center gap-1">
+            <span className="text-sm font-semibold text-[#1D7D4D]">{stats.published}</span>
+            <span className="text-xs text-[#6B6B6B] uppercase tracking-wide">published</span>
+          </div>
+          <div className="w-px h-4 bg-[#E5E5E5]" />
+          <div className="flex items-center gap-1">
+            <span className="text-sm font-semibold text-[#1A1A1A]">{stats.drafts}</span>
+            <span className="text-xs text-[#6B6B6B] uppercase tracking-wide">drafts</span>
           </div>
         </div>
 
-        {topArticles.length > 0 && (
-          <div>
-            <h2 className="text-sm font-semibold text-white uppercase tracking-wider mb-3 px-1">
+        {/* Top Performers Section */}
+        {topArticles.length > 0 ? (
+          <div className="pt-6">
+            <h2 className="text-[11px] text-[#6B6B6B] uppercase tracking-widest font-medium mb-4">
               Top Performers
             </h2>
-            <div className="space-y-2">
+            <div className="space-y-4">
               {topArticles.map((article: Article, index: number) => (
                 <Link key={article.id} href={`/editor/${article.id}`}>
-                  <div className="group active:scale-[0.98] transition-transform">
-                    <div className="p-4 rounded-xl bg-slate-800/80 border border-slate-600/50 group-active:border-slate-500/70">
-                      <div className="flex items-start gap-3">
-                        <div className="flex-shrink-0 w-8 h-8 rounded-full bg-blue-500/30 flex items-center justify-center border-2 border-blue-400/60">
-                          <span className="text-sm font-bold text-blue-200">{index + 1}</span>
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <h3 className="text-sm font-semibold text-white line-clamp-1 mb-1">
-                            {article.headline}
-                          </h3>
-                          <div className="flex items-center gap-1 text-sm text-emerald-400 font-medium">
-                            <HiOutlineEye className="w-4 h-4" />
-                            {(article.totalPageviews || 0).toLocaleString()}
-                          </div>
-                        </div>
+                  <div className="group active:bg-[#F0F0F0] rounded-lg -mx-2 px-2 py-3 transition-colors">
+                    <div className="flex items-start gap-4">
+                      {/* Rank Badge */}
+                      <div className={`flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center border-2 ${getRankStyle(index)}`}>
+                        <span className="text-lg font-bold text-[#1A1A1A]">{index + 1}</span>
+                      </div>
+                      {/* Content */}
+                      <div className="flex-1 min-w-0">
+                        <h3 className="text-[15px] font-semibold text-[#1A1A1A] leading-snug line-clamp-2">
+                          {article.headline}
+                        </h3>
+                        <p className="text-xs text-[#6B6B6B] mt-1">
+                          by {article.author?.name || 'Unknown'} · {(article.totalPageviews || 0).toLocaleString()} views
+                        </p>
                       </div>
                     </div>
                   </div>
@@ -625,10 +653,16 @@ function AnalyticsTab({ stats, articles, activeTab, onTabChange }: any) {
               ))}
             </div>
           </div>
+        ) : (
+          <div className="pt-12 text-center">
+            <div className="text-[#6B6B6B] text-4xl mb-3">📰</div>
+            <p className="text-[#1A1A1A] font-medium">No published stories yet.</p>
+            <p className="text-sm text-[#6B6B6B] mt-1">Your top performers will appear here.</p>
+          </div>
         )}
       </div>
 
-      <BottomNav activeTab={activeTab} onTabChange={onTabChange} />
+      <BottomNav activeTab={activeTab} onTabChange={onTabChange} variant="light" />
     </div>
   );
 }
@@ -667,20 +701,53 @@ function ProfileTab({ session, activeTab, onTabChange }: any) {
   );
 }
 
-function BottomNav({ activeTab, onTabChange }: { activeTab: string; onTabChange: (tab: string) => void }) {
+function BottomNav({ activeTab, onTabChange, variant = 'dark' }: { activeTab: string; onTabChange: (tab: string) => void; variant?: 'dark' | 'light' }) {
   const tabs = [
-    { id: 'home', label: 'Home', icon: HiOutlineHome },
-    { id: 'hot', label: 'Hot', icon: HiOutlineFire },
-    { id: 'analytics', label: 'Analytics', icon: HiOutlineChartBarSquare },
-    { id: 'profile', label: 'Profile', icon: HiOutlineUser },
+    { id: 'home', label: 'Home' },
+    { id: 'hot', label: 'Hot' },
+    { id: 'analytics', label: 'Analytics' },
+    { id: 'profile', label: 'Profile' },
   ];
+
+  // Light variant - editorial style (text only, no icons)
+  if (variant === 'light') {
+    return (
+      <div className="fixed bottom-0 left-0 right-0 z-50 bg-[#FAFAF8] border-t border-[#E5E5E5]">
+        <div className="flex items-center justify-around py-4 px-2">
+          {tabs.map((tab) => {
+            const isActive = activeTab === tab.id;
+            return (
+              <button
+                key={tab.id}
+                onClick={() => onTabChange(tab.id)}
+                className="flex flex-col items-center gap-1 px-4 py-1 transition-all active:scale-95"
+              >
+                <span className={`text-xs font-medium ${isActive ? 'text-[#1A1A1A]' : 'text-[#6B6B6B]'}`}>
+                  {tab.label}
+                </span>
+                {isActive && <div className="w-1 h-1 rounded-full bg-[#1A1A1A] mt-0.5" />}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+    );
+  }
+
+  // Dark variant - original style with icons
+  const icons: Record<string, any> = {
+    home: HiOutlineHome,
+    hot: HiOutlineFire,
+    analytics: HiOutlineChartBarSquare,
+    profile: HiOutlineUser,
+  };
 
   return (
     <div className="fixed bottom-0 left-0 right-0 z-50">
       <div className="mx-3 mb-3 rounded-2xl bg-ink-900/98 backdrop-blur-xl border border-white/15 shadow-2xl shadow-black/50">
         <div className="flex items-center justify-around p-2">
           {tabs.map((tab) => {
-            const Icon = tab.icon;
+            const Icon = icons[tab.id];
             const isActive = activeTab === tab.id;
             return (
               <button
