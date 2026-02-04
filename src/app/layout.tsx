@@ -12,7 +12,14 @@ export const metadata: Metadata = {
   description: 'The digital newsroom for M3 Media writers and editors',
   icons: {
     icon: '/favicon.svg',
+    apple: '/apple-touch-icon.png',
   },
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: 'black-translucent',
+    title: 'NewsRoom',
+  },
+  manifest: '/manifest.json',
 };
 
 export default function RootLayout({

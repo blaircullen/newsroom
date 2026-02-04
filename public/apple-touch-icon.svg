@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 180 180">
+  <rect width="180" height="180" rx="34" fill="#111c30"/>
+  <text x="17" y="140" font-family="Arial Black, Arial, sans-serif" font-weight="900" font-size="124" fill="white">N</text>
+  <text x="90" y="140" font-family="Arial Black, Arial, sans-serif" font-weight="900" font-size="124" fill="#D42B2B">R</text>
+  <path d="M152 17l5.6 15.7h17l-13.5 10.1 5 15.7L152 48.4l-14.1 10.1 5-15.7-13.5-10.1h17z" fill="#D42B2B"/>
+</svg>
