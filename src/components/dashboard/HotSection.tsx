@@ -46,7 +46,7 @@ export default function HotSection({
         <HiOutlineFire className="w-5 h-5 md:w-6 md:h-6 text-orange-400 animate-pulse" />
         <h2 className="text-lg md:text-xl font-bold text-white md:text-ink-900 md:dark:text-ink-100">Hot Today</h2>
       </div>
-      <p className="text-xs md:text-sm text-white/70 md:text-ink-500 mb-4">Most read posts from the past week</p>
+      <p className="text-xs md:text-sm text-white/70 md:text-ink-500 mb-4">Most read posts in the last 12 hours</p>
 
       {/* Hot Articles */}
       <div className="space-y-3">
@@ -82,11 +82,11 @@ export default function HotSection({
                       <div className="flex items-center gap-4 text-sm">
                         <div className="flex items-center gap-1 text-orange-300 md:text-orange-600 font-semibold">
                           <HiOutlineEye className="w-4 h-4" />
-                          <span>{(article.totalPageviews || 0).toLocaleString()}</span>
+                          <span>{(article.recentPageviews ?? article.totalPageviews ?? 0).toLocaleString()}</span>
                         </div>
                         <div className="flex items-center gap-1 text-white/60 md:text-ink-400">
                           <HiOutlineArrowTrendingUp className="w-4 h-4" />
-                          <span>{article.totalUniqueVisitors || 0} unique</span>
+                          <span>{(article.recentUniqueVisitors ?? article.totalUniqueVisitors ?? 0)} unique</span>
                         </div>
                       </div>
                     </div>

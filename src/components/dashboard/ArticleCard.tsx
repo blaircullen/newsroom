@@ -19,6 +19,8 @@ export interface Article {
   publishedUrl?: string;
   totalPageviews: number;
   totalUniqueVisitors: number;
+  recentPageviews?: number;
+  recentUniqueVisitors?: number;
   analyticsUpdatedAt?: string;
   updatedAt: string;
   publishedAt?: string;
