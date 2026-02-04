@@ -515,37 +515,26 @@ export default function DashboardPage() {
         {/* Desktop Stats */}
         <StatsGrid stats={stats} isAdmin={isAdmin} isUpdating={isAutoRefreshing} />
 
-        {/* Story Ideas Panel - Desktop */}
-        {storyIdeas.length > 0 && (
+        {/* Story Ideas Panel - Desktop (Admin only) */}
+        {isAdmin && storyIdeas.length > 0 && (
           <div className="mb-8 bg-gradient-to-r from-amber-50 to-yellow-50 dark:from-amber-900/20 dark:to-yellow-900/20 rounded-xl border border-amber-200 dark:border-amber-800 overflow-hidden">
-            <button
-              onClick={() => setShowStoryIdeas(!showStoryIdeas)}
-              className="w-full px-5 py-4 flex items-center justify-between hover:bg-amber-100/50 dark:hover:bg-amber-900/30 transition-colors"
-            >
-              <div className="flex items-center gap-3">
-                <div className="w-9 h-9 rounded-lg bg-amber-100 dark:bg-amber-800 flex items-center justify-center">
-                  <HiOutlineLightBulb className="w-5 h-5 text-amber-600 dark:text-amber-400" />
-                </div>
-                <div className="text-left">
-                  <h3 className="font-display font-semibold text-ink-900 dark:text-ink-100">
-                    Story Ideas
-                  </h3>
-                  <p className="text-xs text-ink-500 dark:text-ink-400">
-                    {storyIdeas.length} trending topics from around the web
-                  </p>
-                </div>
+            <div className="px-5 py-4 flex items-center gap-3">
+              <div className="w-9 h-9 rounded-lg bg-amber-100 dark:bg-amber-800 flex items-center justify-center">
+                <HiOutlineLightBulb className="w-5 h-5 text-amber-600 dark:text-amber-400" />
               </div>
-              {showStoryIdeas ? (
-                <HiOutlineChevronUp className="w-5 h-5 text-ink-400" />
-              ) : (
-                <HiOutlineChevronDown className="w-5 h-5 text-ink-400" />
-              )}
-            </button>
+              <div>
+                <h3 className="font-display font-semibold text-ink-900 dark:text-ink-100">
+                  Story Ideas
+                </h3>
+                <p className="text-xs text-ink-500 dark:text-ink-400">
+                  {storyIdeas.length} trending topics from around the web
+                </p>
+              </div>
+            </div>
 
-            {showStoryIdeas && (
-              <div className="px-5 pb-5">
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-                  {storyIdeas.slice(0, 6).map((idea, index) => (
+            <div className="px-5 pb-5">
+              <div className="grid grid-cols-3 gap-3">
+                {storyIdeas.slice(0, showStoryIdeas ? storyIdeas.length : 3).map((idea, index) => (
                     <div
                       key={index}
                       className={`rounded-lg p-4 hover:shadow-md transition-all group relative overflow-hidden ${
@@ -608,13 +597,25 @@ export default function DashboardPage() {
                     </div>
                   ))}
                 </div>
-                {storyIdeas.length > 6 && (
-                  <p className="text-xs text-ink-400 text-center mt-3">
-                    Showing 6 of {storyIdeas.length} ideas
-                  </p>
+                {storyIdeas.length > 3 && (
+                  <button
+                    onClick={() => setShowStoryIdeas(!showStoryIdeas)}
+                    className="w-full mt-3 py-2 text-sm font-medium text-amber-700 dark:text-amber-400 hover:text-amber-800 dark:hover:text-amber-300 flex items-center justify-center gap-1 transition-colors"
+                  >
+                    {showStoryIdeas ? (
+                      <>
+                        <HiOutlineChevronUp className="w-4 h-4" />
+                        Show Less
+                      </>
+                    ) : (
+                      <>
+                        <HiOutlineChevronDown className="w-4 h-4" />
+                        Show {storyIdeas.length - 3} More
+                      </>
+                    )}
+                  </button>
                 )}
               </div>
-            )}
           </div>
         )}
 
