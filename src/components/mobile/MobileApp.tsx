@@ -49,6 +49,7 @@ export default function MobileApp() {
   const [hotArticles, setHotArticles] = useState<Article[]>([]);
   const [storyIdeas, setStoryIdeas] = useState<StoryIdea[]>([]);
   const [activeFilter, setActiveFilter] = useState<string | null>(null);
+  const [showAllHot, setShowAllHot] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [pullDistance, setPullDistance] = useState(0);
   const touchStartY = useRef(0);
@@ -299,6 +300,8 @@ export default function MobileApp() {
         storyIdeas={storyIdeas}
         activeTab={activeTab}
         onTabChange={setActiveTab}
+        showAllHot={showAllHot}
+        setShowAllHot={setShowAllHot}
       />
     );
   }
@@ -409,9 +412,7 @@ function ArticleCard({ article }: { article: Article }) {
   );
 }
 
-function HotTodayTab({ hotArticles = [], storyIdeas = [], activeTab, onTabChange }: any) {
-  const [showAllHot, setShowAllHot] = useState(false);
-
+function HotTodayTab({ hotArticles = [], storyIdeas = [], activeTab, onTabChange, showAllHot = false, setShowAllHot }: any) {
   // Ensure arrays are valid before operations
   const safeHotArticles = Array.isArray(hotArticles) ? hotArticles : [];
   const safeStoryIdeas = Array.isArray(storyIdeas) ? storyIdeas : [];
