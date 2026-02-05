@@ -93,7 +93,7 @@ export async function PUT(
     return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 });
   }
 
-  const { headline, subHeadline, bodyContent, bodyHtml, featuredImage, featuredImageId, imageCredit, tags, scheduledPublishAt } = body;
+  const { headline, subHeadline, bodyContent, bodyHtml, featuredImage, featuredImageId, imageCredit, tags, scheduledPublishAt, scheduledPublishTargetId } = body;
 
   // Validate field types and lengths (consistent with POST endpoint)
   if (headline !== undefined) {
@@ -141,6 +141,9 @@ export async function PUT(
   if (imageCredit !== undefined) updateData.imageCredit = typeof imageCredit === 'string' ? imageCredit.trim() || null : null;
   if (scheduledPublishAt !== undefined) {
     updateData.scheduledPublishAt = scheduledPublishAt ? new Date(scheduledPublishAt as string) : null;
+  }
+  if (scheduledPublishTargetId !== undefined) {
+    updateData.scheduledPublishTargetId = typeof scheduledPublishTargetId === 'string' ? scheduledPublishTargetId : null;
   }
 
   // Update tags if provided (with validation consistent with POST)

@@ -72,7 +72,7 @@ export default function PublishModal({ articleId, onClose, onPublished }: Publis
   };
 
   const handlePublish = async () => {
-    if (publishMode === 'now' && selectedTargets.size === 0) {
+    if (selectedTargets.size === 0) {
       toast.error('Select at least one site');
       return;
     }
@@ -86,15 +86,20 @@ export default function PublishModal({ articleId, onClose, onPublished }: Publis
 
     try {
       if (publishMode === 'schedule') {
-        // Schedule the article
+        // Schedule the article with target site
         const scheduledAt = new Date(`${scheduledDate}T${scheduledTime}`);
+        const targetId = Array.from(selectedTargets)[0]; // Use first selected target
         const res = await fetch('/api/articles/' + articleId, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ scheduledPublishAt: scheduledAt.toISOString() }),
+          body: JSON.stringify({
+            scheduledPublishAt: scheduledAt.toISOString(),
+            scheduledPublishTargetId: targetId,
+          }),
         });
         if (!res.ok) throw new Error('Failed to schedule article');
-        toast.success(`Scheduled for ${scheduledAt.toLocaleString()}`);
+        const targetName = targets.find(t => t.id === targetId)?.name || 'selected site';
+        toast.success(`Scheduled for ${scheduledAt.toLocaleString()} on ${targetName}`);
         setTimeout(() => onClose(), 1500);
       } else {
         // Publish now
@@ -227,7 +232,8 @@ export default function PublishModal({ articleId, onClose, onPublished }: Publis
                 </button>
               </div>
 
-              {publishMode === 'schedule' ? (
+              {/* Schedule date/time picker (only in schedule mode) */}
+              {publishMode === 'schedule' && (
                 <div className="p-4 rounded-xl border-2 border-ink-100 dark:border-ink-700 bg-ink-50/50 dark:bg-ink-800/50">
                   <div className="flex items-center gap-2 mb-3">
                     <HiOutlineCalendarDays className="w-5 h-5 text-ink-500 dark:text-ink-400" />
@@ -254,43 +260,44 @@ export default function PublishModal({ articleId, onClose, onPublished }: Publis
                       />
                     </div>
                   </div>
-                  <p className="text-xs text-ink-400 mt-2">
-                    Article will be automatically published at the scheduled time.
-                  </p>
-                </div>
-              ) : (
-                <div className="space-y-2">
-                  {targets.length > 1 && (
-                    <button type="button" onClick={selectAll}
-                      className="text-xs font-medium text-press-600 dark:text-press-400 hover:text-press-700 dark:hover:text-press-300 mb-1">
-                      {allSelected ? 'Deselect all' : 'Select all'}
-                    </button>
-                  )}
-                  {targets.map((target) => {
-                const isSelected = selectedTargets.has(target.id);
-                return (
-                  <button key={target.id} type="button" onClick={() => toggleTarget(target.id)}
-                    className={'w-full text-left p-4 rounded-xl border-2 transition-all ' +
-                      (isSelected ? 'border-emerald-500 bg-emerald-50/50 dark:bg-emerald-900/20' : 'border-ink-100 dark:border-ink-700 hover:border-ink-200 dark:hover:border-ink-600')}>
-                    <div className="flex items-center gap-3">
-                      <div className={'w-5 h-5 rounded border-2 flex items-center justify-center flex-shrink-0 transition-all ' +
-                        (isSelected ? 'bg-emerald-500 border-emerald-500' : 'border-ink-300 dark:border-ink-600 bg-white dark:bg-ink-800')}>
-                        {isSelected && <HiOutlineCheck className="w-3.5 h-3.5 text-white" />}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="font-medium text-ink-900 dark:text-ink-100">{target.name}</p>
-                        <p className="text-xs text-ink-400 mt-0.5">{target.url}</p>
-                      </div>
-                      <span className={'text-xs px-2 py-0.5 rounded-full font-medium uppercase tracking-wider ' +
-                        (target.type === 'ghost' ? 'bg-purple-50 dark:bg-purple-900/40 text-purple-600 dark:text-purple-300' : 'bg-blue-50 dark:bg-blue-900/40 text-blue-600 dark:text-blue-300')}>
-                        {target.type}
-                      </span>
-                    </div>
-                  </button>
-                );
-              })}
                 </div>
               )}
+
+              {/* Site selection (always shown) */}
+              <div className="space-y-2">
+                <p className="text-xs font-medium text-ink-500 dark:text-ink-400">
+                  {publishMode === 'schedule' ? 'Publish to' : 'Select sites'}
+                </p>
+                {targets.length > 1 && publishMode === 'now' && (
+                  <button type="button" onClick={selectAll}
+                    className="text-xs font-medium text-press-600 dark:text-press-400 hover:text-press-700 dark:hover:text-press-300 mb-1">
+                    {allSelected ? 'Deselect all' : 'Select all'}
+                  </button>
+                )}
+                {targets.map((target) => {
+                  const isSelected = selectedTargets.has(target.id);
+                  return (
+                    <button key={target.id} type="button" onClick={() => toggleTarget(target.id)}
+                      className={'w-full text-left p-4 rounded-xl border-2 transition-all ' +
+                        (isSelected ? 'border-emerald-500 bg-emerald-50/50 dark:bg-emerald-900/20' : 'border-ink-100 dark:border-ink-700 hover:border-ink-200 dark:hover:border-ink-600')}>
+                      <div className="flex items-center gap-3">
+                        <div className={'w-5 h-5 rounded border-2 flex items-center justify-center flex-shrink-0 transition-all ' +
+                          (isSelected ? 'bg-emerald-500 border-emerald-500' : 'border-ink-300 dark:border-ink-600 bg-white dark:bg-ink-800')}>
+                          {isSelected && <HiOutlineCheck className="w-3.5 h-3.5 text-white" />}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="font-medium text-ink-900 dark:text-ink-100">{target.name}</p>
+                          <p className="text-xs text-ink-400 mt-0.5">{target.url}</p>
+                        </div>
+                        <span className={'text-xs px-2 py-0.5 rounded-full font-medium uppercase tracking-wider ' +
+                          (target.type === 'ghost' ? 'bg-purple-50 dark:bg-purple-900/40 text-purple-600 dark:text-purple-300' : 'bg-blue-50 dark:bg-blue-900/40 text-blue-600 dark:text-blue-300')}>
+                          {target.type}
+                        </span>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
             </div>
           )}
         </div>
@@ -302,7 +309,7 @@ export default function PublishModal({ articleId, onClose, onPublished }: Publis
           </button>
           {!hasResults && (
             <button type="button" onClick={handlePublish}
-              disabled={(publishMode === 'now' && selectedTargets.size === 0) || (publishMode === 'schedule' && (!scheduledDate || !scheduledTime)) || isPublishing}
+              disabled={selectedTargets.size === 0 || (publishMode === 'schedule' && (!scheduledDate || !scheduledTime)) || isPublishing}
               className="px-6 py-2.5 text-sm font-semibold text-white bg-emerald-600 rounded-lg hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all">
               {isPublishing
                 ? (publishMode === 'schedule' ? 'Scheduling...' : 'Publishing...')

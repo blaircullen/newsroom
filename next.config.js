@@ -3,6 +3,7 @@ const nextConfig = {
   output: 'standalone',
   experimental: {
     missingSuspenseWithCSRBailout: false,
+    instrumentationHook: true,
   },
 };
 

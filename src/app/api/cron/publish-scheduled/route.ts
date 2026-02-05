@@ -3,7 +3,7 @@ import prisma from '@/lib/prisma';
 import { publishArticle } from '@/lib/publish';
 
 // Cron job to publish scheduled articles
-// Should be called every minute by an external scheduler
+// Called every 60 seconds by the built-in scheduler (instrumentation.ts)
 export async function GET(request: NextRequest) {
   try {
     // Verify cron secret - REQUIRED for security (fail closed)
@@ -20,7 +20,25 @@ export async function GET(request: NextRequest) {
 
     const now = new Date();
 
-    // Find all articles that are scheduled to publish and ready
+    // Clean up stale scheduled entries:
+    // - Articles that are already PUBLISHED but still have a scheduledPublishAt
+    // - Articles reverted to DRAFT/SUBMITTED/REJECTED with a leftover schedule
+    const staleCleanup = await prisma.article.updateMany({
+      where: {
+        scheduledPublishAt: { not: null },
+        status: { notIn: ['APPROVED'] },
+      },
+      data: {
+        scheduledPublishAt: null,
+        scheduledPublishTargetId: null,
+      },
+    });
+
+    if (staleCleanup.count > 0) {
+      console.log(`[Scheduled Publish] Cleared ${staleCleanup.count} stale scheduled entries`);
+    }
+
+    // Find all APPROVED articles that are due to publish
     const scheduledArticles = await prisma.article.findMany({
       where: {
         status: 'APPROVED',
@@ -37,41 +55,52 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({
         message: 'No articles scheduled for publishing',
         processed: 0,
+        staleCleaned: staleCleanup.count,
       });
     }
 
     console.log(`[Scheduled Publish] Found ${scheduledArticles.length} article(s) to publish`);
 
-    // Get default publish target
-    const defaultTarget = await prisma.publishTarget.findFirst({
-      where: { isActive: true },
-      orderBy: { createdAt: 'asc' },
-    });
-
-    if (!defaultTarget) {
-      console.error('[Scheduled Publish] No active publish target found');
-      return NextResponse.json({
-        error: 'No active publish target configured',
-        processed: 0,
-      });
-    }
-
     const results = [];
 
     for (const article of scheduledArticles) {
       try {
+        // Use the stored target ID, or fall back to the first active target
+        let targetId = article.scheduledPublishTargetId;
+
+        if (!targetId) {
+          const defaultTarget = await prisma.publishTarget.findFirst({
+            where: { isActive: true },
+            orderBy: { createdAt: 'asc' },
+          });
+          if (!defaultTarget) {
+            console.error('[Scheduled Publish] No active publish target found');
+            results.push({
+              id: article.id,
+              headline: article.headline,
+              success: false,
+              error: 'No active publish target',
+            });
+            continue;
+          }
+          targetId = defaultTarget.id;
+        }
+
         console.log(`[Scheduled Publish] Publishing: ${article.headline}`);
 
         const result = await publishArticle(
           article.id,
-          defaultTarget.id,
+          targetId,
           article.author.id
         );
 
-        // Clear the scheduled time
+        // Clear the schedule fields after publish attempt
         await prisma.article.update({
           where: { id: article.id },
-          data: { scheduledPublishAt: null },
+          data: {
+            scheduledPublishAt: null,
+            scheduledPublishTargetId: null,
+          },
         });
 
         results.push({
@@ -101,6 +130,7 @@ export async function GET(request: NextRequest) {
       message: `Published ${successCount} of ${scheduledArticles.length} scheduled article(s)`,
       processed: scheduledArticles.length,
       successful: successCount,
+      staleCleaned: staleCleanup.count,
       results,
     });
   } catch (error) {
