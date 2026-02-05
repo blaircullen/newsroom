@@ -2,19 +2,10 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import prisma from '@/lib/prisma';
-import { getArticleAnalyticsForTimeRange } from '@/lib/umami';
 
-// Valid periods and their hours
-const PERIOD_HOURS: Record<string, number> = {
-  '12h': 12,
-  '24h': 24,
-  '7d': 24 * 7,
-  '30d': 24 * 30,
-};
-
-// In-memory cache for expensive Umami queries
+// In-memory cache
 const cache: Record<string, { timestamp: number; data: unknown }> = {};
-const CACHE_TTL = 10 * 60 * 1000; // 10 minutes
+const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
 
 export async function GET(request: NextRequest) {
   const session = await getServerSession(authOptions);
@@ -24,7 +15,6 @@ export async function GET(request: NextRequest) {
 
   const { searchParams } = new URL(request.url);
   const period = searchParams.get('period') || '12h';
-  const hours = PERIOD_HOURS[period] || 12;
 
   // Check cache
   const cacheKey = `top-articles-${period}`;
@@ -34,7 +24,7 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    // Fetch published articles with URLs
+    // Fetch published articles sorted by stored pageviews (fast, no external API calls)
     const publishedArticles = await prisma.article.findMany({
       where: {
         status: 'PUBLISHED',
@@ -52,75 +42,29 @@ export async function GET(request: NextRequest) {
           select: { name: true },
         },
       },
-      orderBy: { publishedAt: 'desc' },
+      orderBy: { totalPageviews: 'desc' },
       take: 50,
     });
 
-    // Fetch analytics for time range in parallel batches
-    const BATCH_SIZE = 5;
-    const articlesWithStats: Array<{
-      id: string;
-      headline: string;
-      slug: string | null;
-      publishedAt: Date | null;
-      publishedUrl: string | null;
-      recentPageviews: number;
-      recentUniqueVisitors: number;
-      totalPageviews: number;
-      totalUniqueVisitors: number;
-      author: { name: string } | null;
-    }> = [];
+    // Transform for response
+    const articlesWithStats = publishedArticles.map(article => ({
+      id: article.id,
+      headline: article.headline,
+      slug: article.slug,
+      publishedAt: article.publishedAt,
+      publishedUrl: article.publishedUrl,
+      recentPageviews: article.totalPageviews, // Use stored stats
+      recentUniqueVisitors: article.totalUniqueVisitors,
+      totalPageviews: article.totalPageviews,
+      totalUniqueVisitors: article.totalUniqueVisitors,
+      author: article.author,
+    }));
 
-    for (let i = 0; i < publishedArticles.length; i += BATCH_SIZE) {
-      const batch = publishedArticles.slice(i, i + BATCH_SIZE);
-
-      const batchResults = await Promise.all(
-        batch.map(async (article) => {
-          try {
-            const urls = article.publishedUrl!.split(' | ').map(url => url.trim());
-            const recentStats = await getArticleAnalyticsForTimeRange(urls, hours);
-
-            return {
-              id: article.id,
-              headline: article.headline,
-              slug: article.slug,
-              publishedAt: article.publishedAt,
-              publishedUrl: article.publishedUrl,
-              recentPageviews: recentStats.totalPageviews,
-              recentUniqueVisitors: recentStats.totalUniqueVisitors,
-              totalPageviews: article.totalPageviews,
-              totalUniqueVisitors: article.totalUniqueVisitors,
-              author: article.author,
-            };
-          } catch (error) {
-            console.error(`Failed to fetch stats for ${article.id}:`, error);
-            return {
-              id: article.id,
-              headline: article.headline,
-              slug: article.slug,
-              publishedAt: article.publishedAt,
-              publishedUrl: article.publishedUrl,
-              recentPageviews: 0,
-              recentUniqueVisitors: 0,
-              totalPageviews: article.totalPageviews,
-              totalUniqueVisitors: article.totalUniqueVisitors,
-              author: article.author,
-            };
-          }
-        })
-      );
-
-      articlesWithStats.push(...batchResults);
-    }
-
-    // Sort by recent pageviews
-    articlesWithStats.sort((a, b) => b.recentPageviews - a.recentPageviews);
-
-    // Calculate overview stats for the period
+    // Calculate overview stats
     const overview = {
-      totalPageviews: articlesWithStats.reduce((sum, a) => sum + a.recentPageviews, 0),
-      totalVisitors: articlesWithStats.reduce((sum, a) => sum + a.recentUniqueVisitors, 0),
-      articlesWithTraffic: articlesWithStats.filter(a => a.recentPageviews > 0).length,
+      totalPageviews: articlesWithStats.reduce((sum, a) => sum + a.totalPageviews, 0),
+      totalVisitors: articlesWithStats.reduce((sum, a) => sum + a.totalUniqueVisitors, 0),
+      articlesWithTraffic: articlesWithStats.filter(a => a.totalPageviews > 0).length,
     };
 
     const response = {
