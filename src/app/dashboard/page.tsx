@@ -370,9 +370,6 @@ export default function DashboardPage() {
                   </button>
                 </div>
 
-                {/* Mobile Stats */}
-                <StatsGrid stats={stats} isAdmin={isAdmin} isUpdating={isAutoRefreshing} />
-
                 {/* Filter Pills */}
                 <div className="flex gap-2 overflow-x-auto pb-2 -mx-4 px-4 scrollbar-none">
                   {[
