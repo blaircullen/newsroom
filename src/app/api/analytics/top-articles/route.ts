@@ -63,7 +63,7 @@ async function fetchSiteMetrics(
   const params = new URLSearchParams({
     startAt: startAt.toString(),
     endAt: endAt.toString(),
-    type: 'url',
+    type: 'path',
   });
 
   try {

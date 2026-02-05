@@ -73,8 +73,7 @@ async function getTotalActiveVisitors(): Promise<number> {
 
       if (response.ok) {
         const data = await response.json();
-        // Umami returns { x: number } for active visitors
-        total += data.x || 0;
+        total += data.visitors || 0;
       }
     } catch (error) {
       console.error(`Failed to get active visitors:`, error);
