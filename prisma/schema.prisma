@@ -59,6 +59,7 @@ model Article {
   author              User             @relation("AuthoredArticles", fields: [authorId], references: [id])
   comments            Comment[]
   reviews             Review[]
+  socialPosts         SocialPost[]
 
   @@index([authorId])
   @@index([status])
@@ -153,6 +154,8 @@ model PublishTarget {
   clientSecret    String?  @map("client_secret")
   myshopifyDomain String?  @map("myshopify_domain")
   blogId          String?  @map("blog_id")
+  socialAccounts  SocialAccount[]
+  voiceProfile    SiteVoiceProfile?
 
   @@map("publish_targets")
 }
@@ -184,4 +187,81 @@ model PasswordResetToken {
   @@index([email])
   @@index([expiresAt])
   @@map("password_reset_tokens")
+}
+
+model SocialAccount {
+  id                    String          @id @default(cuid())
+  platform              SocialPlatform
+  accountName           String          @map("account_name")
+  accountHandle         String          @map("account_handle")
+  accessToken           String          @map("access_token")
+  refreshToken          String?         @map("refresh_token")
+  tokenExpiresAt        DateTime?       @map("token_expires_at")
+  publishTargetId       String?         @map("publish_target_id")
+  isActive              Boolean         @default(true) @map("is_active")
+  optimalHours          Json?           @map("optimal_hours")
+  optimalHoursUpdatedAt DateTime?       @map("optimal_hours_updated_at")
+  createdAt             DateTime        @default(now()) @map("created_at")
+  updatedAt             DateTime        @updatedAt @map("updated_at")
+  publishTarget         PublishTarget?  @relation(fields: [publishTargetId], references: [id])
+  socialPosts           SocialPost[]
+
+  @@index([platform])
+  @@index([publishTargetId])
+  @@index([isActive])
+  @@unique([platform, accountHandle], name: "platform_accountHandle")
+  @@map("social_accounts")
+}
+
+model SocialPost {
+  id              String           @id @default(cuid())
+  articleId       String           @map("article_id")
+  socialAccountId String           @map("social_account_id")
+  caption         String
+  imageUrl        String?          @map("image_url")
+  articleUrl      String           @map("article_url")
+  scheduledAt     DateTime         @map("scheduled_at")
+  sentAt          DateTime?        @map("sent_at")
+  platformPostId  String?          @map("platform_post_id")
+  status          SocialPostStatus @default(PENDING)
+  errorMessage    String?          @map("error_message")
+  createdAt       DateTime         @default(now()) @map("created_at")
+  updatedAt       DateTime         @updatedAt @map("updated_at")
+  article         Article          @relation(fields: [articleId], references: [id], onDelete: Cascade)
+  socialAccount   SocialAccount    @relation(fields: [socialAccountId], references: [id], onDelete: Cascade)
+
+  @@index([status, scheduledAt])
+  @@index([articleId])
+  @@index([socialAccountId])
+  @@index([scheduledAt])
+  @@map("social_posts")
+}
+
+model SiteVoiceProfile {
+  id               String        @id @default(cuid())
+  publishTargetId  String        @unique @map("publish_target_id")
+  voiceDescription String        @map("voice_description")
+  systemPrompt     String        @map("system_prompt")
+  sampleArticleIds Json          @map("sample_article_ids")
+  customNotes      String?       @map("custom_notes")
+  createdAt        DateTime      @default(now()) @map("created_at")
+  updatedAt        DateTime      @updatedAt @map("updated_at")
+  publishTarget    PublishTarget @relation(fields: [publishTargetId], references: [id])
+
+  @@map("site_voice_profiles")
+}
+
+enum SocialPlatform {
+  X
+  FACEBOOK
+  TRUTHSOCIAL
+  INSTAGRAM
+}
+
+enum SocialPostStatus {
+  PENDING
+  APPROVED
+  SENDING
+  SENT
+  FAILED
 }
