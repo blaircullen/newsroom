@@ -217,22 +217,22 @@ export default function AnalyticsSection({ stats, articles }: AnalyticsSectionPr
                         {/* Trend indicator */}
                         {realtime?.recentViews?.length && 'trend' in article && (
                           <div className="flex items-center justify-end gap-1 mt-1">
-                            {article.trend === 'up' && (
+                            {(article as RealtimeData['recentViews'][0]).trend === 'up' && (
                               <>
                                 <HiArrowTrendingUp className="w-3.5 h-3.5 text-emerald-400" />
-                                <span className="text-[10px] text-emerald-400 font-medium">+{article.trendValue}</span>
+                                <span className="text-[10px] text-emerald-400 font-medium">+{(article as RealtimeData['recentViews'][0]).trendValue}</span>
                               </>
                             )}
-                            {article.trend === 'down' && (
+                            {(article as RealtimeData['recentViews'][0]).trend === 'down' && (
                               <>
                                 <HiArrowTrendingDown className="w-3.5 h-3.5 text-red-400" />
-                                <span className="text-[10px] text-red-400 font-medium">-{article.trendValue}</span>
+                                <span className="text-[10px] text-red-400 font-medium">-{(article as RealtimeData['recentViews'][0]).trendValue}</span>
                               </>
                             )}
-                            {article.trend === 'same' && (
+                            {(article as RealtimeData['recentViews'][0]).trend === 'same' && (
                               <HiMinus className="w-3.5 h-3.5 text-white/30" />
                             )}
-                            {article.trend === 'new' && (
+                            {(article as RealtimeData['recentViews'][0]).trend === 'new' && (
                               <span className="text-[10px] text-yellow-400 font-medium">NEW</span>
                             )}
                           </div>
