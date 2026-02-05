@@ -349,11 +349,14 @@ export default function DashboardPage() {
               <div className="px-4 pt-3 pb-4">
                 <div className="flex items-center justify-between mb-4">
                   <div>
-                    <h1 className="text-2xl font-bold bg-gradient-to-r from-white via-white to-press-400 bg-clip-text text-transparent">
-                      NewsRoom
-                    </h1>
-                    <p className="text-xs text-white/60 mt-0.5 flex items-center gap-1">
-                      <HiOutlineSparkles className="w-3 h-3" />
+                    <div className="flex items-start gap-0">
+                      <span className="font-black text-[32px] leading-none tracking-[-2px] text-white">N</span>
+                      <span className="font-black text-[32px] leading-none tracking-[-2px] text-press-500">R</span>
+                      <svg width="12" height="12" viewBox="0 0 20 20" fill="none" className="ml-0.5 mt-0.5">
+                        <path d="M10 0l2.5 6.9H20l-6 4.6 2.3 7L10 13.8l-6.3 4.7 2.3-7-6-4.6h7.5z" fill="#D42B2B"/>
+                      </svg>
+                    </div>
+                    <p className="text-xs text-white/60 mt-0.5">
                       {session?.user?.name || 'User'}
                     </p>
                   </div>

@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
-  <rect width="32" height="32" rx="6" fill="#111c30"/>
-  <text x="3" y="25" font-family="Arial Black, Arial, sans-serif" font-weight="900" font-size="22" fill="white">N</text>
-  <text x="16" y="25" font-family="Arial Black, Arial, sans-serif" font-weight="900" font-size="22" fill="#D42B2B">R</text>
-  <path d="M27 3l1 2.8h3l-2.4 1.8.9 2.8L27 8.6l-2.5 1.8.9-2.8L23 5.8h3z" fill="#D42B2B"/>
+  <rect width="32" height="32" rx="7" fill="#111c30"/>
+  <text text-anchor="middle" x="16" y="22" font-family="system-ui, -apple-system, BlinkMacSystemFont, sans-serif" font-weight="900" font-size="18" letter-spacing="-1">
+    <tspan fill="white">N</tspan><tspan fill="#D42B2B">R</tspan>
+  </text>
 </svg>

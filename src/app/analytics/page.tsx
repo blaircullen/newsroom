@@ -37,7 +37,7 @@ interface OverviewStats {
 export default function AnalyticsPage() {
   const { data: session } = useSession();
   const router = useRouter();
-  const [dateRange, setDateRange] = useState<'7d' | '30d' | '90d' | 'all'>('30d');
+  const [period, setPeriod] = useState<'12h' | '24h' | '7d' | '30d'>('12h');
   const [articles, setArticles] = useState<ArticleStats[]>([]);
   const [overview, setOverview] = useState<OverviewStats | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -48,38 +48,42 @@ export default function AnalyticsPage() {
     const fetchData = async () => {
       setIsLoading(true);
       try {
-        // Fetch published articles
-        const res = await fetch('/api/articles?status=PUBLISHED&limit=100&sortBy=pageviews');
+        // Fetch top articles for the selected time period
+        const res = await fetch(`/api/analytics/top-articles?period=${period}`);
         const data = await res.json();
-        const publishedArticles = data.articles || [];
 
-        // Calculate overview stats
+        const topArticles = data.articles || [];
+
+        // Set overview stats from the API response
         const stats: OverviewStats = {
-          totalArticles: publishedArticles.length,
-          totalPageviews: publishedArticles.reduce((sum: number, a: ArticleStats) => sum + (a.totalPageviews || 0), 0),
-          totalVisitors: publishedArticles.reduce((sum: number, a: ArticleStats) => sum + (a.totalUniqueVisitors || 0), 0),
-          avgPageviewsPerArticle: 0,
+          totalArticles: data.overview?.articlesWithTraffic || 0,
+          totalPageviews: data.overview?.totalPageviews || 0,
+          totalVisitors: data.overview?.totalVisitors || 0,
+          avgPageviewsPerArticle: data.overview?.articlesWithTraffic > 0
+            ? Math.round(data.overview.totalPageviews / data.overview.articlesWithTraffic)
+            : 0,
         };
-        stats.avgPageviewsPerArticle = stats.totalArticles > 0
-          ? Math.round(stats.totalPageviews / stats.totalArticles)
-          : 0;
-
         setOverview(stats);
 
-        // Fetch sparkline data
-        const ids = publishedArticles.slice(0, 20).map((a: ArticleStats) => a.id).join(',');
+        // Fetch sparkline data for top articles
+        const ids = topArticles.slice(0, 20).map((a: { id: string }) => a.id).join(',');
         if (ids) {
           const sparkRes = await fetch(`/api/analytics/daily-stats?ids=${ids}`);
           const sparkData = await sparkRes.json();
 
-          const articlesWithSparklines = publishedArticles.map((a: ArticleStats) => ({
+          const articlesWithSparklines = topArticles.map((a: ArticleStats & { recentPageviews?: number }) => ({
             ...a,
+            // Use recentPageviews for the selected period
+            totalPageviews: a.recentPageviews ?? a.totalPageviews,
             sparkline: sparkData.stats?.[a.id] || [],
           }));
 
           setArticles(articlesWithSparklines);
         } else {
-          setArticles(publishedArticles);
+          setArticles(topArticles.map((a: ArticleStats & { recentPageviews?: number }) => ({
+            ...a,
+            totalPageviews: a.recentPageviews ?? a.totalPageviews,
+          })));
         }
       } catch (error) {
         console.error('Failed to fetch analytics:', error);
@@ -89,7 +93,7 @@ export default function AnalyticsPage() {
     };
 
     fetchData();
-  }, [dateRange, session]);
+  }, [period, session]);
 
   if (!session) return null;
 
@@ -107,17 +111,22 @@ export default function AnalyticsPage() {
             </p>
           </div>
           <div className="flex items-center gap-2 bg-white dark:bg-ink-800 rounded-lg border border-ink-200 dark:border-ink-700 p-1">
-            {(['7d', '30d', '90d', 'all'] as const).map((range) => (
+            {([
+              { value: '12h', label: '12H' },
+              { value: '24h', label: 'Day' },
+              { value: '7d', label: 'Week' },
+              { value: '30d', label: 'Month' },
+            ] as const).map((option) => (
               <button
-                key={range}
-                onClick={() => setDateRange(range)}
+                key={option.value}
+                onClick={() => setPeriod(option.value)}
                 className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${
-                  dateRange === range
+                  period === option.value
                     ? 'bg-ink-900 dark:bg-ink-700 text-white'
                     : 'text-ink-500 hover:text-ink-700 dark:hover:text-ink-300'
                 }`}
               >
-                {range === 'all' ? 'All Time' : range.toUpperCase()}
+                {option.label}
               </button>
             ))}
           </div>
@@ -165,6 +174,9 @@ export default function AnalyticsPage() {
                     <h2 className="font-display font-semibold text-ink-900 dark:text-white">
                       Top Performing Articles
                     </h2>
+                    <p className="text-xs text-ink-400 mt-0.5">
+                      Ranked by pageviews in the last {period === '12h' ? '12 hours' : period === '24h' ? '24 hours' : period === '7d' ? '7 days' : '30 days'}
+                    </p>
                   </div>
                   <div className="divide-y divide-ink-100 dark:divide-ink-800">
                     {articles.slice(0, 10).map((article, index) => (
