@@ -220,7 +220,7 @@ export default function Sidebar() {
   return (
     <aside className="fixed left-0 top-0 h-screen w-64 flex flex-col z-40 bg-gradient-to-b from-ink-950 to-ink-900">
       {/* Logo */}
-      <div className="px-5 pt-5 pb-4 border-b border-white/10">
+      <div className="px-5 pt-5 pb-4 border-b border-white/10 flex-shrink-0">
         <Link href="/dashboard" className="inline-flex items-center gap-0 group">
           <span className="font-black text-[28px] leading-none tracking-[-1.5px] text-white">N</span>
           <span className="font-black text-[28px] leading-none tracking-[-1.5px] text-press-500">R</span>
@@ -230,41 +230,43 @@ export default function Sidebar() {
         </Link>
       </div>
 
-      {/* Navigation */}
-      <nav className="py-4 px-3 space-y-0.5" aria-label="Main navigation">
-        {navItems.map((item) => {
-          const isActive = isNavItemActive(item.href, pathname);
-          const Icon = item.icon;
-          return (
-            <Link key={item.href} href={item.href}
-              className={`flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-150
-                ${isActive ? 'bg-press-500/15 text-press-400' : 'text-ink-200 hover:bg-white/5 hover:text-white'}
-                focus:outline-none focus:ring-2 focus:ring-press-500/50 focus:ring-offset-2 focus:ring-offset-ink-900`}
-              aria-current={isActive ? 'page' : undefined}>
-              <Icon className={`w-5 h-5 flex-shrink-0 ${isActive ? 'text-press-400' : ''}`} />
-              {item.label}
-            </Link>
-          );
-        })}
-      </nav>
+      {/* Scrollable middle section */}
+      <div className="flex-1 overflow-y-auto overflow-x-hidden">
+        {/* Navigation */}
+        <nav className="py-4 px-3 space-y-0.5" aria-label="Main navigation">
+          {navItems.map((item) => {
+            const isActive = isNavItemActive(item.href, pathname);
+            const Icon = item.icon;
+            return (
+              <Link key={item.href} href={item.href}
+                className={`flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-150
+                  ${isActive ? 'bg-press-500/15 text-press-400' : 'text-ink-200 hover:bg-white/5 hover:text-white'}
+                  focus:outline-none focus:ring-2 focus:ring-press-500/50 focus:ring-offset-2 focus:ring-offset-ink-900`}
+                aria-current={isActive ? 'page' : undefined}>
+                <Icon className={`w-5 h-5 flex-shrink-0 ${isActive ? 'text-press-400' : ''}`} />
+                {item.label}
+              </Link>
+            );
+          })}
+        </nav>
 
-      {/* Spacer */}
-      <div className="flex-1" />
-
-      {/* Unified Insights Panel */}
-      <InsightsPanel />
-
-      {/* Quick Search Hint */}
-      <div className="mx-3 mb-2">
-        <div className="flex items-center gap-2 px-3 py-1.5 rounded-md bg-white/5 text-ink-400 text-xs">
-          <HiOutlineMagnifyingGlass className="w-3.5 h-3.5" />
-          <span>Quick search</span>
-          <kbd className="ml-auto px-1.5 py-0.5 bg-white/10 rounded text-[10px] font-mono">⌘K</kbd>
-        </div>
+        {/* Unified Insights Panel */}
+        <InsightsPanel />
       </div>
 
-      {/* User Section - Compact */}
-      <div className="px-4 py-3 border-t border-white/10">
+      {/* Fixed bottom section */}
+      <div className="flex-shrink-0">
+        {/* Quick Search Hint */}
+        <div className="mx-3 mb-2">
+          <div className="flex items-center gap-2 px-3 py-1.5 rounded-md bg-white/5 text-ink-400 text-xs">
+            <HiOutlineMagnifyingGlass className="w-3.5 h-3.5" />
+            <span>Quick search</span>
+            <kbd className="ml-auto px-1.5 py-0.5 bg-white/10 rounded text-[10px] font-mono">⌘K</kbd>
+          </div>
+        </div>
+
+        {/* User Section - Compact */}
+        <div className="px-4 py-3 border-t border-white/10">
         <div className="flex items-center gap-3">
           <div className="w-8 h-8 rounded-full bg-press-500/20 flex items-center justify-center flex-shrink-0">
             <span className="text-press-400 text-xs font-semibold">
@@ -284,6 +286,7 @@ export default function Sidebar() {
             <HiOutlineArrowRightOnRectangle className="w-4 h-4" />
           </button>
           <ThemeToggle />
+        </div>
         </div>
       </div>
     </aside>
