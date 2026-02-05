@@ -145,7 +145,7 @@ export default function AnalyticsPage() {
                 Performance Hub
               </h1>
               <p className="text-ink-400 mt-1">
-                {isRealtime ? 'Live analytics from Umami' : 'Analytics and insights for your content'}
+                {isRealtime ? 'Live analytics from M3 Analytics' : 'Analytics and insights for your content'}
               </p>
             </div>
             {isLive && (
@@ -246,7 +246,7 @@ export default function AnalyticsPage() {
                     </div>
                     {isRealtime && (
                       <span className="text-[10px] font-medium text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-900/30 px-2 py-1 rounded-full uppercase tracking-wider">
-                        Umami Live
+                        M3 Live
                       </span>
                     )}
                   </div>
