@@ -15,27 +15,25 @@ interface ProfileSectionProps {
 export default function ProfileSection({ session }: ProfileSectionProps) {
   return (
     <div className="pb-6">
-      {/* Mobile Profile View */}
+      {/* Mobile Profile View - Minimal */}
       <div className="md:hidden">
-        <div className="flex flex-col items-center mb-8">
-          <div className="w-24 h-24 rounded-full bg-gradient-to-br from-press-500 to-press-600 flex items-center justify-center ring-4 ring-press-400/30 mb-4">
-            <span className="text-white text-3xl font-bold">
+        <div className="flex flex-col items-center mb-10">
+          <div className="w-20 h-20 rounded-full bg-white/10 flex items-center justify-center mb-4">
+            <span className="text-white text-2xl font-medium">
               {session?.user?.name?.charAt(0).toUpperCase() || 'U'}
             </span>
           </div>
-          <h1 className="text-2xl font-bold text-white mb-1">{session?.user?.name || 'User'}</h1>
-          <p className="text-sm text-white/60">{session?.user?.email || ''}</p>
-          <div className="mt-3 px-3 py-1 rounded-full bg-press-500/20 border border-press-400/30">
-            <span className="text-xs font-semibold text-press-300 uppercase tracking-wider">
-              {session?.user?.role || 'USER'}
-            </span>
-          </div>
+          <h1 className="text-xl font-medium text-white mb-1">{session?.user?.name || 'User'}</h1>
+          <p className="text-sm text-white/40">{session?.user?.email || ''}</p>
+          <span className="mt-3 text-xs text-white/30 uppercase tracking-wider">
+            {session?.user?.role || 'USER'}
+          </span>
         </div>
 
-        <div className="space-y-2">
+        <div className="space-y-3">
           <button
             onClick={() => signOut()}
-            className="w-full p-4 rounded-xl bg-red-500/20 border border-red-400/30 text-red-300 font-semibold active:scale-[0.98] transition-transform"
+            className="w-full py-4 rounded-xl bg-white/5 border border-white/10 text-white/70 font-medium active:scale-[0.98] active:bg-white/10 transition-all"
           >
             Sign Out
           </button>

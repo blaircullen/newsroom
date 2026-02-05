@@ -101,167 +101,123 @@ export default function AnalyticsSection({ stats, articles }: AnalyticsSectionPr
   const isLive = realtime && (Date.now() - realtime.timestamp) < 30000;
 
   return (
-    <div className="bg-slate-900 min-h-screen px-4 pt-4 pb-32">
-      {/* Header with Live indicator */}
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <h1 className="text-2xl font-bold text-white">Analytics</h1>
-          <p className="text-xs text-white/50 mt-0.5">Your content performance</p>
-        </div>
+    <div className="bg-black min-h-screen px-5 pt-6 pb-32">
+      {/* Minimal Header */}
+      <div className="flex items-center justify-between mb-8">
+        <h1 className="text-xl font-medium text-white tracking-tight">Analytics</h1>
         {isLive && (
-          <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-emerald-500/20 border border-emerald-500/30">
+          <div className="flex items-center gap-2">
             <span className="relative flex h-2 w-2">
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
               <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
             </span>
-            <span className="text-xs font-semibold text-emerald-400 uppercase tracking-wider">Live</span>
+            <span className="text-xs font-medium text-emerald-400">Live</span>
           </div>
         )}
       </div>
 
-      {/* Live Readers Hero */}
-      <div className="bg-gradient-to-br from-slate-800 to-slate-900 rounded-3xl p-6 mb-6 border border-white/10 relative overflow-hidden">
-        {/* Animated glow effect */}
-        <div className="absolute inset-0 opacity-30">
-          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-32 h-32 bg-emerald-500 rounded-full blur-3xl animate-pulse" />
-        </div>
-
-        <div className="relative text-center">
-          <div className="flex items-center justify-center gap-3 mb-2">
-            <span className="relative flex h-3 w-3">
+      {/* Live Readers Hero - Clean, minimal */}
+      <div className="mb-10">
+        <div className="text-center py-8">
+          <div className="flex items-center justify-center gap-3 mb-3">
+            <span className="relative flex h-2.5 w-2.5">
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-              <span className="relative inline-flex rounded-full h-3 w-3 bg-emerald-500"></span>
+              <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
             </span>
-            <span className={`text-6xl font-bold text-white tabular-nums transition-opacity ${isLoading && !realtime ? 'opacity-50' : ''}`}>
+            <span className={`text-7xl font-light text-white tabular-nums tracking-tight transition-opacity ${isLoading && !realtime ? 'opacity-30' : ''}`}>
               {realtime?.activeVisitors ?? '—'}
             </span>
           </div>
-          <p className="text-white/60 text-sm">
-            active across all sites
+          <p className="text-white/40 text-sm font-light">
+            readers active now
           </p>
         </div>
       </div>
 
 
-      {/* Hot Right Now Section */}
-      <div className="mb-4">
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center gap-2">
-            <HiOutlineFire className="w-5 h-5 text-orange-500" />
-            <h2 className="text-sm font-semibold text-white uppercase tracking-wider">
-              {realtime?.recentViews?.length ? 'Hot Right Now' : 'Top Performers'}
-            </h2>
-          </div>
-          <span className="text-xs text-white/40">
-            {realtime?.recentViews?.length ? 'Last 30 min' : 'All-time'}
+      {/* Hot Right Now Section - Minimal list */}
+      <div className="mb-6">
+        <div className="flex items-center justify-between mb-5">
+          <h2 className="text-sm font-medium text-white/70">
+            {realtime?.recentViews?.length ? 'Trending Now' : 'Top Stories'}
+          </h2>
+          <span className="text-xs text-white/30">
+            {realtime?.recentViews?.length ? '30 min' : 'All time'}
           </span>
         </div>
 
         {isLoading && !realtime ? (
-          // Skeleton loading state
-          <div className="space-y-3">
+          // Skeleton loading state - minimal
+          <div className="space-y-1">
             {[1, 2, 3, 4, 5].map((i) => (
-              <div key={i} className="backdrop-blur rounded-2xl p-4 bg-white/5 border border-white/10 animate-pulse">
-                <div className="flex items-center gap-4">
-                  <div className="w-10 h-10 rounded-full bg-white/10" />
-                  <div className="flex-1">
-                    <div className="h-4 bg-white/10 rounded w-3/4 mb-2" />
-                    <div className="h-3 bg-white/10 rounded w-1/2" />
-                  </div>
-                  <div className="w-12 h-6 bg-white/10 rounded" />
+              <div key={i} className="flex items-center gap-4 py-4 animate-pulse">
+                <div className="w-6 h-6 rounded-full bg-white/5" />
+                <div className="flex-1">
+                  <div className="h-4 bg-white/5 rounded w-3/4" />
                 </div>
+                <div className="w-10 h-4 bg-white/5 rounded" />
               </div>
             ))}
           </div>
         ) : displayArticles.length > 0 ? (
-          <div className="space-y-3">
+          <div className="divide-y divide-white/5">
             {displayArticles.slice(0, 5).map((article, index) => (
               <Link key={article.id} href={`/editor/${article.id}`}>
-                <div className="group active:scale-[0.98] transition-transform">
-                  <div className={`
-                    backdrop-blur rounded-2xl p-4 transition-all border
-                    ${index === 0 && realtime?.recentViews?.length
-                      ? 'bg-gradient-to-r from-orange-500/20 to-red-500/20 border-orange-500/30'
-                      : 'bg-white/5 border-white/10 hover:bg-white/10'
-                    }
-                  `}>
-                    <div className="flex items-center gap-4">
-                      {/* Rank */}
-                      <div className={`
-                        flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center font-bold text-lg
-                        ${index === 0 ? 'bg-gradient-to-br from-orange-500 to-red-500 text-white' :
-                          index === 1 ? 'bg-white/10 text-white/80' :
-                          index === 2 ? 'bg-white/10 text-white/60' :
-                          'bg-white/5 text-white/40'}
-                      `}>
-                        {index + 1}
-                      </div>
+                <div className="flex items-center gap-4 py-4 active:bg-white/5 transition-colors rounded-lg -mx-2 px-2">
+                  {/* Rank - minimal */}
+                  <span className={`w-6 text-center font-medium tabular-nums ${
+                    index === 0 ? 'text-white' : 'text-white/30'
+                  }`}>
+                    {index + 1}
+                  </span>
 
-                      {/* Content */}
-                      <div className="flex-1 min-w-0">
-                        <h3 className="text-sm font-medium text-white leading-snug line-clamp-2">
-                          {article.headline}
-                        </h3>
-                      </div>
+                  {/* Content */}
+                  <div className="flex-1 min-w-0">
+                    <h3 className={`text-sm leading-snug line-clamp-2 ${
+                      index === 0 ? 'text-white font-medium' : 'text-white/70'
+                    }`}>
+                      {article.headline}
+                    </h3>
+                  </div>
 
-                      {/* Views and Trend */}
-                      <div className="flex-shrink-0 text-right">
-                        <div className={`flex items-center gap-1.5 ${
-                          index === 0 && realtime?.recentViews?.length ? 'text-orange-400' : 'text-cyan-400'
-                        }`}>
-                          <span className="text-base font-bold tabular-nums">
-                            {article.views.toLocaleString()}
-                          </span>
-                          <HiOutlineEye className="w-4 h-4 opacity-60" />
-                        </div>
-                        {/* Trend indicator */}
-                        {realtime?.recentViews?.length && 'trend' in article && (
-                          <div className="flex items-center justify-end gap-1 mt-1">
-                            {(article as RealtimeData['recentViews'][0]).trend === 'up' && (
-                              <>
-                                <HiArrowTrendingUp className="w-3.5 h-3.5 text-emerald-400" />
-                                <span className="text-[10px] text-emerald-400 font-medium">+{(article as RealtimeData['recentViews'][0]).trendValue}</span>
-                              </>
-                            )}
-                            {(article as RealtimeData['recentViews'][0]).trend === 'down' && (
-                              <>
-                                <HiArrowTrendingDown className="w-3.5 h-3.5 text-red-400" />
-                                <span className="text-[10px] text-red-400 font-medium">-{(article as RealtimeData['recentViews'][0]).trendValue}</span>
-                              </>
-                            )}
-                            {(article as RealtimeData['recentViews'][0]).trend === 'same' && (
-                              <HiMinus className="w-3.5 h-3.5 text-white/30" />
-                            )}
-                            {(article as RealtimeData['recentViews'][0]).trend === 'new' && (
-                              <span className="text-[10px] text-yellow-400 font-medium">NEW</span>
-                            )}
-                          </div>
+                  {/* Views and Trend */}
+                  <div className="flex items-center gap-2 flex-shrink-0">
+                    {/* Trend indicator */}
+                    {realtime?.recentViews?.length && 'trend' in article && (
+                      <>
+                        {(article as RealtimeData['recentViews'][0]).trend === 'up' && (
+                          <HiArrowTrendingUp className="w-3.5 h-3.5 text-emerald-500" />
                         )}
-                      </div>
-                    </div>
+                        {(article as RealtimeData['recentViews'][0]).trend === 'down' && (
+                          <HiArrowTrendingDown className="w-3.5 h-3.5 text-red-400" />
+                        )}
+                        {(article as RealtimeData['recentViews'][0]).trend === 'new' && (
+                          <span className="text-[10px] text-amber-400 font-medium">NEW</span>
+                        )}
+                      </>
+                    )}
+                    <span className={`text-sm tabular-nums ${
+                      index === 0 ? 'text-white font-medium' : 'text-white/50'
+                    }`}>
+                      {article.views.toLocaleString()}
+                    </span>
                   </div>
                 </div>
               </Link>
             ))}
           </div>
         ) : (
-          <div className="pt-8 text-center">
-            <div className="relative inline-block mb-4">
-              <div className="absolute inset-0 blur-xl bg-cyan-500/10 rounded-full scale-150" />
-              <div className="relative w-16 h-16 rounded-full bg-white/5 flex items-center justify-center border border-white/10">
-                <HiOutlineChartBar className="w-8 h-8 text-cyan-500/50" />
-              </div>
-            </div>
-            <p className="text-white font-medium">No analytics yet</p>
-            <p className="text-sm text-white/50 mt-1">Publish your first story to see performance</p>
+          <div className="py-16 text-center">
+            <HiOutlineChartBar className="w-8 h-8 text-white/20 mx-auto mb-3" />
+            <p className="text-white/50 text-sm">No data yet</p>
           </div>
         )}
       </div>
 
-      {/* Last updated */}
+      {/* Last updated - subtle */}
       {lastUpdate && (
-        <p className="text-center text-xs text-white/30 mt-6">
-          Updated {lastUpdate.toLocaleTimeString()}
+        <p className="text-center text-xs text-white/20 mt-8">
+          {lastUpdate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
         </p>
       )}
     </div>
