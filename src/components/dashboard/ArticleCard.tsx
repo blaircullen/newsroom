@@ -166,10 +166,10 @@ export default function ArticleCard({
 
   return (
     <div
-      className={`rounded-2xl md:rounded-xl border transition-all duration-300 ease-out group relative ${
+      className={`rounded-xl md:rounded-xl border transition-all duration-200 group relative ${
         isTopPerformer
           ? 'bg-gradient-to-br from-amber-50 to-orange-50 dark:from-amber-900/20 dark:to-orange-900/20 border-transparent shadow-lg shadow-amber-100/50 dark:shadow-amber-900/30 ring-2 ring-amber-400/30 dark:ring-amber-600/30'
-          : 'bg-white/5 md:bg-white md:dark:bg-ink-900 border-white/10 md:border-ink-100 md:dark:border-ink-800 hover:bg-white/10 md:hover:shadow-card-hover md:hover:border-ink-200 md:dark:hover:border-ink-700 active:scale-[0.98] md:active:scale-100'
+          : 'bg-slate-800/70 md:bg-white md:dark:bg-ink-900 border-slate-600/50 md:border-ink-100 md:dark:border-ink-800 hover:shadow-card-hover md:hover:border-ink-200 md:dark:hover:border-ink-700'
       }`}
     >
       {/* Top Performer Badge - Desktop only */}
@@ -184,24 +184,26 @@ export default function ArticleCard({
         </div>
       )}
 
-      <Link href={`/editor/${article.id}`} className="block transition-transform">
-        <div className="p-5 md:p-5">
-          {/* Mobile Header - Minimal Status */}
-          <div className="flex items-center justify-between mb-4 md:hidden">
+      <Link href={`/editor/${article.id}`} className="block active:scale-[0.98] md:active:scale-100 transition-transform">
+        <div className="p-4 md:p-5">
+          {/* Mobile Header - Status Badge */}
+          <div className="flex items-center justify-between mb-3 md:hidden">
             <div className="flex items-center gap-2">
-              <span className={`w-2 h-2 rounded-full ${dotClass}`} />
-              <span className="text-xs font-medium text-white/60 uppercase tracking-wide">
-                {config.label}
-              </span>
+              <div className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-gradient-to-r ${config.mobileClass} border`}>
+                <span className={`w-1.5 h-1.5 rounded-full ${dotClass}`} />
+                <span className="text-[10px] font-bold uppercase tracking-wider">
+                  {article.status}
+                </span>
+              </div>
               {/* AI Review Badge - Mobile */}
               {article.status !== 'DRAFT' && (
                 <AIReviewBadge status={article.aiReviewStatus} findings={article.aiReviewFindings} />
               )}
             </div>
             {article.status === 'PUBLISHED' && article.totalPageviews > 0 && (
-              <div className="flex items-center gap-1.5 text-white/70">
+              <div className="flex items-center gap-1 text-emerald-400">
                 <HiOutlineEye className="w-4 h-4" />
-                <span className="text-sm font-medium tabular-nums">{article.totalPageviews.toLocaleString()}</span>
+                <span className="text-sm font-semibold">{article.totalPageviews.toLocaleString()}</span>
               </div>
             )}
           </div>
@@ -244,13 +246,13 @@ export default function ArticleCard({
               </div>
 
               {/* Mobile Headline */}
-              <h3 className="md:hidden text-lg font-semibold text-white leading-tight mb-3 transition-colors">
+              <h3 className="md:hidden text-base font-bold text-white line-clamp-2 leading-snug mb-2 group-active:text-press-400 transition-colors">
                 {article.headline}
               </h3>
 
               {/* Mobile Subheadline */}
               {article.subHeadline && (
-                <p className="md:hidden text-sm text-white/50 line-clamp-2 leading-relaxed mb-4">
+                <p className="md:hidden text-sm text-white/60 line-clamp-2 leading-relaxed mb-3">
                   {article.subHeadline}
                 </p>
               )}
@@ -290,16 +292,18 @@ export default function ArticleCard({
                 )}
               </div>
 
-              {/* Mobile Footer - Minimal */}
-              <div className="flex md:hidden items-center justify-between pt-4 mt-1">
-                <div className="flex items-center gap-2 text-xs text-white/40">
+              {/* Mobile Footer */}
+              <div className="flex md:hidden items-center justify-between pt-3 border-t border-white/10">
+                <div className="flex items-center gap-2 text-xs text-white/50">
                   <span>{article.author?.name || 'Unknown'}</span>
-                  <span>·</span>
+                  <span className="text-white/30">•</span>
                   <span>{timeAgo}</span>
                 </div>
-                <svg className="w-4 h-4 text-white/30" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                </svg>
+                <div className="text-white/40 group-active:text-press-400 transition-colors">
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                  </svg>
+                </div>
               </div>
 
               {/* Desktop Analytics row */}

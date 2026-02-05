@@ -355,15 +355,15 @@ export default function DashboardPage() {
         onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd}
       >
-        {/* Pull to Refresh Indicator - Minimal */}
+        {/* Pull to Refresh Indicator */}
         {pullDistance > 0 && (
           <div
-            className="fixed top-0 left-0 right-0 flex items-center justify-center z-50 transition-opacity pointer-events-none"
+            className="fixed top-0 left-0 right-0 flex items-center justify-center z-50 transition-opacity"
             style={{ height: `${pullDistance}px`, opacity: pullDistance / 100 }}
           >
-            <div className="bg-white/10 backdrop-blur-xl rounded-full p-2.5">
+            <div className="bg-slate-800/90 backdrop-blur-xl rounded-full p-2">
               <HiOutlineArrowPath
-                className={`w-5 h-5 text-white ${pullDistance > 60 ? 'animate-spin' : ''}`}
+                className={`w-6 h-6 text-press-400 ${pullDistance > 60 ? 'animate-spin' : ''}`}
                 style={{ transform: `rotate(${pullDistance * 3.6}deg)` }}
               />
             </div>
@@ -372,46 +372,54 @@ export default function DashboardPage() {
 
         {/* Home Tab - Mobile */}
         {activeTab === 'home' && (
-          <div className="bg-black min-h-screen">
-            {/* Mobile Header - Minimal */}
-            <div className="sticky top-0 z-40 bg-black/95 backdrop-blur-xl">
-              <div className="px-5 pt-4 pb-4">
-                <div className="flex items-center justify-between mb-5">
+          <div className="bg-slate-900">
+            {/* Mobile Header */}
+            <div className="sticky top-0 z-40 bg-slate-900/95 backdrop-blur-xl">
+              <div className="px-4 pt-3 pb-4">
+                <div className="flex items-center justify-between mb-4">
                   <div>
-                    <h1 className="text-xl font-medium text-white tracking-tight">Stories</h1>
-                    <p className="text-xs text-white/40 mt-0.5">
+                    <div className="flex items-start gap-0">
+                      <span className="font-black text-[32px] leading-none tracking-[-2px] text-white">N</span>
+                      <span className="font-black text-[32px] leading-none tracking-[-2px] text-press-500">R</span>
+                      <svg width="12" height="12" viewBox="0 0 20 20" fill="none" className="ml-0.5 mt-0.5">
+                        <path d="M10 0l2.5 6.9H20l-6 4.6 2.3 7L10 13.8l-6.3 4.7 2.3-7-6-4.6h7.5z" fill="#D42B2B"/>
+                      </svg>
+                    </div>
+                    <p className="text-xs text-white/60 mt-0.5">
                       {session?.user?.name || 'User'}
                     </p>
                   </div>
                   <button
                     onClick={() => handleTabChange('profile')}
-                    className="w-9 h-9 rounded-full bg-white/10 flex items-center justify-center active:scale-95 transition-transform"
+                    className="w-10 h-10 rounded-full bg-gradient-to-br from-press-500 to-press-600 flex items-center justify-center ring-2 ring-press-400/20 active:scale-95 transition-transform"
                   >
-                    <span className="text-white text-sm font-medium">
+                    <span className="text-white text-sm font-bold">
                       {session?.user?.name?.charAt(0).toUpperCase() || 'U'}
                     </span>
                   </button>
                 </div>
 
-                {/* Filter Pills - Minimal */}
-                <div className="flex gap-2 overflow-x-auto pb-1 -mx-5 px-5 scrollbar-none">
+                {/* Filter Pills */}
+                <div className="flex gap-2 overflow-x-auto pb-2 -mx-4 px-4 scrollbar-none">
                   {[
-                    { label: 'All', value: null },
-                    { label: 'Published', value: 'PUBLISHED' },
-                    { label: 'Drafts', value: 'DRAFT' },
-                    ...(isAdmin ? [{ label: 'Review', value: 'SUBMITTED' }] : []),
+                    { label: 'All', value: null, icon: HiOutlineHome },
+                    { label: 'Published', value: 'PUBLISHED', icon: HiOutlineCheckCircle },
+                    { label: 'Drafts', value: 'DRAFT', icon: HiOutlinePencilSquare },
+                    ...(isAdmin ? [{ label: 'Review', value: 'SUBMITTED', icon: HiOutlineClock }] : []),
                   ].map((filter) => {
+                    const Icon = filter.icon;
                     const isActive = activeFilter === filter.value || (activeFilter === '' && filter.value === null);
                     return (
                       <button
                         key={filter.label}
                         onClick={() => handleFilterChange(filter.value || '')}
-                        className={`px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-all duration-200 active:scale-95 ${
+                        className={`flex items-center gap-1.5 px-4 py-2.5 rounded-full text-xs font-semibold whitespace-nowrap transition-all active:scale-95 ${
                           isActive
-                            ? 'bg-white text-black'
-                            : 'text-white/60 active:text-white/80'
+                            ? 'bg-white text-ink-950 shadow-lg shadow-white/20'
+                            : 'bg-white/10 text-white/70 border border-white/20 active:bg-white/15'
                         }`}
                       >
+                        <Icon className="w-4 h-4" />
                         {filter.label}
                       </button>
                     );
@@ -421,16 +429,18 @@ export default function DashboardPage() {
             </div>
 
             {/* Article Feed */}
-            <div className="px-5 space-y-2 pb-4">
+            <div className="px-4 space-y-3">
               {isLoading ? (
                 <div className="flex items-center justify-center py-20">
-                  <div className="animate-spin w-6 h-6 border-2 border-white/20 border-t-white rounded-full" />
+                  <div className="animate-spin w-8 h-8 border-2 border-ink-200 border-t-press-500 rounded-full" />
                 </div>
               ) : articles.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-20 text-center">
-                  <HiOutlinePlusCircle className="w-12 h-12 text-white/20 mb-4" />
-                  <p className="text-white/60 text-sm">No stories yet</p>
-                  <p className="text-white/40 text-xs mt-1">Tap + to create your first</p>
+                  <div className="w-20 h-20 rounded-full bg-gradient-to-br from-ink-800 to-ink-900 flex items-center justify-center mb-4 ring-1 ring-white/10">
+                    <HiOutlinePlusCircle className="w-10 h-10 text-white/40" />
+                  </div>
+                  <p className="text-white/80 text-base font-medium">No stories yet</p>
+                  <p className="text-white/50 text-sm mt-1">Tap the + button to create your first</p>
                 </div>
               ) : (
                 articles.map((article) => (
@@ -446,10 +456,13 @@ export default function DashboardPage() {
               )}
             </div>
 
-            {/* Mobile FAB - Minimal */}
-            <Link href="/editor" className="fixed bottom-20 right-5 z-50">
-              <div className="w-14 h-14 rounded-full bg-white shadow-2xl shadow-black/30 flex items-center justify-center active:scale-90 transition-transform">
-                <HiOutlinePlusCircle className="w-7 h-7 text-black" />
+            {/* Mobile FAB */}
+            <Link href="/editor" className="fixed bottom-24 right-5 z-50 group">
+              <div className="relative">
+                <div className="absolute inset-0 bg-gradient-to-r from-press-500 to-press-600 rounded-full blur-xl opacity-60 group-active:opacity-80 transition-opacity" />
+                <div className="relative w-16 h-16 rounded-full bg-gradient-to-br from-press-500 to-press-600 shadow-2xl shadow-press-500/40 flex items-center justify-center ring-4 ring-ink-950 group-active:scale-90 transition-transform">
+                  <HiOutlinePlusCircle className="w-8 h-8 text-white" />
+                </div>
               </div>
             </Link>
           </div>
@@ -457,7 +470,7 @@ export default function DashboardPage() {
 
         {/* Hot Tab - Mobile */}
         {activeTab === 'hot' && (
-          <div className="bg-black min-h-screen px-5 pt-6">
+          <div className="bg-slate-900 min-h-screen px-4 pt-4">
             <HotSection
               hotArticles={hotArticles}
               storyIdeas={storyIdeas}
@@ -477,7 +490,7 @@ export default function DashboardPage() {
 
         {/* Profile Tab - Mobile */}
         {activeTab === 'profile' && (
-          <div className="bg-black min-h-screen px-5 pt-8">
+          <div className="bg-gradient-to-b from-ink-950 via-ink-950 to-ink-900 min-h-screen px-4 pt-8">
             <ProfileSection session={session} />
           </div>
         )}
