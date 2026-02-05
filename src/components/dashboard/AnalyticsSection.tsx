@@ -108,7 +108,7 @@ export default function AnalyticsSection({ stats, articles }: AnalyticsSectionPr
                 </span>
               </div>
               <p className="text-white/60 text-sm">
-                {realtime?.activeVisitors === 1 ? 'reader' : 'readers'} on your articles now
+                active across all sites
               </p>
             </>
           )}
@@ -119,10 +119,10 @@ export default function AnalyticsSection({ stats, articles }: AnalyticsSectionPr
       <div className="grid grid-cols-3 gap-3 mb-6">
         <div className="bg-white/5 backdrop-blur rounded-2xl p-4 border border-white/10 text-center">
           <p className="text-2xl font-bold text-white">{stats.totalViews.toLocaleString()}</p>
-          <p className="text-[10px] text-white/50 uppercase tracking-wider mt-1">All-time views</p>
+          <p className="text-[10px] text-white/50 uppercase tracking-wider mt-1">All-time</p>
         </div>
         <div className="bg-white/5 backdrop-blur rounded-2xl p-4 border border-white/10 text-center">
-          <p className="text-2xl font-bold text-cyan-400">{realtime?.totalRecentViews || 0}</p>
+          <p className="text-2xl font-bold text-cyan-400">{(realtime?.totalRecentViews || 0).toLocaleString()}</p>
           <p className="text-[10px] text-white/50 uppercase tracking-wider mt-1">Last 30 min</p>
         </div>
         <div className="bg-white/5 backdrop-blur rounded-2xl p-4 border border-white/10 text-center">
@@ -140,9 +140,9 @@ export default function AnalyticsSection({ stats, articles }: AnalyticsSectionPr
               {realtime?.recentViews?.length ? 'Hot Right Now' : 'Top Performers'}
             </h2>
           </div>
-          {realtime?.recentViews?.length ? (
-            <span className="text-xs text-white/40">Last 30 minutes</span>
-          ) : null}
+          <span className="text-xs text-white/40">
+            {realtime?.recentViews?.length ? 'Last 30 min' : 'All-time'}
+          </span>
         </div>
 
         {displayArticles.length > 0 ? (
@@ -181,9 +181,9 @@ export default function AnalyticsSection({ stats, articles }: AnalyticsSectionPr
                         <div className={`flex items-center gap-1.5 ${
                           index === 0 && realtime?.recentViews?.length ? 'text-orange-400' : 'text-cyan-400'
                         }`}>
-                          {realtime?.recentViews?.length ? (
+                          {realtime?.recentViews?.length && (
                             <span className="text-xs text-white/40">+</span>
-                          ) : null}
+                          )}
                           <span className="text-base font-bold tabular-nums">
                             {article.views.toLocaleString()}
                           </span>

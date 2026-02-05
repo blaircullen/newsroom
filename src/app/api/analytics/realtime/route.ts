@@ -55,56 +55,71 @@ async function getAuthToken(username: string, password: string): Promise<string>
   return data.token;
 }
 
-async function getActiveVisitors(config: WebsiteConfig): Promise<number> {
+// Get total active visitors across all configured sites
+async function getTotalActiveVisitors(): Promise<number> {
+  const websiteConfigs = getWebsiteConfigs();
   const baseUrl = process.env.UMAMI_URL;
-  const token = await getAuthToken(config.username, config.password);
+  let total = 0;
 
-  const response = await fetch(
-    `${baseUrl}/api/websites/${config.websiteId}/active`,
-    { headers: { 'Authorization': `Bearer ${token}` } }
-  );
+  for (const [, config] of Object.entries(websiteConfigs)) {
+    if (!config.websiteId) continue;
 
-  if (!response.ok) return 0;
-  const data = await response.json();
-  return data.x || data.visitors || 0;
-}
-
-async function getRecentPageviews(
-  config: WebsiteConfig,
-  paths: string[],
-  minutesAgo: number
-): Promise<{ path: string; views: number }[]> {
-  const baseUrl = process.env.UMAMI_URL;
-  const token = await getAuthToken(config.username, config.password);
-
-  const endAt = Date.now();
-  const startAt = endAt - (minutesAgo * 60 * 1000);
-
-  const results: { path: string; views: number }[] = [];
-
-  for (const path of paths) {
     try {
-      const params = new URLSearchParams({
-        startAt: startAt.toString(),
-        endAt: endAt.toString(),
-        url: path,
-      });
-
+      const token = await getAuthToken(config.username, config.password);
       const response = await fetch(
-        `${baseUrl}/api/websites/${config.websiteId}/stats?${params}`,
+        `${baseUrl}/api/websites/${config.websiteId}/active`,
         { headers: { 'Authorization': `Bearer ${token}` } }
       );
 
       if (response.ok) {
         const data = await response.json();
-        results.push({ path, views: data.pageviews?.value || data.pageviews || 0 });
+        // Umami returns { x: number } for active visitors
+        total += data.x || 0;
       }
     } catch (error) {
-      console.error(`Failed to fetch pageviews for ${path}:`, error);
+      console.error(`Failed to get active visitors:`, error);
     }
   }
 
-  return results;
+  return total;
+}
+
+// Get pageviews for a specific article path in a time range
+async function getPathPageviews(
+  config: WebsiteConfig,
+  articlePath: string,
+  startAt: number,
+  endAt: number
+): Promise<number> {
+  const baseUrl = process.env.UMAMI_URL;
+
+  try {
+    const token = await getAuthToken(config.username, config.password);
+
+    // Use the correct parameter name: "path" not "url"
+    const params = new URLSearchParams({
+      startAt: startAt.toString(),
+      endAt: endAt.toString(),
+      path: articlePath,  // FIXED: was "url" which was ignored
+    });
+
+    const response = await fetch(
+      `${baseUrl}/api/websites/${config.websiteId}/stats?${params}`,
+      { headers: { 'Authorization': `Bearer ${token}` } }
+    );
+
+    if (!response.ok) {
+      console.error(`Umami stats failed for ${articlePath}: ${response.status}`);
+      return 0;
+    }
+
+    const data = await response.json();
+    // Umami returns { pageviews: number, visitors: number, ... }
+    return data.pageviews || 0;
+  } catch (error) {
+    console.error(`Failed to fetch pageviews for ${articlePath}:`, error);
+    return 0;
+  }
 }
 
 export async function GET(request: NextRequest) {
@@ -116,7 +131,7 @@ export async function GET(request: NextRequest) {
   try {
     const websiteConfigs = getWebsiteConfigs();
 
-    // Fetch user's published articles
+    // Fetch user's published articles (or all if admin)
     const where = session.user.role === 'WRITER'
       ? { authorId: session.user.id, status: 'PUBLISHED' as const, publishedUrl: { not: null } }
       : { status: 'PUBLISHED' as const, publishedUrl: { not: null } };
@@ -130,82 +145,72 @@ export async function GET(request: NextRequest) {
         totalPageviews: true,
       },
       orderBy: { publishedAt: 'desc' },
-      take: 30,
+      take: 20, // Limit to reduce API calls
     });
 
-    // Group articles by site and extract paths
-    const articlesByHost: Record<string, { id: string; headline: string; path: string; totalPageviews: number }[]> = {};
+    // Time range: last 30 minutes
+    const endAt = Date.now();
+    const startAt = endAt - (30 * 60 * 1000);
 
-    for (const article of articles) {
-      if (!article.publishedUrl) continue;
-      const urls = article.publishedUrl.split(' | ').map(u => u.trim());
+    // Fetch pageviews for each article
+    const articleViews: { id: string; headline: string; views: number }[] = [];
 
-      for (const url of urls) {
-        try {
-          const urlObj = new URL(url);
-          const host = urlObj.hostname;
-          const path = urlObj.pathname;
+    // Process articles in batches to avoid rate limiting
+    const BATCH_SIZE = 5;
+    for (let i = 0; i < articles.length; i += BATCH_SIZE) {
+      const batch = articles.slice(i, i + BATCH_SIZE);
 
-          if (!articlesByHost[host]) articlesByHost[host] = [];
-          articlesByHost[host].push({
+      const batchResults = await Promise.all(
+        batch.map(async (article) => {
+          if (!article.publishedUrl) return { id: article.id, headline: article.headline, views: 0 };
+
+          // Article may be published to multiple sites (pipe-separated URLs)
+          const urls = article.publishedUrl.split(' | ').map(u => u.trim());
+          let totalViews = 0;
+
+          for (const url of urls) {
+            try {
+              const urlObj = new URL(url);
+              const host = urlObj.hostname;
+              const path = urlObj.pathname;
+
+              const config = websiteConfigs[host];
+              if (!config?.websiteId) continue;
+
+              const views = await getPathPageviews(config, path, startAt, endAt);
+              totalViews += views;
+            } catch {
+              // Invalid URL, skip
+            }
+          }
+
+          return {
             id: article.id,
             headline: article.headline,
-            path,
-            totalPageviews: article.totalPageviews,
-          });
-        } catch {
-          // Invalid URL, skip
-        }
-      }
+            views: totalViews,
+          };
+        })
+      );
+
+      articleViews.push(...batchResults);
     }
 
-    // Fetch active visitors and recent pageviews for each site
-    let totalActiveVisitors = 0;
-    const recentViews: { id: string; headline: string; views: number }[] = [];
+    // Filter to articles with recent traffic and sort by views
+    const hotArticles = articleViews
+      .filter(a => a.views > 0)
+      .sort((a, b) => b.views - a.views);
 
-    for (const [host, hostArticles] of Object.entries(articlesByHost)) {
-      const config = websiteConfigs[host];
-      if (!config?.websiteId) continue;
+    // Calculate total recent views
+    const totalRecentViews = hotArticles.reduce((sum, a) => sum + a.views, 0);
 
-      // Get active visitors for this site
-      try {
-        const active = await getActiveVisitors(config);
-        totalActiveVisitors += active;
-      } catch (error) {
-        console.error(`Failed to get active visitors for ${host}:`, error);
-      }
-
-      // Get recent pageviews (last 30 minutes) for articles on this site
-      const paths = hostArticles.map(a => a.path);
-      const pathViews = await getRecentPageviews(config, paths, 30);
-
-      for (const pv of pathViews) {
-        const article = hostArticles.find(a => a.path === pv.path);
-        if (article && pv.views > 0) {
-          const existing = recentViews.find(r => r.id === article.id);
-          if (existing) {
-            existing.views += pv.views;
-          } else {
-            recentViews.push({
-              id: article.id,
-              headline: article.headline,
-              views: pv.views,
-            });
-          }
-        }
-      }
-    }
-
-    // Sort by recent views descending
-    recentViews.sort((a, b) => b.views - a.views);
-
-    // Calculate total views in last 30 minutes
-    const totalRecentViews = recentViews.reduce((sum, r) => sum + r.views, 0);
+    // Get active visitors (site-wide across all properties)
+    const activeVisitors = await getTotalActiveVisitors();
 
     return NextResponse.json({
-      activeVisitors: totalActiveVisitors,
-      recentViews: recentViews.slice(0, 10),
+      activeVisitors,
+      recentViews: hotArticles.slice(0, 10),
       totalRecentViews,
+      articlesChecked: articles.length,
       timestamp: Date.now(),
     });
   } catch (error) {
