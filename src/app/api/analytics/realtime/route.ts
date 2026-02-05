@@ -127,7 +127,20 @@ let previousRankings: Record<string, number> = {};
 let lastRankingUpdate = 0;
 const RANKING_UPDATE_INTERVAL = 5 * 60 * 1000; // Update rankings every 5 minutes
 
+// Response cache for fast subsequent requests
+let cachedResponse: { data: unknown; timestamp: number } | null = null;
+const RESPONSE_CACHE_TTL = 30 * 1000; // 30 seconds - balance between freshness and speed
+
 export async function GET(request: NextRequest) {
+  // Return cached response if fresh (for lightning fast mobile experience)
+  if (cachedResponse && Date.now() - cachedResponse.timestamp < RESPONSE_CACHE_TTL) {
+    return NextResponse.json(cachedResponse.data, {
+      headers: {
+        'Cache-Control': 'public, s-maxage=30, stale-while-revalidate=60',
+        'X-Cache': 'HIT',
+      },
+    });
+  }
   const session = await getServerSession(authOptions);
   if (!session) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -246,12 +259,22 @@ export async function GET(request: NextRequest) {
       lastRankingUpdate = Date.now();
     }
 
-    return NextResponse.json({
+    const responseData = {
       activeVisitors,
       recentViews: articlesWithTrends,
       totalRecentViews,
       articlesChecked: articles.length,
       timestamp: Date.now(),
+    };
+
+    // Cache the response
+    cachedResponse = { data: responseData, timestamp: Date.now() };
+
+    return NextResponse.json(responseData, {
+      headers: {
+        'Cache-Control': 'public, s-maxage=30, stale-while-revalidate=60',
+        'X-Cache': 'MISS',
+      },
     });
   } catch (error) {
     console.error('Real-time analytics error:', error);

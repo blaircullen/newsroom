@@ -42,23 +42,49 @@ export default function AnalyticsSection({ stats, articles }: AnalyticsSectionPr
 
   const fetchRealtime = useCallback(async () => {
     try {
-      const res = await fetch('/api/analytics/realtime');
+      // Use AbortController for timeout
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 5000); // 5s timeout
+
+      const res = await fetch('/api/analytics/realtime', {
+        signal: controller.signal,
+        // Enable browser caching
+        cache: 'default',
+      });
+      clearTimeout(timeoutId);
+
       if (res.ok) {
         const data = await res.json();
         setRealtime(data);
         setLastUpdate(new Date());
+        // Cache in sessionStorage for instant subsequent loads
+        sessionStorage.setItem('analytics_realtime', JSON.stringify(data));
       }
     } catch (error) {
-      console.error('Failed to fetch realtime data:', error);
+      if ((error as Error).name !== 'AbortError') {
+        console.error('Failed to fetch realtime data:', error);
+      }
     } finally {
       setIsLoading(false);
     }
   }, []);
 
   useEffect(() => {
+    // Try to load from sessionStorage first for instant display
+    const cached = sessionStorage.getItem('analytics_realtime');
+    if (cached) {
+      try {
+        const data = JSON.parse(cached);
+        setRealtime(data);
+        setIsLoading(false);
+      } catch {
+        // Invalid cache, ignore
+      }
+    }
+
     fetchRealtime();
-    // Refresh every 10 seconds
-    const interval = setInterval(fetchRealtime, 10000);
+    // Refresh every 15 seconds (slightly longer for better battery life)
+    const interval = setInterval(fetchRealtime, 15000);
     return () => clearInterval(interval);
   }, [fetchRealtime]);
 
@@ -101,26 +127,18 @@ export default function AnalyticsSection({ stats, articles }: AnalyticsSectionPr
         </div>
 
         <div className="relative text-center">
-          {isLoading ? (
-            <div className="py-8">
-              <div className="w-8 h-8 border-2 border-white/20 border-t-emerald-500 rounded-full animate-spin mx-auto" />
-            </div>
-          ) : (
-            <>
-              <div className="flex items-center justify-center gap-3 mb-2">
-                <span className="relative flex h-3 w-3">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                  <span className="relative inline-flex rounded-full h-3 w-3 bg-emerald-500"></span>
-                </span>
-                <span className="text-6xl font-bold text-white tabular-nums">
-                  {realtime?.activeVisitors || 0}
-                </span>
-              </div>
-              <p className="text-white/60 text-sm">
-                active across all sites
-              </p>
-            </>
-          )}
+          <div className="flex items-center justify-center gap-3 mb-2">
+            <span className="relative flex h-3 w-3">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-3 w-3 bg-emerald-500"></span>
+            </span>
+            <span className={`text-6xl font-bold text-white tabular-nums transition-opacity ${isLoading && !realtime ? 'opacity-50' : ''}`}>
+              {realtime?.activeVisitors ?? '—'}
+            </span>
+          </div>
+          <p className="text-white/60 text-sm">
+            active across all sites
+          </p>
         </div>
       </div>
 
@@ -139,7 +157,23 @@ export default function AnalyticsSection({ stats, articles }: AnalyticsSectionPr
           </span>
         </div>
 
-        {displayArticles.length > 0 ? (
+        {isLoading && !realtime ? (
+          // Skeleton loading state
+          <div className="space-y-3">
+            {[1, 2, 3, 4, 5].map((i) => (
+              <div key={i} className="backdrop-blur rounded-2xl p-4 bg-white/5 border border-white/10 animate-pulse">
+                <div className="flex items-center gap-4">
+                  <div className="w-10 h-10 rounded-full bg-white/10" />
+                  <div className="flex-1">
+                    <div className="h-4 bg-white/10 rounded w-3/4 mb-2" />
+                    <div className="h-3 bg-white/10 rounded w-1/2" />
+                  </div>
+                  <div className="w-12 h-6 bg-white/10 rounded" />
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : displayArticles.length > 0 ? (
           <div className="space-y-3">
             {displayArticles.slice(0, 5).map((article, index) => (
               <Link key={article.id} href={`/editor/${article.id}`}>
