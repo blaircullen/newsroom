@@ -6,6 +6,9 @@ import {
   HiOutlineEye,
   HiOutlineChartBar,
   HiOutlineFire,
+  HiArrowTrendingUp,
+  HiArrowTrendingDown,
+  HiMinus,
 } from 'react-icons/hi2';
 import type { Article } from './ArticleCard';
 
@@ -21,7 +24,13 @@ interface AnalyticsSectionProps {
 
 interface RealtimeData {
   activeVisitors: number;
-  recentViews: { id: string; headline: string; views: number }[];
+  recentViews: {
+    id: string;
+    headline: string;
+    views: number;
+    trend?: 'up' | 'down' | 'same' | 'new';
+    trendValue?: number;
+  }[];
   totalRecentViews: number;
   timestamp: number;
 }
@@ -115,21 +124,6 @@ export default function AnalyticsSection({ stats, articles }: AnalyticsSectionPr
         </div>
       </div>
 
-      {/* Secondary Stats Row */}
-      <div className="grid grid-cols-3 gap-3 mb-6">
-        <div className="bg-white/5 backdrop-blur rounded-2xl p-4 border border-white/10 text-center">
-          <p className="text-2xl font-bold text-white">{stats.totalViews.toLocaleString()}</p>
-          <p className="text-[10px] text-white/50 uppercase tracking-wider mt-1">All-time</p>
-        </div>
-        <div className="bg-white/5 backdrop-blur rounded-2xl p-4 border border-white/10 text-center">
-          <p className="text-2xl font-bold text-cyan-400">{(realtime?.totalRecentViews || 0).toLocaleString()}</p>
-          <p className="text-[10px] text-white/50 uppercase tracking-wider mt-1">Last 30 min</p>
-        </div>
-        <div className="bg-white/5 backdrop-blur rounded-2xl p-4 border border-white/10 text-center">
-          <p className="text-2xl font-bold text-white">{stats.published}</p>
-          <p className="text-[10px] text-white/50 uppercase tracking-wider mt-1">Published</p>
-        </div>
-      </div>
 
       {/* Hot Right Now Section */}
       <div className="mb-4">
@@ -176,19 +170,39 @@ export default function AnalyticsSection({ stats, articles }: AnalyticsSectionPr
                         </h3>
                       </div>
 
-                      {/* Views */}
+                      {/* Views and Trend */}
                       <div className="flex-shrink-0 text-right">
                         <div className={`flex items-center gap-1.5 ${
                           index === 0 && realtime?.recentViews?.length ? 'text-orange-400' : 'text-cyan-400'
                         }`}>
-                          {realtime?.recentViews?.length && (
-                            <span className="text-xs text-white/40">+</span>
-                          )}
                           <span className="text-base font-bold tabular-nums">
                             {article.views.toLocaleString()}
                           </span>
                           <HiOutlineEye className="w-4 h-4 opacity-60" />
                         </div>
+                        {/* Trend indicator */}
+                        {realtime?.recentViews?.length && 'trend' in article && (
+                          <div className="flex items-center justify-end gap-1 mt-1">
+                            {article.trend === 'up' && (
+                              <>
+                                <HiArrowTrendingUp className="w-3.5 h-3.5 text-emerald-400" />
+                                <span className="text-[10px] text-emerald-400 font-medium">+{article.trendValue}</span>
+                              </>
+                            )}
+                            {article.trend === 'down' && (
+                              <>
+                                <HiArrowTrendingDown className="w-3.5 h-3.5 text-red-400" />
+                                <span className="text-[10px] text-red-400 font-medium">-{article.trendValue}</span>
+                              </>
+                            )}
+                            {article.trend === 'same' && (
+                              <HiMinus className="w-3.5 h-3.5 text-white/30" />
+                            )}
+                            {article.trend === 'new' && (
+                              <span className="text-[10px] text-yellow-400 font-medium">NEW</span>
+                            )}
+                          </div>
+                        )}
                       </div>
                     </div>
                   </div>

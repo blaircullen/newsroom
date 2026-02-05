@@ -62,6 +62,29 @@ export default function DashboardPage() {
   const [showStoryIdeas, setShowStoryIdeas] = useState(false);
   const [creatingFromIdea, setCreatingFromIdea] = useState<string | null>(null);
   const [showAllHot, setShowAllHot] = useState(false);
+  const [dismissedIdeas, setDismissedIdeas] = useState<string[]>([]);
+
+  // Load dismissed ideas from localStorage on mount
+  useEffect(() => {
+    const stored = localStorage.getItem('dismissedStoryIdeas');
+    if (stored) {
+      try {
+        setDismissedIdeas(JSON.parse(stored));
+      } catch {
+        // Invalid JSON, ignore
+      }
+    }
+  }, []);
+
+  // Dismiss a story idea and persist to localStorage
+  const dismissStoryIdea = (headline: string) => {
+    setDismissedIdeas(prev => {
+      const updated = [...prev, headline];
+      localStorage.setItem('dismissedStoryIdeas', JSON.stringify(updated));
+      return updated;
+    });
+    setStoryIdeas(prev => prev.filter(i => i.headline !== headline));
+  };
 
   // Pull-to-refresh state (mobile)
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -131,7 +154,13 @@ export default function DashboardPage() {
       const res = await fetch('/api/story-ideas');
       if (res.ok) {
         const data = await res.json();
-        setStoryIdeas(data.ideas || []);
+        // Filter out previously dismissed ideas
+        const storedDismissed = localStorage.getItem('dismissedStoryIdeas');
+        const dismissed = storedDismissed ? JSON.parse(storedDismissed) : [];
+        const filteredIdeas = (data.ideas || []).filter(
+          (idea: StoryIdea) => !dismissed.includes(idea.headline)
+        );
+        setStoryIdeas(filteredIdeas);
       }
     } catch (error) {
       console.error('Failed to fetch story ideas:', error);
@@ -288,8 +317,8 @@ export default function DashboardPage() {
 
       const newArticle = await res.json();
 
-      // Remove this idea from the list
-      setStoryIdeas(prev => prev.filter(i => i.headline !== idea.headline));
+      // Remove this idea from the list (persists to localStorage)
+      dismissStoryIdea(idea.headline);
 
       toast.success('AI article generated! Review before publishing.');
       router.push(`/editor/${newArticle.id}`);
@@ -447,7 +476,7 @@ export default function DashboardPage() {
               storyIdeas={storyIdeas}
               showAllHot={showAllHot}
               setShowAllHot={setShowAllHot}
-              onDismissIdea={(idea) => setStoryIdeas(prev => prev.filter(i => i.headline !== idea.headline))}
+              onDismissIdea={(idea) => dismissStoryIdea(idea.headline)}
             />
           </div>
         )}
@@ -562,7 +591,7 @@ export default function DashboardPage() {
                     >
                       {/* Dismiss button */}
                       <button
-                        onClick={() => setStoryIdeas(prev => prev.filter(i => i.headline !== idea.headline))}
+                        onClick={() => dismissStoryIdea(idea.headline)}
                         className={`absolute top-2 right-2 p-1 rounded-full transition-colors z-10 opacity-0 group-hover:opacity-100 ${
                           idea.trending
                             ? 'top-8 text-press-400 hover:text-press-600 hover:bg-press-100 dark:hover:bg-press-900'

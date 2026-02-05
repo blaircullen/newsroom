@@ -122,6 +122,11 @@ async function getPathPageviews(
   }
 }
 
+// Cache for tracking previous rankings
+let previousRankings: Record<string, number> = {};
+let lastRankingUpdate = 0;
+const RANKING_UPDATE_INTERVAL = 5 * 60 * 1000; // Update rankings every 5 minutes
+
 export async function GET(request: NextRequest) {
   const session = await getServerSession(authOptions);
   if (!session) {
@@ -206,9 +211,44 @@ export async function GET(request: NextRequest) {
     // Get active visitors (site-wide across all properties)
     const activeVisitors = await getTotalActiveVisitors();
 
+    // Build current rankings and calculate trends
+    const currentRankings: Record<string, number> = {};
+    const articlesWithTrends = hotArticles.slice(0, 10).map((article, index) => {
+      const currentRank = index + 1;
+      currentRankings[article.id] = currentRank;
+
+      const previousRank = previousRankings[article.id];
+      let trend: 'up' | 'down' | 'same' | 'new' = 'new';
+      let trendValue = 0;
+
+      if (previousRank !== undefined) {
+        if (previousRank > currentRank) {
+          trend = 'up';
+          trendValue = previousRank - currentRank;
+        } else if (previousRank < currentRank) {
+          trend = 'down';
+          trendValue = currentRank - previousRank;
+        } else {
+          trend = 'same';
+        }
+      }
+
+      return {
+        ...article,
+        trend,
+        trendValue,
+      };
+    });
+
+    // Update previous rankings periodically
+    if (Date.now() - lastRankingUpdate > RANKING_UPDATE_INTERVAL) {
+      previousRankings = currentRankings;
+      lastRankingUpdate = Date.now();
+    }
+
     return NextResponse.json({
       activeVisitors,
-      recentViews: hotArticles.slice(0, 10),
+      recentViews: articlesWithTrends,
       totalRecentViews,
       articlesChecked: articles.length,
       timestamp: Date.now(),
