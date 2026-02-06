@@ -85,6 +85,7 @@ export default function SocialQueuePage() {
   const [platformFilter, setPlatformFilter] = useState<string>('ALL');
   const [editingCaption, setEditingCaption] = useState<string | null>(null);
   const [editingSchedule, setEditingSchedule] = useState<string | null>(null);
+  const [regeneratingCaption, setRegeneratingCaption] = useState<string | null>(null);
 
   // Create Post modal state
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -253,6 +254,30 @@ export default function SocialQueuePage() {
       }
     } catch {
       toast.error('Something went wrong');
+    }
+  }
+
+  async function handleRegenerateQueuedCaption(post: SocialPost) {
+    setRegeneratingCaption(post.id);
+    try {
+      const res = await fetch('/api/social/generate-caption', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          articleId: post.articleId,
+          socialAccountId: post.socialAccountId,
+        }),
+      });
+
+      if (!res.ok) throw new Error('Failed to generate caption');
+      const { caption } = await res.json();
+
+      // Save the new caption to the queued post
+      await saveCaption(post.id, caption);
+    } catch {
+      toast.error('Failed to regenerate caption');
+    } finally {
+      setRegeneratingCaption(null);
     }
   }
 
@@ -717,6 +742,19 @@ export default function SocialQueuePage() {
                       >
                         {post.caption}
                       </p>
+                    )}
+
+                    {/* Regenerate button for editable posts */}
+                    {['PENDING', 'APPROVED', 'FAILED'].includes(post.status) && (
+                      <button
+                        type="button"
+                        onClick={() => handleRegenerateQueuedCaption(post)}
+                        disabled={regeneratingCaption === post.id}
+                        className="flex items-center gap-1.5 px-2 py-1 mb-2 text-xs font-medium text-press-600 dark:text-press-400 hover:text-press-700 dark:hover:text-press-300 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                      >
+                        <HiOutlineSparkles className="w-3.5 h-3.5" />
+                        {regeneratingCaption === post.id ? 'Regenerating...' : 'Regenerate caption'}
+                      </button>
                     )}
 
                     {/* Scheduled Time & Status */}
