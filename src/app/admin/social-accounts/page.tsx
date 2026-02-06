@@ -28,8 +28,8 @@ interface SocialAccount {
   tokenExpiresAt: string | null;
   tokenStatus: 'valid' | 'expiring' | 'expired';
   isActive: boolean;
-  siteId: string | null;
-  site?: {
+  publishTargetId: string | null;
+  publishTarget?: {
     id: string;
     name: string;
   } | null;
@@ -128,7 +128,7 @@ export default function AdminSocialAccountsPage() {
     setFormPlatform(account.platform);
     setFormAccountName(account.accountName);
     setFormAccountHandle(account.accountHandle);
-    setFormSiteId(account.siteId || '');
+    setFormSiteId(account.publishTargetId || '');
     setFormTokenExpiresAt(account.tokenExpiresAt ? new Date(account.tokenExpiresAt).toISOString().slice(0, 16) : '');
     setShowTokenFields(false);
     setFormAccessToken('');
@@ -153,7 +153,7 @@ export default function AdminSocialAccountsPage() {
         platform: formPlatform,
         accountName: formAccountName,
         accountHandle: formAccountHandle,
-        siteId: formSiteId || null,
+        publishTargetId: formSiteId || null,
         tokenExpiresAt: formTokenExpiresAt || null,
       };
 
@@ -538,9 +538,9 @@ export default function AdminSocialAccountsPage() {
                       </div>
                       <div className="flex items-center gap-2 flex-wrap">
                         {/* Site Assignment */}
-                        {account.site ? (
+                        {account.publishTarget ? (
                           <span className="text-xs font-medium px-2 py-1 rounded-full bg-blue-50 text-blue-700">
-                            {account.site.name}
+                            {account.publishTarget.name}
                           </span>
                         ) : (
                           <span className="text-xs font-medium px-2 py-1 rounded-full bg-ink-100 text-ink-500">
