@@ -104,7 +104,10 @@ export default function AdminVoiceProfilesPage() {
     setIsLoadingArticles(true);
     try {
       const res = await fetch('/api/articles?status=PUBLISHED&limit=50');
-      if (res.ok) setArticles(await res.json());
+      if (res.ok) {
+        const data = await res.json();
+        setArticles(data.articles || []);
+      }
     } catch {
       toast.error('Failed to load articles');
     } finally {
