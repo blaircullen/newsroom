@@ -85,7 +85,11 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 });
     }
 
-    const { publishTargetId, articleIds } = body;
+    const { publishTargetId, articleIds, rawText } = body as {
+      publishTargetId: string;
+      articleIds?: string[];
+      rawText?: string;
+    };
 
     // Validate publishTargetId
     if (typeof publishTargetId !== 'string' || !/^c[a-z0-9]{24}$/i.test(publishTargetId)) {
@@ -101,53 +105,56 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Publish target not found' }, { status: 404 });
     }
 
-    // Validate articleIds
-    if (!Array.isArray(articleIds) || articleIds.length < 5 || articleIds.length > 10) {
+    // Must provide either rawText or articleIds
+    const useRawText = typeof rawText === 'string' && rawText.trim().length >= 200;
+    const useArticles = Array.isArray(articleIds) && articleIds.length >= 5 && articleIds.length <= 10;
+
+    if (!useRawText && !useArticles) {
       return NextResponse.json(
-        { error: '5-10 article IDs required for voice profile generation' },
+        { error: 'Provide either rawText (200+ chars) or 5-10 articleIds' },
         { status: 400 }
       );
     }
 
-    // Validate all IDs are strings
-    if (!articleIds.every((id) => typeof id === 'string')) {
-      return NextResponse.json({ error: 'All article IDs must be strings' }, { status: 400 });
+    let sampleContent: string;
+    let sampleIds: string[] | string = [];
+
+    if (useRawText) {
+      // Use pasted text directly
+      sampleContent = rawText!.trim().substring(0, 15000);
+      sampleIds = 'raw_text';
+    } else {
+      // Validate all IDs are strings
+      if (!articleIds!.every((id) => typeof id === 'string')) {
+        return NextResponse.json({ error: 'All article IDs must be strings' }, { status: 400 });
+      }
+
+      // Fetch articles
+      const articles = await prisma.article.findMany({
+        where: { id: { in: articleIds! } },
+        select: { id: true, headline: true, bodyHtml: true, body: true },
+      });
+
+      if (articles.length < articleIds!.length) {
+        return NextResponse.json({ error: 'One or more articles not found' }, { status: 404 });
+      }
+
+      sampleContent = articles.map((article, index) => {
+        const bodyText = article.bodyHtml ? stripHtml(article.bodyHtml) : article.body;
+        const truncated = bodyText.substring(0, 1500);
+        return `[Article ${index + 1} title]\n${article.headline}\n\n${truncated}`;
+      }).join('\n\n---\n\n');
+
+      sampleIds = articleIds!;
     }
 
-    // Fetch articles
-    const articles = await prisma.article.findMany({
-      where: {
-        id: { in: articleIds },
-      },
-      select: {
-        id: true,
-        headline: true,
-        bodyHtml: true,
-        body: true,
-      },
-    });
-
-    if (articles.length < articleIds.length) {
-      return NextResponse.json(
-        { error: 'One or more articles not found' },
-        { status: 404 }
-      );
-    }
-
-    // Build the prompt with article samples
-    const articleSamples = articles.map((article, index) => {
-      const bodyText = article.bodyHtml ? stripHtml(article.bodyHtml) : article.body;
-      const truncated = bodyText.substring(0, 1500);
-      return `[Article ${index + 1} title]\n${article.headline}\n\n${truncated}`;
-    }).join('\n\n---\n\n');
-
-    const prompt = `Analyze these articles and describe the author's voice, tone, and style in 2-3 sentences. Focus on: formality level, humor style, political lean/framing, sentence structure preferences, and recurring rhetorical devices.
+    const prompt = `Analyze the following text samples and describe the author's voice, tone, and style in 2-3 sentences. Focus on: formality level, humor style, political lean/framing, sentence structure preferences, and recurring rhetorical devices.
 
 Then write a system prompt that would make an AI write social media captions in this exact voice. The system prompt should be specific and actionable, not vague.
 
-Articles:
+Text samples:
 
-${articleSamples}
+${sampleContent}
 
 Respond in this exact JSON format (no markdown fences):
 {
@@ -217,14 +224,14 @@ Respond in this exact JSON format (no markdown fences):
       update: {
         voiceDescription: parsed.voiceDescription,
         systemPrompt: parsed.systemPrompt,
-        sampleArticleIds: articleIds,
+        sampleArticleIds: sampleIds,
         updatedAt: new Date(),
       },
       create: {
         publishTargetId,
         voiceDescription: parsed.voiceDescription,
         systemPrompt: parsed.systemPrompt,
-        sampleArticleIds: articleIds,
+        sampleArticleIds: sampleIds,
       },
       include: {
         publishTarget: {

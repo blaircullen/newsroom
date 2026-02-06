@@ -65,8 +65,10 @@ export default function AdminVoiceProfilesPage() {
   // Form state
   const [editingProfile, setEditingProfile] = useState<VoiceProfile | null>(null);
   const [selectedSiteId, setSelectedSiteId] = useState('');
+  const [sourceMode, setSourceMode] = useState<'articles' | 'paste'>('paste');
   const [selectedArticleIds, setSelectedArticleIds] = useState<string[]>([]);
   const [articleSearchQuery, setArticleSearchQuery] = useState('');
+  const [pastedText, setPastedText] = useState('');
   const [generatedVoiceDescription, setGeneratedVoiceDescription] = useState('');
   const [generatedSystemPrompt, setGeneratedSystemPrompt] = useState('');
   const [customNotes, setCustomNotes] = useState('');
@@ -118,8 +120,10 @@ export default function AdminVoiceProfilesPage() {
   function resetForm() {
     setEditingProfile(null);
     setSelectedSiteId('');
+    setSourceMode('paste');
     setSelectedArticleIds([]);
     setArticleSearchQuery('');
+    setPastedText('');
     setGeneratedVoiceDescription('');
     setGeneratedSystemPrompt('');
     setCustomNotes('');
@@ -158,24 +162,35 @@ export default function AdminVoiceProfilesPage() {
   }
 
   async function handleGenerateVoice() {
-    if (selectedArticleIds.length < 5) {
-      toast.error('Please select at least 5 articles');
-      return;
-    }
-    if (selectedArticleIds.length > 10) {
-      toast.error('Please select no more than 10 articles');
-      return;
+    if (sourceMode === 'articles') {
+      if (selectedArticleIds.length < 5) {
+        toast.error('Please select at least 5 articles');
+        return;
+      }
+      if (selectedArticleIds.length > 10) {
+        toast.error('Please select no more than 10 articles');
+        return;
+      }
+    } else {
+      if (pastedText.trim().length < 200) {
+        toast.error('Please paste at least a few paragraphs of text');
+        return;
+      }
     }
 
     setIsGenerating(true);
     try {
+      const payload: Record<string, unknown> = { publishTargetId: selectedSiteId };
+      if (sourceMode === 'articles') {
+        payload.articleIds = selectedArticleIds;
+      } else {
+        payload.rawText = pastedText.trim();
+      }
+
       const res = await fetch('/api/social/voice-profiles', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          publishTargetId: selectedSiteId,
-          articleIds: selectedArticleIds,
-        }),
+        body: JSON.stringify(payload),
       });
 
       if (!res.ok) {
@@ -272,7 +287,9 @@ export default function AdminVoiceProfilesPage() {
     (site) => !profiles.some((p) => p.publishTargetId === site.id)
   );
 
-  const canGenerate = selectedArticleIds.length >= 5 && selectedArticleIds.length <= 10;
+  const canGenerate = sourceMode === 'paste'
+    ? pastedText.trim().length >= 200
+    : selectedArticleIds.length >= 5 && selectedArticleIds.length <= 10;
   const hasGeneratedContent = generatedVoiceDescription && generatedSystemPrompt;
 
   return (
@@ -346,78 +363,127 @@ export default function AdminVoiceProfilesPage() {
               </button>
             </div>
 
-            {/* Article Selector Section */}
+            {/* Source Selector Section */}
             {!editingProfile && (
               <div className="mb-6 pb-6 border-b border-ink-100">
-                <div className="flex items-center justify-between mb-3">
-                  <div>
-                    <h4 className="text-sm font-semibold text-ink-900 mb-1">
-                      1. Select Sample Articles
-                    </h4>
-                    <p className="text-xs text-ink-500">
-                      Choose 5-10 published articles that represent the writing style
-                    </p>
-                  </div>
-                  <div
-                    className={`text-sm font-semibold px-3 py-1.5 rounded-full ${
-                      selectedArticleIds.length >= 5 && selectedArticleIds.length <= 10
-                        ? 'bg-green-50 text-green-700'
-                        : 'bg-ink-100 text-ink-600'
+                <h4 className="text-sm font-semibold text-ink-900 mb-1">
+                  1. Provide Voice Samples
+                </h4>
+                <p className="text-xs text-ink-500 mb-3">
+                  Paste a transcript or select published articles to analyze the writing style
+                </p>
+
+                {/* Mode Toggle */}
+                <div className="flex items-center gap-2 p-1 bg-ink-100 rounded-lg mb-4">
+                  <button
+                    type="button"
+                    onClick={() => setSourceMode('paste')}
+                    className={`flex-1 px-3 py-2 rounded-md text-sm font-medium transition-all ${
+                      sourceMode === 'paste'
+                        ? 'bg-white shadow-sm text-ink-900'
+                        : 'text-ink-500 hover:text-ink-700'
                     }`}
                   >
-                    {selectedArticleIds.length} of 10 selected
-                  </div>
+                    Paste Text
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => { setSourceMode('articles'); fetchArticles(); }}
+                    className={`flex-1 px-3 py-2 rounded-md text-sm font-medium transition-all ${
+                      sourceMode === 'articles'
+                        ? 'bg-white shadow-sm text-ink-900'
+                        : 'text-ink-500 hover:text-ink-700'
+                    }`}
+                  >
+                    Select Articles
+                  </button>
                 </div>
 
-                {/* Search Articles */}
-                <div className="relative mb-3">
-                  <HiOutlineMagnifyingGlass className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-ink-400" />
-                  <input
-                    type="text"
-                    value={articleSearchQuery}
-                    onChange={(e) => setArticleSearchQuery(e.target.value)}
-                    placeholder="Search articles by headline..."
-                    className="w-full pl-9 pr-3 py-2.5 rounded-lg border border-ink-200 text-sm focus:outline-none focus:border-press-500"
-                  />
-                </div>
-
-                {/* Articles List */}
-                {isLoadingArticles ? (
-                  <div className="text-center py-8">
-                    <p className="text-ink-400 text-sm">Loading articles...</p>
-                  </div>
-                ) : filteredArticles.length > 0 ? (
-                  <div className="max-h-64 overflow-y-auto border border-ink-200 rounded-lg">
-                    {filteredArticles.map((article) => (
-                      <label
-                        key={article.id}
-                        className="flex items-start gap-3 p-3 hover:bg-ink-50 cursor-pointer border-b border-ink-100 last:border-0"
-                      >
-                        <input
-                          type="checkbox"
-                          checked={selectedArticleIds.includes(article.id)}
-                          onChange={() => toggleArticleSelection(article.id)}
-                          className="mt-1 w-4 h-4 rounded border-ink-300 text-press-600 focus:ring-press-500"
-                        />
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium text-ink-900 line-clamp-2">
-                            {article.headline}
-                          </p>
-                          <p className="text-xs text-ink-500 mt-1">
-                            {article.author?.name || 'Unknown author'} •{' '}
-                            {article.publishedAt
-                              ? new Date(article.publishedAt).toLocaleDateString()
-                              : 'Not published'}
-                          </p>
-                        </div>
-                      </label>
-                    ))}
+                {sourceMode === 'paste' ? (
+                  /* Paste Text Mode */
+                  <div>
+                    <textarea
+                      value={pastedText}
+                      onChange={(e) => setPastedText(e.target.value)}
+                      placeholder="Paste a transcript, social media posts, articles, or any text that captures the voice you want to replicate..."
+                      className="w-full px-3 py-2.5 rounded-lg border border-ink-200 text-sm focus:outline-none focus:border-press-500 min-h-[200px] resize-y"
+                    />
+                    <p className="text-xs text-ink-400 mt-1">
+                      {pastedText.trim().length > 0
+                        ? `${pastedText.trim().length} characters`
+                        : 'Paste at least a few paragraphs for best results'}
+                    </p>
                   </div>
                 ) : (
-                  <div className="text-center py-8 border border-ink-200 rounded-lg">
-                    <p className="text-ink-400 text-sm">
-                      {articleSearchQuery ? 'No articles match your search' : 'No published articles found'}
-                    </p>
+                  /* Articles Mode */
+                  <div>
+                    <div className="flex items-center justify-between mb-3">
+                      <p className="text-xs text-ink-500">Choose 5-10 published articles</p>
+                      <div
+                        className={`text-sm font-semibold px-3 py-1.5 rounded-full ${
+                          selectedArticleIds.length >= 5 && selectedArticleIds.length <= 10
+                            ? 'bg-green-50 text-green-700'
+                            : 'bg-ink-100 text-ink-600'
+                        }`}
+                      >
+                        {selectedArticleIds.length} of 10 selected
+                      </div>
+                    </div>
+
+                    <div className="relative mb-3">
+                      <HiOutlineMagnifyingGlass className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-ink-400" />
+                      <input
+                        type="text"
+                        value={articleSearchQuery}
+                        onChange={(e) => setArticleSearchQuery(e.target.value)}
+                        placeholder="Search articles by headline..."
+                        className="w-full pl-9 pr-3 py-2.5 rounded-lg border border-ink-200 text-sm focus:outline-none focus:border-press-500"
+                      />
+                    </div>
+
+                    {isLoadingArticles ? (
+                      <div className="text-center py-8">
+                        <p className="text-ink-400 text-sm">Loading articles...</p>
+                      </div>
+                    ) : filteredArticles.length > 0 ? (
+                      <div className="max-h-64 overflow-y-auto border border-ink-200 rounded-lg">
+                        {filteredArticles.map((article) => (
+                          <label
+                            key={article.id}
+                            className="flex items-start gap-3 p-3 hover:bg-ink-50 cursor-pointer border-b border-ink-100 last:border-0"
+                          >
+                            <input
+                              type="checkbox"
+                              checked={selectedArticleIds.includes(article.id)}
+                              onChange={() => toggleArticleSelection(article.id)}
+                              className="mt-1 w-4 h-4 rounded border-ink-300 text-press-600 focus:ring-press-500"
+                            />
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-medium text-ink-900 line-clamp-2">
+                                {article.headline}
+                              </p>
+                              <p className="text-xs text-ink-500 mt-1">
+                                {article.author?.name || 'Unknown author'} •{' '}
+                                {article.publishedAt
+                                  ? new Date(article.publishedAt).toLocaleDateString()
+                                  : 'Not published'}
+                              </p>
+                            </div>
+                          </label>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="text-center py-8 border border-ink-200 rounded-lg">
+                        <p className="text-ink-400 text-sm">
+                          {articleSearchQuery ? 'No articles match your search' : 'No published articles found'}
+                        </p>
+                      </div>
+                    )}
+                    {selectedArticleIds.length > 0 && selectedArticleIds.length < 5 && (
+                      <p className="text-xs text-yellow-700 mt-2 text-center">
+                        Select at least {5 - selectedArticleIds.length} more article(s)
+                      </p>
+                    )}
                   </div>
                 )}
 
@@ -439,11 +505,6 @@ export default function AdminVoiceProfilesPage() {
                     </>
                   )}
                 </button>
-                {selectedArticleIds.length > 0 && selectedArticleIds.length < 5 && (
-                  <p className="text-xs text-yellow-700 mt-2 text-center">
-                    Select at least {5 - selectedArticleIds.length} more article(s)
-                  </p>
-                )}
               </div>
             )}
 
