@@ -4,6 +4,11 @@ import Image from 'next/image';
 import { FaXTwitter, FaFacebook } from 'react-icons/fa6';
 import { HiOutlineSparkles, HiOutlineTrash } from 'react-icons/hi2';
 
+interface AvailableUrl {
+  name: string;
+  url: string;
+}
+
 interface SocialPostCardProps {
   account: {
     id: string;
@@ -17,6 +22,8 @@ interface SocialPostCardProps {
   onScheduledAtChange: (time: string) => void;
   imageUrl?: string;
   articleUrl: string;
+  availableUrls?: AvailableUrl[];
+  onArticleUrlChange?: (url: string) => void;
   isGenerating: boolean;
   onRegenerate: () => void;
   onRemove: () => void;
@@ -30,6 +37,8 @@ export default function SocialPostCard({
   onScheduledAtChange,
   imageUrl,
   articleUrl,
+  availableUrls,
+  onArticleUrlChange,
   isGenerating,
   onRegenerate,
   onRemove,
@@ -118,17 +127,31 @@ export default function SocialPostCard({
         </div>
       )}
 
-      {/* Article URL preview */}
+      {/* Article URL preview / selector */}
       <div className="mb-3 p-2 bg-ink-50 dark:bg-ink-800/50 rounded-lg">
         <p className="text-xs text-ink-400 mb-1">Article URL</p>
-        <a
-          href={articleUrl}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="text-xs text-press-600 dark:text-press-400 hover:underline truncate block"
-        >
-          {articleUrl}
-        </a>
+        {availableUrls && availableUrls.length > 1 && onArticleUrlChange ? (
+          <select
+            value={articleUrl}
+            onChange={(e) => onArticleUrlChange(e.target.value)}
+            className="w-full px-2 py-1.5 border border-ink-200 dark:border-ink-700 rounded-md text-xs bg-white dark:bg-ink-800 text-ink-900 dark:text-ink-100 focus:outline-none focus:ring-2 focus:ring-press-500/20 focus:border-press-500"
+          >
+            {availableUrls.map((u) => (
+              <option key={u.url} value={u.url}>
+                {u.name} — {u.url}
+              </option>
+            ))}
+          </select>
+        ) : (
+          <a
+            href={articleUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-xs text-press-600 dark:text-press-400 hover:underline truncate block"
+          >
+            {articleUrl}
+          </a>
+        )}
       </div>
 
       {/* Scheduled time */}

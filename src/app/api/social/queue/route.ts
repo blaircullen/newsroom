@@ -215,7 +215,7 @@ export async function POST(request: NextRequest) {
             imageUrl: post.imageUrl,
             articleUrl: post.articleUrl,
             scheduledAt: new Date(post.scheduledAt),
-            status: 'PENDING',
+            status: 'APPROVED',
           },
           include: {
             socialAccount: {

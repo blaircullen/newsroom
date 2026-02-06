@@ -41,6 +41,7 @@ interface SocialPostDraft {
   accountId: string;
   caption: string;
   scheduledAt: string;
+  articleUrl: string;
   isGenerating: boolean;
 }
 
@@ -166,8 +167,11 @@ export default function PublishModal({ articleId, onClose, onPublished }: Publis
 
       setSocialAccounts(accounts.filter(acc => acc.isActive));
 
-      // Get successfully published target IDs
-      const successfulTargetIds = results?.filter(r => r.success).map(r => r.targetId) || [];
+      // Get successfully published target IDs and build URL lookup
+      const successfulResults = results?.filter(r => r.success) || [];
+      const successfulTargetIds = successfulResults.map(r => r.targetId);
+      const targetIdToUrl = new Map(successfulResults.map(r => [r.targetId, r.url || '']));
+      const defaultUrl = successfulResults[0]?.url || '';
 
       // Filter accounts linked to published sites
       const linkedAccounts = accounts.filter(
@@ -178,11 +182,15 @@ export default function PublishModal({ articleId, onClose, onPublished }: Publis
       const draftsMap = new Map<string, SocialPostDraft>();
 
       for (const account of linkedAccounts) {
+        // Default to the account's linked site URL, fall back to first successful
+        const accountUrl = (account.publishTargetId && targetIdToUrl.get(account.publishTargetId)) || defaultUrl;
+
         // Set generating state
         draftsMap.set(account.id, {
           accountId: account.id,
           caption: '',
           scheduledAt: getSuggestedTime(),
+          articleUrl: accountUrl,
           isGenerating: true,
         });
         setSocialPostDrafts(new Map(draftsMap));
@@ -202,6 +210,7 @@ export default function PublishModal({ articleId, onClose, onPublished }: Publis
             accountId: account.id,
             caption,
             scheduledAt: getSuggestedTime(),
+            articleUrl: accountUrl,
             isGenerating: false,
           });
           setSocialPostDrafts(new Map(draftsMap));
@@ -211,6 +220,7 @@ export default function PublishModal({ articleId, onClose, onPublished }: Publis
             accountId: account.id,
             caption: 'Failed to generate caption. Please edit manually.',
             scheduledAt: getSuggestedTime(),
+            articleUrl: accountUrl,
             isGenerating: false,
           });
           setSocialPostDrafts(new Map(draftsMap));
@@ -278,13 +288,29 @@ export default function PublishModal({ articleId, onClose, onPublished }: Publis
     setSocialPostDrafts(newDrafts);
   };
 
+  // Handle article URL change per account
+  const handleArticleUrlChange = (accountId: string, articleUrl: string) => {
+    const draft = socialPostDrafts.get(accountId);
+    if (draft) {
+      setSocialPostDrafts(new Map(socialPostDrafts.set(accountId, { ...draft, articleUrl })));
+    }
+  };
+
   // Handle add account
   const handleAddAccount = async (accountId: string) => {
+    // Default URL: use account's linked site URL if available, otherwise first successful
+    const account = socialAccounts.find(acc => acc.id === accountId);
+    const successfulResults = results?.filter(r => r.success) || [];
+    const targetIdToUrl = new Map(successfulResults.map(r => [r.targetId, r.url || '']));
+    const defaultUrl = successfulResults[0]?.url || '';
+    const accountUrl = (account?.publishTargetId && targetIdToUrl.get(account.publishTargetId)) || defaultUrl;
+
     // Set generating state
     const newDraft: SocialPostDraft = {
       accountId,
       caption: '',
       scheduledAt: getSuggestedTime(),
+      articleUrl: accountUrl,
       isGenerating: true,
     };
     setSocialPostDrafts(new Map(socialPostDrafts.set(accountId, newDraft)));
@@ -303,9 +329,15 @@ export default function PublishModal({ articleId, onClose, onPublished }: Publis
       setSocialPostDrafts(new Map(socialPostDrafts.set(accountId, { ...newDraft, caption, isGenerating: false })));
     } catch (error) {
       toast.error('Failed to generate caption');
-      setSocialPostDrafts(new Map(socialPostDrafts.set(accountId, { ...newDraft, caption: 'Failed to generate caption. Please edit manually.', isGenerating: false })));
+      setSocialPostDrafts(new Map(socialPostDrafts.set(accountId, { ...newDraft, isGenerating: false, caption: 'Failed to generate caption. Please edit manually.' })));
     }
   };
+
+  // Build available URLs from successful publish results
+  const availableUrls = (results?.filter(r => r.success && r.url) || []).map(r => ({
+    name: r.name,
+    url: r.url!,
+  }));
 
   // Handle queue all posts
   const handleQueueAll = async () => {
@@ -313,10 +345,6 @@ export default function PublishModal({ articleId, onClose, onPublished }: Publis
       toast.error('No posts to queue');
       return;
     }
-
-    // Get featured image and published URL from results
-    const successfulResult = results?.find(r => r.success);
-    const publishedUrl = successfulResult?.url || '';
 
     // Validate all posts
     const invalidPosts = Array.from(socialPostDrafts.values()).filter(
@@ -336,13 +364,13 @@ export default function PublishModal({ articleId, onClose, onPublished }: Publis
       if (!articleRes.ok) throw new Error('Failed to fetch article');
       const article = await articleRes.json();
 
-      // Build posts payload
+      // Build posts payload — each draft has its own articleUrl
       const posts = Array.from(socialPostDrafts.values()).map(draft => ({
         articleId,
         socialAccountId: draft.accountId,
         caption: draft.caption,
         imageUrl: article.featuredImage || undefined,
-        articleUrl: publishedUrl,
+        articleUrl: draft.articleUrl,
         scheduledAt: new Date(draft.scheduledAt).toISOString(),
       }));
 
@@ -426,10 +454,6 @@ export default function PublishModal({ articleId, onClose, onPublished }: Publis
                   const account = socialAccounts.find(acc => acc.id === accountId);
                   if (!account) return null;
 
-                  // Get featured image and published URL from results
-                  const successfulResult = results?.find(r => r.success);
-                  const publishedUrl = successfulResult?.url || '';
-
                   return (
                     <SocialPostCard
                       key={accountId}
@@ -439,7 +463,9 @@ export default function PublishModal({ articleId, onClose, onPublished }: Publis
                       scheduledAt={draft.scheduledAt}
                       onScheduledAtChange={(time) => handleScheduledAtChange(accountId, time)}
                       imageUrl={undefined} // Will be fetched when queueing
-                      articleUrl={publishedUrl}
+                      articleUrl={draft.articleUrl}
+                      availableUrls={availableUrls}
+                      onArticleUrlChange={(url) => handleArticleUrlChange(accountId, url)}
                       isGenerating={draft.isGenerating}
                       onRegenerate={() => handleRegenerateCaption(accountId)}
                       onRemove={() => handleRemovePost(accountId)}
