@@ -41,6 +41,7 @@ export default function CalendarPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [view, setView] = useState<'month' | 'week'>('month');
   const [insightsOpen, setInsightsOpen] = useState(false);
+  const [expandedDates, setExpandedDates] = useState<Set<string>>(new Set());
 
   const isAdmin = session?.user?.role === 'ADMIN' || session?.user?.role === 'EDITOR';
 
@@ -218,6 +219,9 @@ export default function CalendarPage() {
                     const dateArticles = getArticlesForDate(date);
                     const isCurrent = isCurrentMonth(date);
                     const isDateToday = isToday(date);
+                    const dateKey = date.toISOString().split('T')[0];
+                    const isExpanded = expandedDates.has(dateKey);
+                    const visibleArticles = isExpanded ? dateArticles : dateArticles.slice(0, 3);
 
                     return (
                       <div
@@ -239,7 +243,7 @@ export default function CalendarPage() {
 
                         {/* Articles */}
                         <div className="space-y-1">
-                          {dateArticles.slice(0, 3).map((article) => (
+                          {visibleArticles.map((article) => (
                             <Link
                               key={article.id}
                               href={`/editor/${article.id}`}
@@ -261,9 +265,17 @@ export default function CalendarPage() {
                             </Link>
                           ))}
                           {dateArticles.length > 3 && (
-                            <p className="text-[10px] text-ink-400 px-2">
-                              +{dateArticles.length - 3} more
-                            </p>
+                            <button
+                              onClick={() => {
+                                const next = new Set(expandedDates);
+                                if (isExpanded) next.delete(dateKey);
+                                else next.add(dateKey);
+                                setExpandedDates(next);
+                              }}
+                              className="text-[10px] text-press-600 dark:text-press-400 px-2 hover:text-press-700 dark:hover:text-press-300 hover:underline cursor-pointer"
+                            >
+                              {isExpanded ? 'Show less' : `+${dateArticles.length - 3} more`}
+                            </button>
                           )}
                         </div>
                       </div>
