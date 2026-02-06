@@ -13,9 +13,11 @@ function maskToken(token: string): string {
   return token.substring(0, 8) + '...';
 }
 
-// Determine token status based on expiry date
-function getTokenStatus(tokenExpiresAt: Date | null): 'valid' | 'expiring' | 'expired' {
+// Determine token status based on expiry date and refresh token availability
+function getTokenStatus(tokenExpiresAt: Date | null, hasRefreshToken: boolean): 'valid' | 'expiring' | 'expired' {
   if (!tokenExpiresAt) return 'valid';
+  // If we have a refresh token, the auto-refresh cron handles renewal
+  if (hasRefreshToken) return 'valid';
 
   const now = new Date();
   const diffMs = tokenExpiresAt.getTime() - now.getTime();
@@ -67,7 +69,7 @@ export async function GET(request: NextRequest) {
       } : null,
       isActive: account.isActive,
       tokenExpiresAt: account.tokenExpiresAt,
-      tokenStatus: getTokenStatus(account.tokenExpiresAt),
+      tokenStatus: getTokenStatus(account.tokenExpiresAt, !!account.refreshToken),
       createdAt: account.createdAt,
       // Mask tokens for security
       accessTokenPreview: maskToken(account.accessToken),
@@ -188,7 +190,7 @@ export async function POST(request: NextRequest) {
       publishTarget: account.publishTarget,
       isActive: account.isActive,
       tokenExpiresAt: account.tokenExpiresAt,
-      tokenStatus: getTokenStatus(account.tokenExpiresAt),
+      tokenStatus: getTokenStatus(account.tokenExpiresAt, !!encryptedRefreshToken),
       createdAt: account.createdAt,
       accessTokenPreview: maskToken(accessToken.trim()),
       refreshTokenPreview: encryptedRefreshToken && typeof refreshToken === 'string' ? maskToken(refreshToken.trim()) : null,
