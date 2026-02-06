@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import prisma from '@/lib/prisma';
+import { sendSocialPost } from '@/lib/social-send';
 
 // PUT /api/social/queue/[id] - Edit a queued post (admin/editor)
 export async function PUT(
@@ -206,14 +207,22 @@ export async function POST(
         });
         break;
 
-      case 'send-now':
-        // Set scheduledAt to now and status to APPROVED
-        updatedPost = await prisma.socialPost.update({
+      case 'send-now': {
+        // Set status to APPROVED first, then send immediately
+        await prisma.socialPost.update({
           where: { id },
           data: {
             scheduledAt: new Date(),
             status: 'APPROVED',
           },
+        });
+
+        // Send immediately instead of waiting for cron
+        const sendResult = await sendSocialPost(id);
+
+        // Fetch updated post to return
+        updatedPost = await prisma.socialPost.findUnique({
+          where: { id },
           include: {
             article: {
               select: {
@@ -231,7 +240,15 @@ export async function POST(
             },
           },
         });
+
+        if (!sendResult.success) {
+          return NextResponse.json(
+            { error: sendResult.error || 'Failed to send post', post: updatedPost },
+            { status: 502 }
+          );
+        }
         break;
+      }
 
       case 'approve':
         // Set status from PENDING to APPROVED

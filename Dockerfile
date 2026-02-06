@@ -37,6 +37,8 @@ COPY --from=builder /app/public ./public
 COPY --from=builder /app/.next/standalone ./
 COPY --from=builder /app/.next/static ./.next/static
 COPY --from=builder /app/prisma ./prisma
+# Ensure instrumentation hook is included (cron scheduler)
+COPY --from=builder /app/.next/server/instrumentation* ./.next/server/
 COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
 COPY --from=builder /app/node_modules/nodemailer ./node_modules/nodemailer
 

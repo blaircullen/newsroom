@@ -164,13 +164,16 @@ export default function SocialQueuePage() {
         body: JSON.stringify({ action: 'send-now' }),
       });
 
+      const data = await res.json();
       if (res.ok) {
-        const updated = await res.json();
-        setPosts((prev) => prev.map((p) => (p.id === postId ? updated : p)));
-        toast.success('Post scheduled to send now');
+        setPosts((prev) => prev.map((p) => (p.id === postId ? data : p)));
+        toast.success('Post sent!');
       } else {
-        const err = await res.json();
-        toast.error(err.error || 'Failed to send');
+        // Update the post state if returned (e.g. FAILED status)
+        if (data.post) {
+          setPosts((prev) => prev.map((p) => (p.id === postId ? data.post : p)));
+        }
+        toast.error(data.error || 'Failed to send');
       }
     } catch {
       toast.error('Something went wrong');
