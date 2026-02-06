@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import prisma from '@/lib/prisma';
-import crypto from 'crypto';
 import { encrypt } from '@/lib/encryption';
 
 export async function GET(request: NextRequest) {
@@ -12,40 +11,25 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
-    // Try full query first, fall back to basic query if Shopify columns don't exist
-    let sites: any[];
-    try {
-      sites = await prisma.$queryRaw`
-        SELECT id, name, type, url, api_key, username, password, blog_id,
-               client_id, client_secret, myshopify_domain, is_active, created_at, updated_at
-        FROM publish_targets
-        ORDER BY created_at DESC
-      `;
-    } catch (colErr: any) {
-      // Shopify columns don't exist yet - use basic query
-      console.log('[Sites API] Falling back to basic query:', colErr.message);
-      sites = await prisma.$queryRaw`
-        SELECT id, name, type, url, api_key, username, password, is_active, created_at, updated_at
-        FROM publish_targets
-        ORDER BY created_at DESC
-      `;
-    }
+    const sites = await prisma.publishTarget.findMany({
+      orderBy: { createdAt: 'desc' },
+    });
 
-    const mapped = sites.map((s: any) => ({
+    const mapped = sites.map((s) => ({
       id: s.id,
       name: s.name,
       type: s.type,
       url: s.url,
-      apiKey: s.api_key ? '••••••••' : null,
+      apiKey: s.apiKey ? '••••••••' : null,
       username: s.username,
       password: s.password ? '••••••••' : null,
-      blogId: s.blog_id || null,
-      clientId: s.client_id || null,
-      clientSecret: s.client_secret ? '••••••••' : null,
-      myshopifyDomain: s.myshopify_domain || null,
-      isActive: s.is_active,
-      createdAt: s.created_at,
-      updatedAt: s.updated_at,
+      blogId: s.blogId,
+      clientId: s.clientId,
+      clientSecret: s.clientSecret ? '••••••••' : null,
+      myshopifyDomain: s.myshopifyDomain,
+      isActive: s.isActive,
+      createdAt: s.createdAt,
+      updatedAt: s.updatedAt,
     }));
 
     return NextResponse.json(mapped);
@@ -78,48 +62,39 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Shopify Client ID, Client Secret, and myshopify domain are required' }, { status: 400 });
     }
 
-    // Check if site exists using raw query
-    const existing: any[] = await prisma.$queryRaw`SELECT id FROM publish_targets WHERE name = ${name} LIMIT 1`;
-    if (existing.length > 0) {
+    const existing = await prisma.publishTarget.findUnique({ where: { name } });
+    if (existing) {
       return NextResponse.json({ error: 'A site with this name already exists' }, { status: 409 });
     }
 
-    // Insert using raw query to avoid schema mismatch
     const cleanUrl = url.replace(/\/+$/, '');
-    // Generate a cuid-compatible ID using crypto for secure randomness
-    const id = 'c' + crypto.randomBytes(12).toString('hex');
 
     // Encrypt sensitive credentials before storing
     const encryptedApiKey = type === 'ghost' && apiKey ? encrypt(apiKey) : null;
     const encryptedPassword = type === 'wordpress' && password ? encrypt(password) : null;
     const encryptedClientSecret = type === 'shopify' && clientSecret ? encrypt(clientSecret) : null;
 
-    await prisma.$executeRaw`
-      INSERT INTO publish_targets (id, name, type, url, api_key, username, password, blog_id, client_id, client_secret, myshopify_domain, is_active, created_at, updated_at)
-      VALUES (
-        ${id},
-        ${name},
-        ${type},
-        ${cleanUrl},
-        ${encryptedApiKey},
-        ${type === 'wordpress' ? username : null},
-        ${encryptedPassword},
-        ${type === 'shopify' ? blogId || null : null},
-        ${type === 'shopify' ? clientId : null},
-        ${encryptedClientSecret},
-        ${type === 'shopify' ? myshopifyDomain : null},
-        true,
-        NOW(),
-        NOW()
-      )
-    `;
-
-    return NextResponse.json(
-      {
-        id,
+    const site = await prisma.publishTarget.create({
+      data: {
         name,
         type,
         url: cleanUrl,
+        apiKey: encryptedApiKey,
+        username: type === 'wordpress' ? username : null,
+        password: encryptedPassword,
+        blogId: type === 'shopify' ? blogId || null : null,
+        clientId: type === 'shopify' ? clientId : null,
+        clientSecret: encryptedClientSecret,
+        myshopifyDomain: type === 'shopify' ? myshopifyDomain : null,
+      },
+    });
+
+    return NextResponse.json(
+      {
+        id: site.id,
+        name: site.name,
+        type: site.type,
+        url: site.url,
         apiKey: apiKey ? '••••••••' : null,
         password: password ? '••••••••' : null,
         clientSecret: clientSecret ? '••••••••' : null

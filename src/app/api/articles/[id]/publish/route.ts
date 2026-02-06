@@ -14,7 +14,14 @@ export async function GET(
     }
     const targets = await getPublishTargets();
     console.log('[Publish API] Fetched targets:', targets.length);
-    return NextResponse.json({ targets });
+    // Mask secrets before sending to client
+    const safeTargets = targets.map(({ apiKey, password, clientSecret, ...rest }) => ({
+      ...rest,
+      apiKey: apiKey ? '••••••••' : null,
+      password: password ? '••••••••' : null,
+      clientSecret: clientSecret ? '••••••••' : null,
+    }));
+    return NextResponse.json({ targets: safeTargets });
   } catch (error: any) {
     console.error('[Publish API] Error fetching targets:', error.message);
     return NextResponse.json({ error: error.message, targets: [] }, { status: 500 });

@@ -68,8 +68,8 @@ export async function POST(request: NextRequest) {
   }
 
   // Validate password strength
-  if (password.length < 6) {
-    return NextResponse.json({ error: 'Password must be at least 6 characters' }, { status: 400 });
+  if (password.length < 8) {
+    return NextResponse.json({ error: 'Password must be at least 8 characters' }, { status: 400 });
   }
 
   if (password.length > 72) {
@@ -150,8 +150,8 @@ export async function PATCH(request: NextRequest) {
 
   // Validate password strength if provided
   if (password !== undefined) {
-    if (typeof password !== 'string' || password.length < 6) {
-      return NextResponse.json({ error: 'Password must be at least 6 characters' }, { status: 400 });
+    if (typeof password !== 'string' || password.length < 8) {
+      return NextResponse.json({ error: 'Password must be at least 8 characters' }, { status: 400 });
     }
     if (password.length > 72) {
       return NextResponse.json({ error: 'Password must be under 72 characters' }, { status: 400 });

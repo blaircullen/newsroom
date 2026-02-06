@@ -3,20 +3,15 @@ import prisma from '@/lib/prisma';
 import { decrypt, encrypt } from '@/lib/encryption';
 import { sendEmail } from '@/lib/email';
 import { getXAppCredentials } from '@/lib/x-oauth';
+import { verifyBearerToken } from '@/lib/auth-utils';
 
 // Cron job to refresh expiring social media tokens
 // Called every hour by the built-in scheduler (instrumentation.ts)
 export async function GET(request: NextRequest) {
   try {
     // Verify cron secret - REQUIRED for security
-    const cronSecret = process.env.CRON_SECRET;
-    if (!cronSecret) {
-      console.error('[Token Refresh] CRON_SECRET not configured');
-      return NextResponse.json({ error: 'Server configuration error' }, { status: 500 });
-    }
-
     const authHeader = request.headers.get('authorization');
-    if (authHeader !== `Bearer ${cronSecret}`) {
+    if (!verifyBearerToken(authHeader, process.env.CRON_SECRET)) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { readFile, writeFile, mkdir } from 'fs/promises';
 import path from 'path';
+import { timingSafeCompare } from '@/lib/auth-utils';
 
 const DATA_DIR = '/tmp/newsroom-data';
 const TRENDING_FILE = path.join(DATA_DIR, 'trending.json');
@@ -83,8 +84,7 @@ export async function POST(request: NextRequest) {
   const apiKey = request.headers.get('x-api-key');
   const expectedKey = process.env.TRENDING_API_KEY;
 
-  // Use timing-safe comparison if available
-  if (!expectedKey || !apiKey || apiKey !== expectedKey) {
+  if (!timingSafeCompare(apiKey, expectedKey)) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 

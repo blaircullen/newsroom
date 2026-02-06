@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { getArticleAnalytics } from '@/lib/umami';
+import { verifyBearerToken } from '@/lib/auth-utils';
 
 export const dynamic = 'force-dynamic';
 
@@ -8,7 +9,7 @@ export async function GET(request: NextRequest) {
   try {
     // Verify cron secret to prevent unauthorized calls
     const authHeader = request.headers.get('authorization');
-    if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+    if (!verifyBearerToken(authHeader, process.env.CRON_SECRET)) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
