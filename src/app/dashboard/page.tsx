@@ -430,8 +430,8 @@ export default function DashboardPage() {
                         onClick={() => handleFilterChange(filter.value || '')}
                         className={`flex items-center gap-1.5 px-4 py-2.5 rounded-full text-xs font-semibold whitespace-nowrap transition-all active:scale-95 ${
                           isActive
-                            ? 'bg-white text-ink-950 shadow-lg shadow-white/20'
-                            : 'bg-white/10 text-white/70 border border-white/20 active:bg-white/15'
+                            ? 'bg-press-500 text-white shadow-lg shadow-press-500/30'
+                            : 'bg-slate-800 text-slate-400 border border-slate-700 active:bg-slate-700'
                         }`}
                       >
                         <Icon className="w-4 h-4" />
