@@ -34,7 +34,7 @@ interface CachedHotArticles {
 let memoryCache: CachedRankings | null = null;
 let hotArticlesCache: CachedHotArticles | null = null;
 const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
-const HOT_ARTICLES_CACHE_TTL = 10 * 60 * 1000; // 10 minutes (Umami queries are expensive)
+const HOT_ARTICLES_CACHE_TTL = 30 * 60 * 1000; // 30 minutes (Umami queries are expensive)
 
 async function ensureCacheDir() {
   try {

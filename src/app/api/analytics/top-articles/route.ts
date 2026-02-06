@@ -7,9 +7,9 @@ import prisma from '@/lib/prisma';
 const tokenCache = new Map<string, { token: string; expiresAt: number }>();
 const TOKEN_TTL = 50 * 60 * 1000;
 
-// Response cache - 2 min for real-time feel
+// Response cache - 10 min to reduce Umami API load
 const cache: Record<string, { timestamp: number; data: unknown }> = {};
-const CACHE_TTL = 2 * 60 * 1000;
+const CACHE_TTL = 10 * 60 * 1000;
 
 function getWebsiteConfigs(): Record<string, string> {
   return {

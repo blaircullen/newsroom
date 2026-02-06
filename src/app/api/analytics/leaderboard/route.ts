@@ -1,11 +1,22 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 
+// In-memory cache for leaderboard data
+const cache: Record<string, { timestamp: number; data: unknown }> = {};
+const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+
 // Returns writer leaderboard data
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const period = searchParams.get('period') || 'week'; // week, month, all
+
+    // Check cache
+    const cacheKey = `leaderboard-${period}`;
+    const cached = cache[cacheKey];
+    if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
+      return NextResponse.json(cached.data);
+    }
 
     // Calculate date filter
     let dateFilter: Date | undefined;
@@ -15,73 +26,63 @@ export async function GET(request: NextRequest) {
       dateFilter = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
     }
 
-    // Get all published articles with their authors
-    const articles = await prisma.article.findMany({
-      where: {
-        status: 'PUBLISHED',
-        ...(dateFilter && {
-          publishedAt: { gte: dateFilter },
-        }),
-      },
-      select: {
-        id: true,
+    const where = {
+      status: 'PUBLISHED' as const,
+      ...(dateFilter && { publishedAt: { gte: dateFilter } }),
+    };
+
+    // Aggregate stats by author in the database
+    const authorStats = await prisma.article.groupBy({
+      by: ['authorId'],
+      where,
+      _count: { id: true },
+      _sum: {
         totalPageviews: true,
         totalUniqueVisitors: true,
-        author: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-          },
-        },
       },
     });
 
-    // Aggregate by author
-    const authorStats: Record<string, {
-      id: string;
-      name: string;
-      email: string;
-      articleCount: number;
-      totalPageviews: number;
-      totalVisitors: number;
-    }> = {};
+    // Fetch author details for the aggregated results
+    const authorIds = authorStats.map(s => s.authorId);
+    const authors = await prisma.user.findMany({
+      where: { id: { in: authorIds } },
+      select: { id: true, name: true, email: true },
+    });
+    const authorMap = new Map(authors.map(a => [a.id, a]));
 
-    for (const article of articles) {
-      const authorId = article.author.id;
-      if (!authorStats[authorId]) {
-        authorStats[authorId] = {
-          id: authorId,
-          name: article.author.name || 'Unknown',
-          email: article.author.email,
-          articleCount: 0,
-          totalPageviews: 0,
-          totalVisitors: 0,
+    // Build leaderboard, filter out managing editor, sort by pageviews
+    const leaderboard = authorStats
+      .map(stat => {
+        const author = authorMap.get(stat.authorId);
+        const totalPageviews = stat._sum.totalPageviews || 0;
+        const articleCount = stat._count.id;
+        return {
+          id: stat.authorId,
+          name: author?.name || 'Unknown',
+          email: author?.email || '',
+          articleCount,
+          totalPageviews,
+          totalVisitors: stat._sum.totalUniqueVisitors || 0,
+          avgPageviewsPerArticle: articleCount > 0
+            ? Math.round(totalPageviews / articleCount)
+            : 0,
         };
-      }
-      authorStats[authorId].articleCount++;
-      authorStats[authorId].totalPageviews += article.totalPageviews || 0;
-      authorStats[authorId].totalVisitors += article.totalUniqueVisitors || 0;
-    }
-
-    // Convert to array, filter out managing editor, and sort by pageviews
-    const leaderboard = Object.values(authorStats)
-      .filter((a) => a.name.toLowerCase() !== 'managing editor')
+      })
+      .filter(a => a.name.toLowerCase() !== 'managing editor')
       .sort((a, b) => b.totalPageviews - a.totalPageviews)
       .slice(0, 10)
       .map((author, index) => ({
         ...author,
         rank: index + 1,
-        avgPageviewsPerArticle: author.articleCount > 0
-          ? Math.round(author.totalPageviews / author.articleCount)
-          : 0,
+        rankChange: null as number | null,
+        isNew: false,
       }));
 
     // Get previous period for comparison
-    let previousLeaderboard: typeof leaderboard = [];
     if (dateFilter) {
       const previousStart = new Date(dateFilter.getTime() - (Date.now() - dateFilter.getTime()));
-      const previousArticles = await prisma.article.findMany({
+      const previousStats = await prisma.article.groupBy({
+        by: ['authorId'],
         where: {
           status: 'PUBLISHED',
           publishedAt: {
@@ -89,34 +90,32 @@ export async function GET(request: NextRequest) {
             lt: dateFilter,
           },
         },
-        select: {
-          totalPageviews: true,
-          author: { select: { id: true } },
-        },
+        _sum: { totalPageviews: true },
       });
 
-      const prevStats: Record<string, number> = {};
-      for (const a of previousArticles) {
-        prevStats[a.author.id] = (prevStats[a.author.id] || 0) + (a.totalPageviews || 0);
-      }
-
-      // Add rank change to current leaderboard
-      const prevRanks = Object.entries(prevStats)
-        .sort(([, a], [, b]) => b - a)
-        .reduce((acc, [id], i) => ({ ...acc, [id]: i + 1 }), {} as Record<string, number>);
+      // Build previous rankings sorted by pageviews
+      const prevRanks = previousStats
+        .map(s => ({ id: s.authorId, pv: s._sum.totalPageviews || 0 }))
+        .sort((a, b) => b.pv - a.pv)
+        .reduce((acc, { id }, i) => ({ ...acc, [id]: i + 1 }), {} as Record<string, number>);
 
       for (const author of leaderboard) {
         const prevRank = prevRanks[author.id];
-        (author as any).rankChange = prevRank ? prevRank - author.rank : null;
-        (author as any).isNew = !prevRank;
+        author.rankChange = prevRank ? prevRank - author.rank : null;
+        author.isNew = !prevRank;
       }
     }
 
-    return NextResponse.json({
+    const response = {
       leaderboard,
       period,
-      totalAuthors: Object.keys(authorStats).length,
-    });
+      totalAuthors: authorStats.length,
+    };
+
+    // Update cache
+    cache[cacheKey] = { timestamp: Date.now(), data: response };
+
+    return NextResponse.json(response);
   } catch (error) {
     console.error('Leaderboard API error:', error);
     return NextResponse.json({ error: 'Failed to fetch leaderboard' }, { status: 500 });

@@ -69,30 +69,44 @@ export async function GET(request: NextRequest) {
       };
     }
 
-    const posts = await prisma.socialPost.findMany({
-      where,
-      include: {
-        article: {
-          select: {
-            headline: true,
-            featuredImage: true,
-          },
-        },
-        socialAccount: {
-          select: {
-            platform: true,
-            accountName: true,
-            accountHandle: true,
-            publishTargetId: true,
-          },
-        },
-      },
-      orderBy: {
-        scheduledAt: 'asc',
-      },
-    });
+    // Pagination
+    const pageParam = parseInt(searchParams.get('page') || '1', 10);
+    const limitParam = parseInt(searchParams.get('limit') || '50', 10);
+    const queuePage = Math.max(1, pageParam || 1);
+    const queueLimit = Math.min(100, Math.max(1, limitParam || 50));
 
-    return NextResponse.json(posts);
+    const [posts, total] = await Promise.all([
+      prisma.socialPost.findMany({
+        where,
+        include: {
+          article: {
+            select: {
+              headline: true,
+              featuredImage: true,
+            },
+          },
+          socialAccount: {
+            select: {
+              platform: true,
+              accountName: true,
+              accountHandle: true,
+              publishTargetId: true,
+            },
+          },
+        },
+        orderBy: {
+          scheduledAt: 'asc',
+        },
+        skip: (queuePage - 1) * queueLimit,
+        take: queueLimit,
+      }),
+      prisma.socialPost.count({ where }),
+    ]);
+
+    return NextResponse.json({
+      posts,
+      pagination: { page: queuePage, limit: queueLimit, total, pages: Math.ceil(total / queueLimit) },
+    });
   } catch (error) {
     console.error('[API] Error fetching social queue:', error);
     return NextResponse.json(

@@ -90,6 +90,7 @@ model ArticleTag {
   tag       Tag     @relation(fields: [tagId], references: [id], onDelete: Cascade)
 
   @@id([articleId, tagId])
+  @@index([tagId])
   @@map("article_tags")
 }
 
@@ -104,6 +105,7 @@ model Review {
   reviewer   User     @relation(fields: [reviewerId], references: [id])
 
   @@index([articleId])
+  @@index([reviewerId])
   @@map("reviews")
 }
 
@@ -118,6 +120,7 @@ model Comment {
   user      User     @relation(fields: [userId], references: [id])
 
   @@index([articleId])
+  @@index([userId])
   @@map("comments")
 }
 

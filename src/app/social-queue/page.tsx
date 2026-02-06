@@ -120,7 +120,8 @@ export default function SocialQueuePage() {
 
       const res = await fetch(`/api/social/queue?${params.toString()}`);
       if (res.ok) {
-        setPosts(await res.json());
+        const data = await res.json();
+        setPosts(data.posts || data);
       } else {
         toast.error('Failed to load posts');
       }
