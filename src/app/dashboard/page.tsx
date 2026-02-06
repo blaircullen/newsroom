@@ -78,11 +78,19 @@ export default function DashboardPage() {
 
   // Dismiss a story idea and persist to localStorage
   const dismissStoryIdea = (headline: string) => {
-    setDismissedIdeas(prev => {
-      const updated = [...prev, headline];
-      localStorage.setItem('dismissedStoryIdeas', JSON.stringify(updated));
-      return updated;
-    });
+    // Read directly from localStorage (source of truth) to avoid stale React state
+    let current: string[] = [];
+    try {
+      const stored = localStorage.getItem('dismissedStoryIdeas');
+      if (stored) current = JSON.parse(stored);
+    } catch {
+      // ignore
+    }
+    if (!current.includes(headline)) {
+      current.push(headline);
+    }
+    localStorage.setItem('dismissedStoryIdeas', JSON.stringify(current));
+    setDismissedIdeas(current);
     setStoryIdeas(prev => prev.filter(i => i.headline !== headline));
   };
 
@@ -155,8 +163,13 @@ export default function DashboardPage() {
       if (res.ok) {
         const data = await res.json();
         // Filter out previously dismissed ideas
-        const storedDismissed = localStorage.getItem('dismissedStoryIdeas');
-        const dismissed = storedDismissed ? JSON.parse(storedDismissed) : [];
+        let dismissed: string[] = [];
+        try {
+          const storedDismissed = localStorage.getItem('dismissedStoryIdeas');
+          if (storedDismissed) dismissed = JSON.parse(storedDismissed);
+        } catch {
+          // ignore malformed data
+        }
         const filteredIdeas = (data.ideas || []).filter(
           (idea: StoryIdea) => !dismissed.includes(idea.headline)
         );
