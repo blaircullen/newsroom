@@ -75,6 +75,7 @@ export async function GET(request: NextRequest) {
               refresh_token: refreshToken,
               client_id: clientId,
             }),
+            signal: AbortSignal.timeout(30000),
           });
 
           if (!tokenResponse.ok) {
@@ -118,7 +119,9 @@ export async function GET(request: NextRequest) {
           exchangeUrl.searchParams.set('client_secret', fbClientSecret);
           exchangeUrl.searchParams.set('fb_exchange_token', accessToken);
 
-          const fbResponse = await fetch(exchangeUrl.toString());
+          const fbResponse = await fetch(exchangeUrl.toString(), {
+            signal: AbortSignal.timeout(30000),
+          });
 
           if (!fbResponse.ok) {
             const errorData = await fbResponse.json().catch(() => ({}));

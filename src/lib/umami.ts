@@ -55,6 +55,7 @@ async function getAuthToken(username: string, password: string): Promise<string>
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({ username, password }),
+    signal: AbortSignal.timeout(10000),
   });
 
   if (!response.ok) {
@@ -102,6 +103,7 @@ async function fetchUmamiMetrics(
       headers: {
         'Authorization': `Bearer ${token}`,
       },
+      signal: AbortSignal.timeout(10000),
     }
   );
 
@@ -146,6 +148,7 @@ async function fetchUmamiMetricsForTimeRange(
       headers: {
         'Authorization': `Bearer ${token}`,
       },
+      signal: AbortSignal.timeout(10000),
     }
   );
 

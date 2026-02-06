@@ -1,5 +1,7 @@
 'use client';
 
+export const dynamic = 'force-dynamic';
+
 import { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
@@ -308,90 +310,135 @@ export default function AdminUsersPage() {
             <div className="animate-spin w-8 h-8 border-2 border-ink-200 border-t-press-500 rounded-full" />
           </div>
         ) : (
-          <div className="bg-white rounded-xl border border-ink-100 overflow-hidden">
-            <table className="w-full">
-              <thead>
-                <tr className="border-b border-ink-100 bg-paper-50">
-                  <th className="text-left px-5 py-3 text-xs font-semibold text-ink-500 uppercase tracking-wider">Name</th>
-                  <th className="text-left px-5 py-3 text-xs font-semibold text-ink-500 uppercase tracking-wider">Role</th>
-                  <th className="text-left px-5 py-3 text-xs font-semibold text-ink-500 uppercase tracking-wider">Articles</th>
-                  <th className="text-left px-5 py-3 text-xs font-semibold text-ink-500 uppercase tracking-wider">Last Login</th>
-                  <th className="text-left px-5 py-3 text-xs font-semibold text-ink-500 uppercase tracking-wider">Status</th>
-                  <th className="text-right px-5 py-3 text-xs font-semibold text-ink-500 uppercase tracking-wider">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-ink-50">
-                {users.map((user) => (
-                  <tr key={user.id} className="hover:bg-paper-50 transition-colors">
-                    <td className="px-5 py-4">
-                      <div>
-                        <p className="font-medium text-ink-900 text-sm">{user.name}</p>
-                        <p className="text-ink-400 text-xs">{user.email}</p>
-                      </div>
-                    </td>
-                    <td className="px-5 py-4">
-                      {editingUser === user.id ? (
-                        <select
-                          defaultValue={user.role}
-                          onChange={(e) => updateUserRole(user.id, e.target.value)}
-                          onBlur={() => setEditingUser(null)}
-                          className="text-xs px-2 py-1 rounded border border-ink-200 bg-white focus:outline-none"
-                          autoFocus
-                        >
-                          <option value="WRITER">Writer</option>
-                          <option value="EDITOR">Editor</option>
-                          <option value="ADMIN">Admin</option>
-                        </select>
-                      ) : (
-                        <button
-                          onClick={() => setEditingUser(user.id)}
-                          className="text-xs px-2 py-1 rounded bg-ink-50 text-ink-600 hover:bg-ink-100 capitalize"
-                        >
-                          {user.role.toLowerCase()}
-                        </button>
-                      )}
-                    </td>
-                    <td className="px-5 py-4 text-sm text-ink-600">
-                      {user._count.articles}
-                    </td>
-                    <td className="px-5 py-4 text-xs text-ink-400">
-                      {user.lastLoginAt
-                        ? new Date(user.lastLoginAt).toLocaleDateString()
-                        : 'Never'}
-                    </td>
-                    <td className="px-5 py-4">
-                      <span className={`text-xs px-2 py-0.5 rounded-full ${
-                        user.isActive ? 'bg-emerald-50 text-emerald-600' : 'bg-red-50 text-red-600'
-                      }`}>
-                        {user.isActive ? 'Active' : 'Inactive'}
-                      </span>
-                    </td>
-                    <td className="px-5 py-4 text-right">
-                      <div className="flex items-center justify-end gap-3">
-                        <button
-                          onClick={() => setResetPasswordUser(user)}
-                          className="text-xs font-medium text-press-600 hover:text-press-700 focus:outline-none focus:ring-2 focus:ring-press-500 focus:ring-offset-1 rounded px-1"
-                          title="Reset password"
-                        >
-                          Reset Password
-                        </button>
-                        <button
-                          onClick={() => toggleUserActive(user.id, user.isActive)}
-                          className={`text-xs font-medium focus:outline-none focus:ring-2 focus:ring-offset-1 rounded px-1 ${
-                            user.isActive
-                              ? 'text-red-600 hover:text-red-700 focus:ring-red-500'
-                              : 'text-emerald-600 hover:text-emerald-700 focus:ring-emerald-500'
-                          }`}
-                        >
-                          {user.isActive ? 'Deactivate' : 'Activate'}
-                        </button>
-                      </div>
-                    </td>
+          <>
+            {/* Mobile Card View */}
+            <div className="md:hidden space-y-3">
+              {users.map((user) => (
+                <div key={user.id} className="bg-white rounded-xl border border-ink-100 p-4">
+                  <div className="flex items-start justify-between mb-3">
+                    <div>
+                      <p className="font-medium text-ink-900 text-sm">{user.name}</p>
+                      <p className="text-ink-400 text-xs">{user.email}</p>
+                    </div>
+                    <span className={`text-xs px-2 py-0.5 rounded-full ${
+                      user.isActive ? 'bg-emerald-50 text-emerald-600' : 'bg-red-50 text-red-600'
+                    }`}>
+                      {user.isActive ? 'Active' : 'Inactive'}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-4 text-xs text-ink-500 mb-3">
+                    <span className="capitalize">{user.role.toLowerCase()}</span>
+                    <span>{user._count.articles} articles</span>
+                    <span>{user.lastLoginAt ? new Date(user.lastLoginAt).toLocaleDateString() : 'Never'}</span>
+                  </div>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => setResetPasswordUser(user)}
+                      className="flex-1 px-3 py-2 text-xs font-medium text-press-600 bg-press-50 rounded-lg"
+                    >
+                      Reset Password
+                    </button>
+                    <button
+                      onClick={() => toggleUserActive(user.id, user.isActive)}
+                      className={`flex-1 px-3 py-2 text-xs font-medium rounded-lg ${
+                        user.isActive
+                          ? 'text-red-600 bg-red-50'
+                          : 'text-emerald-600 bg-emerald-50'
+                      }`}
+                    >
+                      {user.isActive ? 'Deactivate' : 'Activate'}
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Desktop Table View */}
+            <div className="hidden md:block bg-white rounded-xl border border-ink-100 overflow-hidden">
+              <table className="w-full">
+                <thead>
+                  <tr className="border-b border-ink-100 bg-paper-50">
+                    <th className="text-left px-5 py-3 text-xs font-semibold text-ink-500 uppercase tracking-wider">Name</th>
+                    <th className="text-left px-5 py-3 text-xs font-semibold text-ink-500 uppercase tracking-wider">Role</th>
+                    <th className="text-left px-5 py-3 text-xs font-semibold text-ink-500 uppercase tracking-wider">Articles</th>
+                    <th className="text-left px-5 py-3 text-xs font-semibold text-ink-500 uppercase tracking-wider">Last Login</th>
+                    <th className="text-left px-5 py-3 text-xs font-semibold text-ink-500 uppercase tracking-wider">Status</th>
+                    <th className="text-right px-5 py-3 text-xs font-semibold text-ink-500 uppercase tracking-wider">Actions</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody className="divide-y divide-ink-50">
+                  {users.map((user) => (
+                    <tr key={user.id} className="hover:bg-paper-50 transition-colors">
+                      <td className="px-5 py-4">
+                        <div>
+                          <p className="font-medium text-ink-900 text-sm">{user.name}</p>
+                          <p className="text-ink-400 text-xs">{user.email}</p>
+                        </div>
+                      </td>
+                      <td className="px-5 py-4">
+                        {editingUser === user.id ? (
+                          <select
+                            defaultValue={user.role}
+                            onChange={(e) => updateUserRole(user.id, e.target.value)}
+                            onBlur={() => setEditingUser(null)}
+                            className="text-xs px-2 py-1 rounded border border-ink-200 bg-white focus:outline-none"
+                            autoFocus
+                          >
+                            <option value="WRITER">Writer</option>
+                            <option value="EDITOR">Editor</option>
+                            <option value="ADMIN">Admin</option>
+                          </select>
+                        ) : (
+                          <button
+                            onClick={() => setEditingUser(user.id)}
+                            className="text-xs px-2 py-1 rounded bg-ink-50 text-ink-600 hover:bg-ink-100 capitalize"
+                          >
+                            {user.role.toLowerCase()}
+                          </button>
+                        )}
+                      </td>
+                      <td className="px-5 py-4 text-sm text-ink-600">
+                        {user._count.articles}
+                      </td>
+                      <td className="px-5 py-4 text-xs text-ink-400">
+                        {user.lastLoginAt
+                          ? new Date(user.lastLoginAt).toLocaleDateString()
+                          : 'Never'}
+                      </td>
+                      <td className="px-5 py-4">
+                        <span className={`text-xs px-2 py-0.5 rounded-full ${
+                          user.isActive ? 'bg-emerald-50 text-emerald-600' : 'bg-red-50 text-red-600'
+                        }`}>
+                          {user.isActive ? 'Active' : 'Inactive'}
+                        </span>
+                      </td>
+                      <td className="px-5 py-4 text-right">
+                        <div className="flex items-center justify-end gap-3">
+                          <button
+                            onClick={() => setResetPasswordUser(user)}
+                            className="text-xs font-medium text-press-600 hover:text-press-700 focus:outline-none focus:ring-2 focus:ring-press-500 focus:ring-offset-1 rounded px-1"
+                            title="Reset password"
+                          >
+                            Reset Password
+                          </button>
+                          <button
+                            onClick={() => toggleUserActive(user.id, user.isActive)}
+                            className={`text-xs font-medium focus:outline-none focus:ring-2 focus:ring-offset-1 rounded px-1 ${
+                              user.isActive
+                                ? 'text-red-600 hover:text-red-700 focus:ring-red-500'
+                                : 'text-emerald-600 hover:text-emerald-700 focus:ring-emerald-500'
+                            }`}
+                          >
+                            {user.isActive ? 'Deactivate' : 'Activate'}
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </>
         )}
       </div>
     </AppShell>

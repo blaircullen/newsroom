@@ -376,9 +376,9 @@ export default function PublishModal({ articleId, onClose, onPublished }: Publis
         role="dialog"
         aria-modal="true"
         aria-labelledby="publish-modal-title"
-        className="relative bg-white dark:bg-ink-900 rounded-2xl shadow-elevated w-full max-w-md overflow-hidden"
+        className="relative bg-white dark:bg-ink-900 w-full max-w-md max-h-[90dvh] md:max-h-[85vh] overflow-hidden fixed bottom-0 left-0 right-0 md:relative md:bottom-auto md:left-auto md:right-auto rounded-t-2xl md:rounded-2xl shadow-elevated"
       >
-        <div className="flex items-center justify-between p-5 border-b border-ink-100 dark:border-ink-800">
+        <div className="flex items-center justify-between px-4 md:px-5 py-5 border-b border-ink-100 dark:border-ink-800">
           <div className="flex items-center gap-3">
             <div className={`w-9 h-9 rounded-lg flex items-center justify-center ${
               step === 'social' ? 'bg-blue-50' : 'bg-emerald-50'
@@ -411,7 +411,7 @@ export default function PublishModal({ articleId, onClose, onPublished }: Publis
           </button>
         </div>
 
-        <div className="p-5 max-h-[60vh] overflow-y-auto">
+        <div className="px-4 md:px-5 py-5 max-h-[60vh] overflow-y-auto">
           {step === 'social' ? (
             // Social posts step
             isLoadingSocial ? (
@@ -619,7 +619,7 @@ export default function PublishModal({ articleId, onClose, onPublished }: Publis
           )}
         </div>
 
-        <div className="flex items-center justify-between gap-3 p-5 border-t border-ink-100 dark:border-ink-800 bg-paper-50 dark:bg-ink-800/50">
+        <div className="flex items-center justify-between gap-3 px-4 md:px-5 py-5 border-t border-ink-100 dark:border-ink-800 bg-paper-50 dark:bg-ink-800/50">
           {step === 'social' ? (
             // Social step footer
             <>

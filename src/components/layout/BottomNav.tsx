@@ -38,7 +38,7 @@ export default function BottomNav({ activeTab, onTabChange }: BottomNavProps) {
                 }`}
               >
                 <Icon className={`w-6 h-6 ${isActive ? 'text-white' : 'text-white/50'}`} />
-                <span className={`text-[10px] font-semibold ${isActive ? 'text-white' : 'text-white/40'}`}>
+                <span className={`text-[11px] font-semibold ${isActive ? 'text-white' : 'text-white/40'}`}>
                   {tab.label}
                 </span>
               </button>

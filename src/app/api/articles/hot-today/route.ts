@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import prisma from '@/lib/prisma';
-import { getArticleAnalyticsForTimeRange } from '@/lib/umami';
 import fs from 'fs/promises';
 import path from 'path';
 
@@ -35,6 +34,78 @@ let memoryCache: CachedRankings | null = null;
 let hotArticlesCache: CachedHotArticles | null = null;
 const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
 const HOT_ARTICLES_CACHE_TTL = 30 * 60 * 1000; // 30 minutes (Umami queries are expensive)
+
+// Token cache
+const tokenCache = new Map<string, { token: string; expiresAt: number }>();
+const TOKEN_TTL = 50 * 60 * 1000;
+
+function getWebsiteConfigs(): Record<string, string> {
+  return {
+    'lizpeek.com': process.env.UMAMI_LIZPEEK_WEBSITE_ID || '',
+    'joepags.com': process.env.UMAMI_JOEPAGS_WEBSITE_ID || '',
+    'roguerecap.com': process.env.UMAMI_ROGUERECAP_WEBSITE_ID || '',
+  };
+}
+
+async function getAuthToken(): Promise<string> {
+  const username = process.env.UMAMI_USERNAME || '';
+  const cached = tokenCache.get(username);
+  if (cached && cached.expiresAt > Date.now()) {
+    return cached.token;
+  }
+
+  const baseUrl = process.env.UMAMI_URL;
+  const response = await fetch(`${baseUrl}/api/auth/login`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ username, password: process.env.UMAMI_PASSWORD || '' }),
+    signal: AbortSignal.timeout(10000),
+  });
+
+  if (!response.ok) {
+    throw new Error(`Umami auth failed: ${response.statusText}`);
+  }
+
+  const data = await response.json();
+  tokenCache.set(username, { token: data.token, expiresAt: Date.now() + TOKEN_TTL });
+  return data.token;
+}
+
+// Fetch top pages from Umami metrics API for last 12 hours (single call per site)
+async function fetchSiteMetrics(
+  websiteId: string,
+  token: string,
+  startAt: number,
+  endAt: number
+): Promise<{ path: string; views: number }[]> {
+  const baseUrl = process.env.UMAMI_URL;
+  const params = new URLSearchParams({
+    startAt: startAt.toString(),
+    endAt: endAt.toString(),
+    type: 'path',
+  });
+
+  try {
+    const response = await fetch(
+      `${baseUrl}/api/websites/${websiteId}/metrics?${params}`,
+      {
+        headers: { 'Authorization': `Bearer ${token}` },
+        signal: AbortSignal.timeout(10000),
+      }
+    );
+
+    if (!response.ok) return [];
+
+    const data = await response.json();
+    // Umami metrics returns [{ x: "/path", y: count }, ...]
+    return (data || []).map((item: { x: string; y: number }) => ({
+      path: item.x,
+      views: item.y,
+    }));
+  } catch {
+    return [];
+  }
+}
 
 async function ensureCacheDir() {
   try {
@@ -87,7 +158,8 @@ export async function GET(request: NextRequest) {
         currentRankings[article.id] = index + 1;
       });
 
-      const articlesWithMovement = hotArticlesCache.articles.slice(0, 5).map((article, index) => {
+      // Return top 10 only
+      const articlesWithMovement = hotArticlesCache.articles.slice(0, 10).map((article, index) => {
         const currentRank = index + 1;
         const previousRank = previousRankings[article.id];
 
@@ -107,7 +179,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ articles: articlesWithMovement });
     }
 
-    // Fetch published articles with URLs (limit to reasonable number for API calls)
+    // Fetch published articles with URLs (limit to recent articles)
     const publishedArticles = await prisma.article.findMany({
       where: {
         status: 'PUBLISHED',
@@ -129,65 +201,78 @@ export async function GET(request: NextRequest) {
       orderBy: {
         publishedAt: 'desc',
       },
-      take: 50, // Limit to recent articles to reduce API calls
+      take: 50, // Limit to recent articles
     });
 
     // Get previous rankings before fetching new data
     const previousRankings = await readPreviousRankings();
 
-    // Fetch 12-hour analytics for each article in parallel batches
-    const BATCH_SIZE = 5;
-    const articlesWithRecentStats: Array<{
-      id: string;
-      headline: string;
-      slug: string | null;
-      recentPageviews: number;
-      recentUniqueVisitors: number;
-      totalPageviews: number;
-      totalUniqueVisitors: number;
-      publishedUrl: string | null;
-      author: { name: string } | null;
-    }> = [];
+    // Fetch 12-hour metrics using bulk API (same as top-articles)
+    const websiteConfigs = getWebsiteConfigs();
+    const endAt = Date.now();
+    const startAt = endAt - (12 * 60 * 60 * 1000); // 12 hours
 
-    for (let i = 0; i < publishedArticles.length; i += BATCH_SIZE) {
-      const batch = publishedArticles.slice(i, i + BATCH_SIZE);
+    let useRealtime = false;
+    // Map: hostname -> { path -> views }
+    const pathViewsByHost: Record<string, Record<string, number>> = {};
 
-      const batchResults = await Promise.all(
-        batch.map(async (article) => {
-          try {
-            const urls = article.publishedUrl!.split(' | ').map(url => url.trim());
-            const recentStats = await getArticleAnalyticsForTimeRange(urls, 12); // 12 hours
+    try {
+      const token = await getAuthToken();
 
-            return {
-              id: article.id,
-              headline: article.headline,
-              slug: article.slug,
-              recentPageviews: recentStats.totalPageviews,
-              recentUniqueVisitors: recentStats.totalUniqueVisitors,
-              totalPageviews: article.totalPageviews,
-              totalUniqueVisitors: article.totalUniqueVisitors,
-              publishedUrl: article.publishedUrl,
-              author: article.author,
-            };
-          } catch (error) {
-            console.error(`Failed to fetch recent stats for ${article.id}:`, error);
-            return {
-              id: article.id,
-              headline: article.headline,
-              slug: article.slug,
-              recentPageviews: 0,
-              recentUniqueVisitors: 0,
-              totalPageviews: article.totalPageviews,
-              totalUniqueVisitors: article.totalUniqueVisitors,
-              publishedUrl: article.publishedUrl,
-              author: article.author,
-            };
-          }
+      // Fetch metrics for all sites in parallel (only 3 API calls total)
+      const siteEntries = Object.entries(websiteConfigs).filter(([, id]) => id);
+      const siteResults = await Promise.all(
+        siteEntries.map(async ([host, websiteId]) => {
+          const metrics = await fetchSiteMetrics(websiteId, token, startAt, endAt);
+          return { host, metrics };
         })
       );
 
-      articlesWithRecentStats.push(...batchResults);
+      for (const { host, metrics } of siteResults) {
+        pathViewsByHost[host] = {};
+        for (const { path, views } of metrics) {
+          pathViewsByHost[host][path] = views;
+        }
+      }
+
+      useRealtime = siteResults.some(r => r.metrics.length > 0);
+    } catch (error) {
+      console.error('Umami metrics fetch failed, using DB fallback:', error);
     }
+
+    // Match articles to their Umami pageviews for the 12-hour period
+    const articlesWithRecentStats = publishedArticles.map(article => {
+      let recentPageviews = 0;
+
+      if (useRealtime && article.publishedUrl) {
+        const urls = article.publishedUrl.split(' | ').map(u => u.trim());
+        for (const url of urls) {
+          try {
+            const urlObj = new URL(url);
+            const host = urlObj.hostname;
+            const path = urlObj.pathname;
+            const hostViews = pathViewsByHost[host];
+            if (hostViews && hostViews[path]) {
+              recentPageviews += hostViews[path];
+            }
+          } catch {
+            // Invalid URL, skip
+          }
+        }
+      }
+
+      return {
+        id: article.id,
+        headline: article.headline,
+        slug: article.slug,
+        recentPageviews: useRealtime ? recentPageviews : article.totalPageviews,
+        recentUniqueVisitors: 0, // We don't get unique visitors from bulk metrics
+        totalPageviews: article.totalPageviews,
+        totalUniqueVisitors: article.totalUniqueVisitors,
+        publishedUrl: article.publishedUrl,
+        author: article.author,
+      };
+    });
 
     // Sort by recent pageviews (trailing 12 hours)
     articlesWithRecentStats.sort((a, b) => b.recentPageviews - a.recentPageviews);
@@ -207,8 +292,8 @@ export async function GET(request: NextRequest) {
       currentRankings[article.id] = index + 1;
     });
 
-    // Calculate rank changes for top 5 articles
-    const articlesWithMovement = hotArticles.slice(0, 5).map((article, index) => {
+    // Return top 10 articles with rank changes
+    const articlesWithMovement = hotArticles.slice(0, 10).map((article, index) => {
       const currentRank = index + 1;
       const previousRank = previousRankings[article.id];
 

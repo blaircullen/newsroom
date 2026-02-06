@@ -1,5 +1,7 @@
 'use client';
 
+export const dynamic = 'force-dynamic';
+
 import { useState, useEffect, useMemo } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
@@ -914,9 +916,9 @@ export default function SocialQueuePage() {
           />
 
           {/* Modal */}
-          <div className="relative bg-white dark:bg-ink-900 rounded-2xl shadow-2xl w-full max-w-2xl max-h-[85vh] overflow-hidden flex flex-col">
+          <div className="relative bg-white dark:bg-ink-900 w-full max-w-full md:max-w-2xl max-h-[90dvh] md:max-h-[85vh] overflow-hidden flex flex-col fixed bottom-0 left-0 right-0 md:relative md:bottom-auto md:left-auto md:right-auto rounded-t-2xl md:rounded-2xl shadow-2xl">
             {/* Modal Header */}
-            <div className="flex items-center justify-between px-6 py-4 border-b border-ink-100 dark:border-ink-800">
+            <div className="flex items-center justify-between px-4 md:px-6 py-4 border-b border-ink-100 dark:border-ink-800">
               <div className="flex items-center gap-3">
                 {createStep === 'accounts' && (
                   <button
@@ -947,7 +949,7 @@ export default function SocialQueuePage() {
             </div>
 
             {/* Modal Body */}
-            <div className="flex-1 overflow-y-auto px-6 py-4">
+            <div className="flex-1 overflow-y-auto px-4 md:px-6 py-4">
               {/* Step 1: Article Selection */}
               {createStep === 'article' && (
                 <div>
@@ -968,7 +970,7 @@ export default function SocialQueuePage() {
                       <p className="text-ink-400 text-sm">Loading articles...</p>
                     </div>
                   ) : filteredArticles.length > 0 ? (
-                    <div className="border border-ink-200 dark:border-ink-700 rounded-lg divide-y divide-ink-100 dark:divide-ink-800 max-h-96 overflow-y-auto">
+                    <div className="border border-ink-200 dark:border-ink-700 rounded-lg divide-y divide-ink-100 dark:divide-ink-800 max-h-[50vh] md:max-h-96 overflow-y-auto">
                       {filteredArticles.map((article) => (
                         <button
                           key={article.id}
@@ -1173,7 +1175,7 @@ export default function SocialQueuePage() {
 
             {/* Modal Footer */}
             {createStep === 'accounts' && postDrafts.size > 0 && (
-              <div className="px-6 py-4 border-t border-ink-100 dark:border-ink-800 flex items-center justify-end gap-3">
+              <div className="px-4 md:px-6 py-4 border-t border-ink-100 dark:border-ink-800 flex items-center justify-end gap-3">
                 <button
                   type="button"
                   onClick={closeCreateModal}

@@ -213,7 +213,7 @@ export default function ImagePicker({ isOpen, onClose, onSelect, selectedImageId
         role="dialog"
         aria-modal="true"
         aria-labelledby="image-picker-title"
-        className="relative bg-white rounded-2xl shadow-elevated w-full max-w-4xl max-h-[80vh] flex flex-col overflow-hidden"
+        className="relative bg-white w-full max-w-full md:max-w-4xl max-h-[100dvh] md:max-h-[80vh] flex flex-col overflow-hidden fixed bottom-0 left-0 right-0 md:relative md:bottom-auto md:left-auto md:right-auto rounded-t-2xl md:rounded-2xl shadow-elevated"
       >
         {/* Header */}
         <div className="flex items-center justify-between p-5 border-b border-ink-100">
@@ -304,7 +304,7 @@ export default function ImagePicker({ isOpen, onClose, onSelect, selectedImageId
                 </div>
               ) : (
                 <>
-                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 md:gap-3">
                     {images.map((image) => (
                       <button
                         key={image.id}

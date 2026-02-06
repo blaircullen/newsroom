@@ -10,6 +10,7 @@ import {
   HiOutlineArrowRightOnRectangle,
   HiOutlineBars3,
   HiOutlineXMark,
+  HiOutlineMagnifyingGlass,
 } from 'react-icons/hi2';
 import { getNavItemsForRole, isNavItemActive } from '@/lib/navigation';
 
@@ -82,18 +83,27 @@ export default function AppShell({ children, hideOnMobile = false }: AppShellPro
                 <path d="M10 0l2.5 6.9H20l-6 4.6 2.3 7L10 13.8l-6.3 4.7 2.3-7-6-4.6h7.5z" fill="#D42B2B"/>
               </svg>
             </Link>
-            <button
-              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              className="p-2 rounded-md text-white/70 hover:text-white hover:bg-white/10 transition-colors focus:outline-none focus:ring-2 focus:ring-press-500/50"
-              aria-label={mobileMenuOpen ? 'Close menu' : 'Open menu'}
-              aria-expanded={mobileMenuOpen}
-            >
-              {mobileMenuOpen ? (
-                <HiOutlineXMark className="w-6 h-6" />
-              ) : (
-                <HiOutlineBars3 className="w-6 h-6" />
-              )}
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => window.dispatchEvent(new Event('openCommandPalette'))}
+                className="p-2 rounded-md text-white/70 hover:text-white hover:bg-white/10 transition-colors focus:outline-none focus:ring-2 focus:ring-press-500/50"
+                aria-label="Search"
+              >
+                <HiOutlineMagnifyingGlass className="w-5 h-5" />
+              </button>
+              <button
+                onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+                className="p-2 rounded-md text-white/70 hover:text-white hover:bg-white/10 transition-colors focus:outline-none focus:ring-2 focus:ring-press-500/50"
+                aria-label={mobileMenuOpen ? 'Close menu' : 'Open menu'}
+                aria-expanded={mobileMenuOpen}
+              >
+                {mobileMenuOpen ? (
+                  <HiOutlineXMark className="w-6 h-6" />
+                ) : (
+                  <HiOutlineBars3 className="w-6 h-6" />
+                )}
+              </button>
+            </div>
           </div>
         </header>
       )}

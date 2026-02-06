@@ -68,8 +68,8 @@ export default function LoginPage() {
                 required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="w-full px-4 py-3.5 rounded-lg border-[1.5px] border-[#e8eaed] bg-white text-[#111c30] 
-                          text-[15px] placeholder-[#c4c9d2] focus:outline-none focus:border-[#111c30] 
+                className="w-full px-4 py-3.5 rounded-lg border-[1.5px] border-[#e8eaed] bg-white text-[#111c30]
+                          text-base md:text-[15px] placeholder-[#c4c9d2] focus:outline-none focus:border-[#111c30]
                           focus:shadow-[0_0_0_3px_rgba(17,28,48,0.06)] transition-all"
                 placeholder="you@m3media.com"
               />
@@ -86,7 +86,7 @@ export default function LoginPage() {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 className="w-full px-4 py-3.5 rounded-lg border-[1.5px] border-[#e8eaed] bg-white text-[#111c30]
-                          text-[15px] placeholder-[#c4c9d2] focus:outline-none focus:border-[#111c30]
+                          text-base md:text-[15px] placeholder-[#c4c9d2] focus:outline-none focus:border-[#111c30]
                           focus:shadow-[0_0_0_3px_rgba(17,28,48,0.06)] transition-all"
                 placeholder="••••••••"
               />

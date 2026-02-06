@@ -74,6 +74,7 @@ export async function GET(request: NextRequest) {
               'Content-Type': 'application/json',
             },
             body: JSON.stringify(tweetPayload),
+            signal: AbortSignal.timeout(30000),
           });
 
           if (!tweetResponse.ok) {
@@ -103,6 +104,7 @@ export async function GET(request: NextRequest) {
                 'Content-Type': 'application/json',
               },
               body: JSON.stringify(fbPayload),
+              signal: AbortSignal.timeout(30000),
             }
           );
 

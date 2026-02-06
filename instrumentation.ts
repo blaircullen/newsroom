@@ -7,6 +7,8 @@ export async function register() {
       return;
     }
 
+    const baseUrl = process.env.INTERNAL_API_URL || `http://localhost:${process.env.PORT || 3000}`;
+
     // Wait for the server to be fully ready before starting the intervals
     setTimeout(() => {
       console.log('[Scheduler] Starting scheduled jobs');
@@ -15,7 +17,7 @@ export async function register() {
       console.log('[Scheduler] - Article publisher (every 60s)');
       setInterval(async () => {
         try {
-          const res = await fetch('http://localhost:3000/api/cron/publish-scheduled', {
+          const res = await fetch(`${baseUrl}/api/cron/publish-scheduled`, {
             headers: { 'Authorization': `Bearer ${cronSecret}` },
           });
           const data = await res.json();
@@ -31,7 +33,7 @@ export async function register() {
       console.log('[Scheduler] - Social post sender (every 60s)');
       setInterval(async () => {
         try {
-          const res = await fetch('http://localhost:3000/api/cron/send-social', {
+          const res = await fetch(`${baseUrl}/api/cron/send-social`, {
             headers: { 'Authorization': `Bearer ${cronSecret}` },
           });
           const data = await res.json();
@@ -47,7 +49,7 @@ export async function register() {
       console.log('[Scheduler] - Token refresh (every hour)');
       setInterval(async () => {
         try {
-          const res = await fetch('http://localhost:3000/api/cron/refresh-tokens', {
+          const res = await fetch(`${baseUrl}/api/cron/refresh-tokens`, {
             headers: { 'Authorization': `Bearer ${cronSecret}` },
           });
           const data = await res.json();
@@ -63,7 +65,7 @@ export async function register() {
       console.log('[Scheduler] - Optimal hours update (every 24h)');
       setInterval(async () => {
         try {
-          const res = await fetch('http://localhost:3000/api/cron/update-optimal-hours', {
+          const res = await fetch(`${baseUrl}/api/cron/update-optimal-hours`, {
             headers: { 'Authorization': `Bearer ${cronSecret}` },
           });
           const data = await res.json();

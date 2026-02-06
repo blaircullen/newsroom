@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import Image from 'next/image';
 import {
   HiOutlineEye,
   HiOutlineChartBarSquare,
@@ -152,11 +153,13 @@ export default function ArticleCard({
           <div className="flex items-start gap-4">
             {/* Featured image thumbnail - Desktop only */}
             {article.featuredImage && (
-              <div className="hidden md:block w-20 h-20 rounded-lg overflow-hidden flex-shrink-0 bg-ink-100">
-                <img
+              <div className="hidden md:block relative w-20 h-20 rounded-lg overflow-hidden flex-shrink-0 bg-ink-100">
+                <Image
                   src={article.featuredImage}
-                  alt=""
-                  className="w-full h-full object-cover"
+                  alt={article.headline || 'Article image'}
+                  fill
+                  className="object-cover"
+                  sizes="80px"
                 />
               </div>
             )}

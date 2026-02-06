@@ -4,6 +4,7 @@ export const dynamic = 'force-dynamic';
 import { useState, useCallback } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
+import Image from 'next/image';
 import toast from 'react-hot-toast';
 import AppShell from '@/components/layout/AppShell';
 import RichEditor from '@/components/editor/RichEditor';
@@ -274,7 +275,7 @@ export default function NewEditorPage() {
                   value={importUrl}
                   onChange={(e) => setImportUrl(e.target.value)}
                   placeholder="https://example.com/article-to-import"
-                  className="w-full pl-11 pr-4 py-3 rounded-xl bg-white/10 border border-white/20 text-white placeholder-ink-400 focus:outline-none focus:border-press-500 focus:bg-white/15 transition-all text-sm"
+                  className="w-full pl-11 pr-4 py-3 rounded-xl bg-white/10 border border-white/20 text-white placeholder-ink-400 focus:outline-none focus:border-press-500 focus:bg-white/15 transition-all text-base md:text-sm"
                   onKeyDown={(e) => {
                     if (e.key === 'Enter' && !isImporting) handleImport();
                   }}
@@ -342,11 +343,13 @@ export default function NewEditorPage() {
         {/* Featured Image */}
         <div className="mb-6">
           {featuredImage ? (
-            <div className="relative rounded-xl overflow-hidden border border-ink-100 group">
-              <img
+            <div className="relative rounded-xl overflow-hidden border border-ink-100 group h-48 md:h-64">
+              <Image
                 src={featuredImage}
-                alt="Featured"
-                className="w-full h-64 object-cover"
+                alt="Featured image"
+                fill
+                className="object-cover"
+                sizes="(max-width: 768px) 100vw, 896px"
               />
               <div className="absolute inset-0 bg-ink-950/0 group-hover:bg-ink-950/30 transition-all flex items-center justify-center">
                 <div className="opacity-0 group-hover:opacity-100 transition-opacity flex gap-2">
@@ -399,7 +402,7 @@ export default function NewEditorPage() {
                 value={imageCredit}
                 onChange={(e) => setImageCredit(e.target.value)}
                 placeholder="Image credit (e.g. Photo: Getty Images / John Smith)"
-                className="w-full px-3 py-2 rounded-lg border border-ink-200 text-sm text-ink-600 placeholder-ink-300 focus:outline-none focus:border-press-500 bg-paper-50"
+                className="w-full px-3 py-2 rounded-lg border border-ink-200 text-base md:text-sm text-ink-600 placeholder-ink-300 focus:outline-none focus:border-press-500 bg-paper-50"
               />
             </div>
           )}
@@ -414,7 +417,7 @@ export default function NewEditorPage() {
               value={headline}
               onChange={(e) => setHeadline(e.target.value)}
               placeholder="Write your headline..."
-              className="w-full text-2xl font-display font-semibold text-ink-950 placeholder-ink-200 focus:outline-none bg-transparent"
+              className="w-full text-xl md:text-2xl font-display font-semibold text-ink-950 placeholder-ink-200 focus:outline-none bg-transparent"
               required
             />
           </div>
@@ -426,7 +429,7 @@ export default function NewEditorPage() {
               value={subHeadline}
               onChange={(e) => setSubHeadline(e.target.value)}
               placeholder="Add a sub-headline (optional)"
-              className="w-full text-lg text-ink-500 placeholder-ink-200 focus:outline-none bg-transparent font-body"
+              className="w-full text-base md:text-lg text-ink-500 placeholder-ink-200 focus:outline-none bg-transparent font-body"
             />
           </div>
 

@@ -166,8 +166,15 @@ export default function CommandPalette() {
       }
     };
 
+    // Listen for custom event to open palette
+    const handleOpenPalette = () => setIsOpen(true);
+
     window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
+    window.addEventListener('openCommandPalette', handleOpenPalette);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('openCommandPalette', handleOpenPalette);
+    };
   }, []);
 
   // Focus input when opened
@@ -220,8 +227,8 @@ export default function CommandPalette() {
       />
 
       {/* Palette */}
-      <div className="relative max-w-2xl mx-auto mt-[15vh]">
-        <div className="bg-white dark:bg-ink-900 rounded-2xl shadow-2xl border border-ink-200 dark:border-ink-700 overflow-hidden">
+      <div className="relative max-w-2xl mx-4 md:mx-auto mt-4 md:mt-[15vh]">
+        <div className="bg-white dark:bg-ink-900 rounded-2xl shadow-2xl border border-ink-200 dark:border-ink-700 overflow-hidden max-h-[85vh]">
           {/* Search input */}
           <div className="flex items-center gap-3 px-4 py-4 border-b border-ink-100 dark:border-ink-800">
             <HiOutlineMagnifyingGlass className="w-5 h-5 text-ink-400" />

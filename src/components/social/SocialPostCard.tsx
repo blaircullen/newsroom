@@ -1,5 +1,6 @@
 'use client';
 
+import Image from 'next/image';
 import { FaXTwitter, FaFacebook } from 'react-icons/fa6';
 import { HiOutlineSparkles, HiOutlineTrash } from 'react-icons/hi2';
 
@@ -106,11 +107,13 @@ export default function SocialPostCard({
 
       {/* Featured image thumbnail */}
       {imageUrl && (
-        <div className="mb-3">
-          <img
+        <div className="mb-3 relative w-full h-32">
+          <Image
             src={imageUrl}
-            alt="Featured"
-            className="w-full h-32 object-cover rounded-lg border border-ink-100 dark:border-ink-700"
+            alt="Featured image"
+            fill
+            className="object-cover rounded-lg border border-ink-100 dark:border-ink-700"
+            sizes="(max-width: 768px) 100vw, 400px"
           />
         </div>
       )}

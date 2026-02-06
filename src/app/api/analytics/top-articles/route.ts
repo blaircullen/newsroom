@@ -31,6 +31,7 @@ async function getAuthToken(): Promise<string> {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ username, password: process.env.UMAMI_PASSWORD || '' }),
+    signal: AbortSignal.timeout(10000),
   });
 
   if (!response.ok) {
@@ -69,7 +70,10 @@ async function fetchSiteMetrics(
   try {
     const response = await fetch(
       `${baseUrl}/api/websites/${websiteId}/metrics?${params}`,
-      { headers: { 'Authorization': `Bearer ${token}` } }
+      {
+        headers: { 'Authorization': `Bearer ${token}` },
+        signal: AbortSignal.timeout(10000),
+      }
     );
 
     if (!response.ok) return [];

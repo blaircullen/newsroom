@@ -271,6 +271,7 @@ async function uploadImageToGhost(
         'Content-Length': String(bodyBuffer.length),
       },
       body: new Uint8Array(bodyBuffer),
+      signal: AbortSignal.timeout(API_TIMEOUT),
     });
 
     if (!uploadResponse.ok) {
@@ -328,6 +329,7 @@ async function uploadImageToWordPress(
         'Content-Disposition': `attachment; filename="${name}"`,
       },
       body: new Uint8Array(optimizedImage.buffer),
+      signal: AbortSignal.timeout(API_TIMEOUT),
     });
 
     if (!uploadResponse.ok) {
@@ -349,6 +351,7 @@ async function uploadImageToWordPress(
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({ caption: caption }),
+        signal: AbortSignal.timeout(API_TIMEOUT),
       }).catch((err) => console.error('[WP Image Caption] Error:', err.message));
     }
 
@@ -443,6 +446,7 @@ async function processBodyImages(
         try {
           const mediaResponse = await fetch(`${config.targetUrl}/wp-json/wp/v2/media/${mediaId}`, {
             headers: { Authorization: `Basic ${config.auth}` },
+            signal: AbortSignal.timeout(API_TIMEOUT),
           });
           if (mediaResponse.ok) {
             const mediaData = await mediaResponse.json();
@@ -556,6 +560,7 @@ async function publishToGhost(
         Authorization: `Ghost ${token}`,
       },
       body: JSON.stringify(ghostPost),
+      signal: AbortSignal.timeout(API_TIMEOUT),
     });
 
     if (!response.ok) {
@@ -597,6 +602,7 @@ async function publishToWordPress(
     for (const t of article.tags) {
       const tagResponse = await fetch(`${target.url}/wp-json/wp/v2/tags?search=${encodeURIComponent(t.tag.name)}`, {
         headers: { Authorization: `Basic ${auth}` },
+        signal: AbortSignal.timeout(API_TIMEOUT),
       });
       const existingTags = await tagResponse.json();
 
@@ -610,6 +616,7 @@ async function publishToWordPress(
             Authorization: `Basic ${auth}`,
           },
           body: JSON.stringify({ name: t.tag.name }),
+          signal: AbortSignal.timeout(API_TIMEOUT),
         });
         if (createResponse.ok) {
           const newTag = await createResponse.json();
@@ -669,6 +676,7 @@ async function publishToWordPress(
         Authorization: `Basic ${auth}`,
       },
       body: JSON.stringify(wpPost),
+      signal: AbortSignal.timeout(API_TIMEOUT),
     });
 
     if (!response.ok) {
@@ -711,6 +719,7 @@ async function getShopifyAccessToken(
         client_secret: clientSecret,
         grant_type: 'client_credentials',
       }),
+      signal: AbortSignal.timeout(API_TIMEOUT),
     });
 
     if (!response.ok) {
@@ -759,6 +768,7 @@ async function publishToShopify(
             'X-Shopify-Access-Token': accessToken,
             'Content-Type': 'application/json',
           },
+          signal: AbortSignal.timeout(API_TIMEOUT),
         }
       );
 
@@ -822,6 +832,7 @@ async function publishToShopify(
           'Content-Type': 'application/json',
         },
         body: JSON.stringify(shopifyArticle),
+        signal: AbortSignal.timeout(API_TIMEOUT),
       }
     );
 
