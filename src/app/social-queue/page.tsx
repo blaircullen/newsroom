@@ -1,16 +1,22 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import toast from 'react-hot-toast';
 import AppShell from '@/components/layout/AppShell';
+import SocialPostCard from '@/components/social/SocialPostCard';
 import {
   HiOutlineMegaphone,
   HiOutlineTrash,
   HiOutlineArrowPath,
   HiOutlineCheckCircle,
   HiOutlineClock,
+  HiOutlinePlusCircle,
+  HiOutlineXMark,
+  HiOutlineMagnifyingGlass,
+  HiOutlineSparkles,
+  HiOutlineArrowLeft,
 } from 'react-icons/hi2';
 import { FaXTwitter, FaFacebook } from 'react-icons/fa6';
 
@@ -40,6 +46,32 @@ interface SocialPost {
   };
 }
 
+interface Article {
+  id: string;
+  headline: string;
+  slug: string | null;
+  featuredImage: string | null;
+  publishedUrl: string | null;
+  publishedAt: string | null;
+  author: { name: string };
+}
+
+interface SocialAccount {
+  id: string;
+  platform: string;
+  accountName: string;
+  accountHandle: string;
+  isActive: boolean;
+  publishTarget: { id: string; name: string; url: string } | null;
+}
+
+interface PostDraft {
+  accountId: string;
+  caption: string;
+  scheduledAt: string;
+  isGenerating: boolean;
+}
+
 export default function SocialQueuePage() {
   const { data: session } = useSession();
   const router = useRouter();
@@ -52,6 +84,19 @@ export default function SocialQueuePage() {
   const [platformFilter, setPlatformFilter] = useState<string>('ALL');
   const [editingCaption, setEditingCaption] = useState<string | null>(null);
   const [editingSchedule, setEditingSchedule] = useState<string | null>(null);
+
+  // Create Post modal state
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [createStep, setCreateStep] = useState<'article' | 'accounts'>('article');
+  const [articles, setArticles] = useState<Article[]>([]);
+  const [isLoadingArticles, setIsLoadingArticles] = useState(false);
+  const [articleSearch, setArticleSearch] = useState('');
+  const [selectedArticle, setSelectedArticle] = useState<Article | null>(null);
+  const [socialAccounts, setSocialAccounts] = useState<SocialAccount[]>([]);
+  const [isLoadingAccounts, setIsLoadingAccounts] = useState(false);
+  const [selectedAccountIds, setSelectedAccountIds] = useState<Set<string>>(new Set());
+  const [postDrafts, setPostDrafts] = useState<Map<string, PostDraft>>(new Map());
+  const [isQueuingPosts, setIsQueuingPosts] = useState(false);
 
   useEffect(() => {
     if (!session) return;
@@ -272,6 +317,236 @@ export default function SocialQueuePage() {
     setSelectedDate(new Date().toISOString().split('T')[0]);
   }
 
+  // --- Create Post modal logic ---
+
+  function getSuggestedTime() {
+    const d = new Date();
+    d.setHours(d.getHours() + 1, 0, 0, 0);
+    return d.toISOString().slice(0, 16);
+  }
+
+  async function openCreateModal() {
+    setShowCreateModal(true);
+    setCreateStep('article');
+    setSelectedArticle(null);
+    setArticleSearch('');
+    setSelectedAccountIds(new Set());
+    setPostDrafts(new Map());
+    setIsQueuingPosts(false);
+
+    // Fetch published articles
+    setIsLoadingArticles(true);
+    try {
+      const res = await fetch('/api/articles?status=PUBLISHED&limit=50');
+      if (res.ok) {
+        const data = await res.json();
+        setArticles(data.articles || []);
+      } else {
+        toast.error('Failed to load articles');
+      }
+    } catch {
+      toast.error('Failed to load articles');
+    } finally {
+      setIsLoadingArticles(false);
+    }
+  }
+
+  function closeCreateModal() {
+    setShowCreateModal(false);
+  }
+
+  const filteredArticles = useMemo(() => {
+    if (!articleSearch.trim()) return articles;
+    const q = articleSearch.toLowerCase();
+    return articles.filter((a) => a.headline.toLowerCase().includes(q));
+  }, [articles, articleSearch]);
+
+  async function handleSelectArticle(article: Article) {
+    setSelectedArticle(article);
+    setCreateStep('accounts');
+
+    // Fetch social accounts
+    setIsLoadingAccounts(true);
+    try {
+      const res = await fetch('/api/social/accounts');
+      if (res.ok) {
+        const accounts: SocialAccount[] = await res.json();
+        setSocialAccounts(accounts.filter((a) => a.isActive));
+      } else {
+        toast.error('Failed to load social accounts');
+      }
+    } catch {
+      toast.error('Failed to load social accounts');
+    } finally {
+      setIsLoadingAccounts(false);
+    }
+  }
+
+  function toggleAccountSelection(accountId: string) {
+    setSelectedAccountIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(accountId)) {
+        next.delete(accountId);
+        // Remove draft too
+        setPostDrafts((drafts) => {
+          const updated = new Map(drafts);
+          updated.delete(accountId);
+          return updated;
+        });
+      } else {
+        next.add(accountId);
+      }
+      return next;
+    });
+  }
+
+  async function handleGenerateCaptions() {
+    if (!selectedArticle || selectedAccountIds.size === 0) return;
+
+    // Initialize drafts for all selected accounts
+    const accountIds = Array.from(selectedAccountIds);
+    const draftsMap = new Map<string, PostDraft>();
+    for (const accountId of accountIds) {
+      draftsMap.set(accountId, {
+        accountId,
+        caption: postDrafts.get(accountId)?.caption || '',
+        scheduledAt: postDrafts.get(accountId)?.scheduledAt || getSuggestedTime(),
+        isGenerating: true,
+      });
+    }
+    setPostDrafts(new Map(draftsMap));
+
+    // Generate captions for each account
+    for (const accountId of accountIds) {
+      try {
+        const res = await fetch('/api/social/generate-caption', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            articleId: selectedArticle.id,
+            socialAccountId: accountId,
+          }),
+        });
+
+        if (!res.ok) throw new Error('Failed to generate caption');
+        const { caption } = await res.json();
+
+        setPostDrafts((prev) => {
+          const updated = new Map(prev);
+          const existing = updated.get(accountId);
+          if (existing) {
+            updated.set(accountId, { ...existing, caption, isGenerating: false });
+          }
+          return updated;
+        });
+      } catch {
+        toast.error('Failed to generate caption');
+        setPostDrafts((prev) => {
+          const updated = new Map(prev);
+          const existing = updated.get(accountId);
+          if (existing) {
+            updated.set(accountId, {
+              ...existing,
+              caption: 'Failed to generate. Please edit manually.',
+              isGenerating: false,
+            });
+          }
+          return updated;
+        });
+      }
+    }
+  }
+
+  async function handleRegenerateCaption(accountId: string) {
+    if (!selectedArticle) return;
+
+    setPostDrafts((prev) => {
+      const updated = new Map(prev);
+      const existing = updated.get(accountId);
+      if (existing) {
+        updated.set(accountId, { ...existing, isGenerating: true });
+      }
+      return updated;
+    });
+
+    try {
+      const res = await fetch('/api/social/generate-caption', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          articleId: selectedArticle.id,
+          socialAccountId: accountId,
+        }),
+      });
+
+      if (!res.ok) throw new Error('Failed to generate caption');
+      const { caption } = await res.json();
+
+      setPostDrafts((prev) => {
+        const updated = new Map(prev);
+        const existing = updated.get(accountId);
+        if (existing) {
+          updated.set(accountId, { ...existing, caption, isGenerating: false });
+        }
+        return updated;
+      });
+    } catch {
+      toast.error('Failed to regenerate caption');
+      setPostDrafts((prev) => {
+        const updated = new Map(prev);
+        const existing = updated.get(accountId);
+        if (existing) {
+          updated.set(accountId, { ...existing, isGenerating: false });
+        }
+        return updated;
+      });
+    }
+  }
+
+  async function handleQueuePosts() {
+    if (!selectedArticle || postDrafts.size === 0) return;
+
+    const invalidDrafts = Array.from(postDrafts.values()).filter(
+      (d) => !d.caption.trim() || !d.scheduledAt
+    );
+    if (invalidDrafts.length > 0) {
+      toast.error('Please complete all captions and scheduled times');
+      return;
+    }
+
+    setIsQueuingPosts(true);
+
+    try {
+      const articleUrl = selectedArticle.publishedUrl || '';
+
+      const postsPayload = Array.from(postDrafts.values()).map((draft) => ({
+        articleId: selectedArticle.id,
+        socialAccountId: draft.accountId,
+        caption: draft.caption,
+        imageUrl: selectedArticle.featuredImage || undefined,
+        articleUrl,
+        scheduledAt: new Date(draft.scheduledAt).toISOString(),
+      }));
+
+      const res = await fetch('/api/social/queue', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ posts: postsPayload }),
+      });
+
+      if (!res.ok) throw new Error('Failed to queue posts');
+      const data = await res.json();
+
+      toast.success(`Queued ${data.count} post${data.count > 1 ? 's' : ''}!`);
+      closeCreateModal();
+      fetchPosts();
+    } catch {
+      toast.error('Failed to queue posts');
+    } finally {
+      setIsQueuingPosts(false);
+    }
+  }
+
   // Calculate stats
   const stats = {
     pending: posts.filter((p) => p.status === 'PENDING').length,
@@ -294,6 +569,14 @@ export default function SocialQueuePage() {
               <p className="text-ink-400 text-sm">Manage scheduled social media posts</p>
             </div>
           </div>
+          <button
+            type="button"
+            onClick={openCreateModal}
+            className="flex items-center gap-2 px-4 py-2 bg-press-600 text-white text-sm font-medium rounded-lg hover:bg-press-700 transition-colors"
+          >
+            <HiOutlinePlusCircle className="w-4 h-4" />
+            Create Post
+          </button>
         </div>
 
         {/* Filters Bar */}
@@ -575,6 +858,258 @@ export default function SocialQueuePage() {
           </div>
         )}
       </div>
+
+      {/* Create Post Modal */}
+      {showCreateModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          {/* Backdrop */}
+          <div
+            className="absolute inset-0 bg-black/50"
+            onClick={closeCreateModal}
+          />
+
+          {/* Modal */}
+          <div className="relative bg-white dark:bg-ink-900 rounded-2xl shadow-2xl w-full max-w-2xl max-h-[85vh] overflow-hidden flex flex-col">
+            {/* Modal Header */}
+            <div className="flex items-center justify-between px-6 py-4 border-b border-ink-100 dark:border-ink-800">
+              <div className="flex items-center gap-3">
+                {createStep === 'accounts' && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setCreateStep('article');
+                      setSelectedArticle(null);
+                      setSelectedAccountIds(new Set());
+                      setPostDrafts(new Map());
+                    }}
+                    className="p-1 text-ink-400 hover:text-ink-600 transition-colors"
+                  >
+                    <HiOutlineArrowLeft className="w-5 h-5" />
+                  </button>
+                )}
+                <h2 className="font-display text-lg text-ink-900 dark:text-ink-100">
+                  {createStep === 'article' ? 'Select Article' : 'Create Social Posts'}
+                </h2>
+              </div>
+              <button
+                type="button"
+                onClick={closeCreateModal}
+                className="p-1 text-ink-400 hover:text-ink-600 transition-colors"
+              >
+                <HiOutlineXMark className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div className="flex-1 overflow-y-auto px-6 py-4">
+              {/* Step 1: Article Selection */}
+              {createStep === 'article' && (
+                <div>
+                  <div className="relative mb-4">
+                    <HiOutlineMagnifyingGlass className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-ink-400" />
+                    <input
+                      type="text"
+                      value={articleSearch}
+                      onChange={(e) => setArticleSearch(e.target.value)}
+                      placeholder="Search articles by headline..."
+                      className="w-full pl-9 pr-3 py-2.5 rounded-lg border border-ink-200 dark:border-ink-700 text-sm bg-white dark:bg-ink-800 text-ink-900 dark:text-ink-100 focus:outline-none focus:border-press-500"
+                      autoFocus
+                    />
+                  </div>
+
+                  {isLoadingArticles ? (
+                    <div className="text-center py-8">
+                      <p className="text-ink-400 text-sm">Loading articles...</p>
+                    </div>
+                  ) : filteredArticles.length > 0 ? (
+                    <div className="border border-ink-200 dark:border-ink-700 rounded-lg divide-y divide-ink-100 dark:divide-ink-800 max-h-96 overflow-y-auto">
+                      {filteredArticles.map((article) => (
+                        <button
+                          key={article.id}
+                          type="button"
+                          onClick={() => handleSelectArticle(article)}
+                          className="w-full text-left p-3 hover:bg-ink-50 dark:hover:bg-ink-800 transition-colors"
+                        >
+                          <p className="text-sm font-medium text-ink-900 dark:text-ink-100 line-clamp-2">
+                            {article.headline}
+                          </p>
+                          <p className="text-xs text-ink-500 mt-1">
+                            {article.author?.name || 'Unknown author'}
+                            {article.publishedAt && (
+                              <> &middot; Published {new Date(article.publishedAt).toLocaleDateString()}</>
+                            )}
+                          </p>
+                        </button>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-center py-8 border border-ink-200 dark:border-ink-700 rounded-lg">
+                      <p className="text-ink-400 text-sm">
+                        {articleSearch ? 'No articles match your search' : 'No published articles found'}
+                      </p>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Step 2: Accounts + Captions */}
+              {createStep === 'accounts' && selectedArticle && (
+                <div>
+                  {/* Selected article summary */}
+                  <div className="bg-ink-50 dark:bg-ink-800/50 rounded-lg p-3 mb-4">
+                    <p className="text-xs text-ink-500 mb-1">Article</p>
+                    <p className="text-sm font-medium text-ink-900 dark:text-ink-100">
+                      {selectedArticle.headline}
+                    </p>
+                  </div>
+
+                  {/* Account selection */}
+                  {isLoadingAccounts ? (
+                    <div className="text-center py-8">
+                      <p className="text-ink-400 text-sm">Loading accounts...</p>
+                    </div>
+                  ) : socialAccounts.length > 0 ? (
+                    <>
+                      {/* Account checkboxes (only shown if no drafts generated yet) */}
+                      {postDrafts.size === 0 && (
+                        <div className="mb-4">
+                          <p className="text-sm font-medium text-ink-700 dark:text-ink-300 mb-2">
+                            Select accounts
+                          </p>
+                          <div className="border border-ink-200 dark:border-ink-700 rounded-lg divide-y divide-ink-100 dark:divide-ink-800">
+                            {socialAccounts.map((account) => (
+                              <label
+                                key={account.id}
+                                className="flex items-center gap-3 p-3 hover:bg-ink-50 dark:hover:bg-ink-800 cursor-pointer"
+                              >
+                                <input
+                                  type="checkbox"
+                                  checked={selectedAccountIds.has(account.id)}
+                                  onChange={() => toggleAccountSelection(account.id)}
+                                  className="w-4 h-4 rounded border-ink-300 text-press-600 focus:ring-press-500"
+                                />
+                                <div className="flex items-center gap-2">
+                                  <div className={`w-7 h-7 rounded-lg flex items-center justify-center text-white ${
+                                    account.platform === 'X' ? 'bg-black' : account.platform === 'FACEBOOK' ? 'bg-blue-600' : 'bg-ink-600'
+                                  }`}>
+                                    {account.platform === 'X' && <FaXTwitter className="w-3.5 h-3.5" />}
+                                    {account.platform === 'FACEBOOK' && <FaFacebook className="w-3.5 h-3.5" />}
+                                  </div>
+                                  <div>
+                                    <p className="text-sm font-medium text-ink-900 dark:text-ink-100">
+                                      {account.accountName}
+                                    </p>
+                                    <p className="text-xs text-ink-400">
+                                      @{account.accountHandle}
+                                      {account.publishTarget && (
+                                        <> &middot; {account.publishTarget.name}</>
+                                      )}
+                                    </p>
+                                  </div>
+                                </div>
+                              </label>
+                            ))}
+                          </div>
+
+                          <button
+                            type="button"
+                            onClick={handleGenerateCaptions}
+                            disabled={selectedAccountIds.size === 0}
+                            className="mt-3 flex items-center gap-2 px-4 py-2 bg-press-600 text-white text-sm font-medium rounded-lg hover:bg-press-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                          >
+                            <HiOutlineSparkles className="w-4 h-4" />
+                            Generate Captions
+                          </button>
+                        </div>
+                      )}
+
+                      {/* Post drafts (SocialPostCard for each) */}
+                      {postDrafts.size > 0 && (
+                        <div className="space-y-4">
+                          {Array.from(postDrafts.entries()).map(([accountId, draft]) => {
+                            const account = socialAccounts.find((a) => a.id === accountId);
+                            if (!account) return null;
+
+                            return (
+                              <SocialPostCard
+                                key={accountId}
+                                account={account}
+                                caption={draft.caption}
+                                onCaptionChange={(caption) => {
+                                  setPostDrafts((prev) => {
+                                    const updated = new Map(prev);
+                                    const existing = updated.get(accountId);
+                                    if (existing) {
+                                      updated.set(accountId, { ...existing, caption });
+                                    }
+                                    return updated;
+                                  });
+                                }}
+                                scheduledAt={draft.scheduledAt}
+                                onScheduledAtChange={(scheduledAt) => {
+                                  setPostDrafts((prev) => {
+                                    const updated = new Map(prev);
+                                    const existing = updated.get(accountId);
+                                    if (existing) {
+                                      updated.set(accountId, { ...existing, scheduledAt });
+                                    }
+                                    return updated;
+                                  });
+                                }}
+                                imageUrl={selectedArticle.featuredImage || undefined}
+                                articleUrl={selectedArticle.publishedUrl || ''}
+                                isGenerating={draft.isGenerating}
+                                onRegenerate={() => handleRegenerateCaption(accountId)}
+                                onRemove={() => {
+                                  setPostDrafts((prev) => {
+                                    const updated = new Map(prev);
+                                    updated.delete(accountId);
+                                    return updated;
+                                  });
+                                  setSelectedAccountIds((prev) => {
+                                    const next = new Set(prev);
+                                    next.delete(accountId);
+                                    return next;
+                                  });
+                                }}
+                              />
+                            );
+                          })}
+                        </div>
+                      )}
+                    </>
+                  ) : (
+                    <div className="text-center py-8 border border-ink-200 dark:border-ink-700 rounded-lg">
+                      <p className="text-ink-400 text-sm">No active social accounts found</p>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* Modal Footer */}
+            {createStep === 'accounts' && postDrafts.size > 0 && (
+              <div className="px-6 py-4 border-t border-ink-100 dark:border-ink-800 flex items-center justify-end gap-3">
+                <button
+                  type="button"
+                  onClick={closeCreateModal}
+                  className="px-4 py-2 text-sm font-medium text-ink-600 hover:text-ink-800 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleQueuePosts}
+                  disabled={isQueuingPosts || postDrafts.size === 0}
+                  className="px-4 py-2 bg-press-600 text-white text-sm font-medium rounded-lg hover:bg-press-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {isQueuingPosts ? 'Queuing...' : `Queue ${postDrafts.size} Post${postDrafts.size > 1 ? 's' : ''}`}
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </AppShell>
   );
 }
