@@ -52,6 +52,7 @@ interface Article {
   slug: string | null;
   featuredImage: string | null;
   publishedUrl: string | null;
+  publishedSite: string | null;
   publishedAt: string | null;
   author: { name: string };
 }
@@ -92,6 +93,7 @@ export default function SocialQueuePage() {
   const [isLoadingArticles, setIsLoadingArticles] = useState(false);
   const [articleSearch, setArticleSearch] = useState('');
   const [selectedArticle, setSelectedArticle] = useState<Article | null>(null);
+  const [selectedArticleUrl, setSelectedArticleUrl] = useState<string>('');
   const [socialAccounts, setSocialAccounts] = useState<SocialAccount[]>([]);
   const [isLoadingAccounts, setIsLoadingAccounts] = useState(false);
   const [selectedAccountIds, setSelectedAccountIds] = useState<Set<string>>(new Set());
@@ -329,6 +331,7 @@ export default function SocialQueuePage() {
     setShowCreateModal(true);
     setCreateStep('article');
     setSelectedArticle(null);
+    setSelectedArticleUrl('');
     setArticleSearch('');
     setSelectedAccountIds(new Set());
     setPostDrafts(new Map());
@@ -363,6 +366,9 @@ export default function SocialQueuePage() {
 
   async function handleSelectArticle(article: Article) {
     setSelectedArticle(article);
+    // Pre-select first published URL
+    const urls = article.publishedUrl ? article.publishedUrl.split(' | ') : [];
+    setSelectedArticleUrl(urls[0] || '');
     setCreateStep('accounts');
 
     // Fetch social accounts
@@ -517,7 +523,7 @@ export default function SocialQueuePage() {
     setIsQueuingPosts(true);
 
     try {
-      const articleUrl = selectedArticle.publishedUrl || '';
+      const articleUrl = selectedArticleUrl;
 
       const postsPayload = Array.from(postDrafts.values()).map((draft) => ({
         articleId: selectedArticle.id,
@@ -879,6 +885,7 @@ export default function SocialQueuePage() {
                     onClick={() => {
                       setCreateStep('article');
                       setSelectedArticle(null);
+                      setSelectedArticleUrl('');
                       setSelectedAccountIds(new Set());
                       setPostDrafts(new Map());
                     }}
@@ -962,6 +969,44 @@ export default function SocialQueuePage() {
                       {selectedArticle.headline}
                     </p>
                   </div>
+
+                  {/* URL picker — shown when article is published to multiple sites */}
+                  {(() => {
+                    const urls = selectedArticle.publishedUrl ? selectedArticle.publishedUrl.split(' | ') : [];
+                    const sites = selectedArticle.publishedSite ? selectedArticle.publishedSite.split(' | ') : [];
+                    if (urls.length > 1) {
+                      return (
+                        <div className="mb-4">
+                          <p className="text-sm font-medium text-ink-700 dark:text-ink-300 mb-2">
+                            Link to include with posts
+                          </p>
+                          <div className="border border-ink-200 dark:border-ink-700 rounded-lg divide-y divide-ink-100 dark:divide-ink-800">
+                            {urls.map((url, i) => (
+                              <label
+                                key={url}
+                                className="flex items-center gap-3 p-3 hover:bg-ink-50 dark:hover:bg-ink-800 cursor-pointer"
+                              >
+                                <input
+                                  type="radio"
+                                  name="articleUrl"
+                                  checked={selectedArticleUrl === url}
+                                  onChange={() => setSelectedArticleUrl(url)}
+                                  className="w-4 h-4 border-ink-300 text-press-600 focus:ring-press-500"
+                                />
+                                <div className="min-w-0">
+                                  <p className="text-sm font-medium text-ink-900 dark:text-ink-100">
+                                    {sites[i] || 'Unknown site'}
+                                  </p>
+                                  <p className="text-xs text-ink-400 truncate">{url}</p>
+                                </div>
+                              </label>
+                            ))}
+                          </div>
+                        </div>
+                      );
+                    }
+                    return null;
+                  })()}
 
                   {/* Account selection */}
                   {isLoadingAccounts ? (
@@ -1057,7 +1102,7 @@ export default function SocialQueuePage() {
                                   });
                                 }}
                                 imageUrl={selectedArticle.featuredImage || undefined}
-                                articleUrl={selectedArticle.publishedUrl || ''}
+                                articleUrl={selectedArticleUrl}
                                 isGenerating={draft.isGenerating}
                                 onRegenerate={() => handleRegenerateCaption(accountId)}
                                 onRemove={() => {
