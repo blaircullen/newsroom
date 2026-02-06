@@ -125,7 +125,6 @@ export default function PublishModal({ articleId, onClose, onPublished }: Publis
         if (!res.ok) throw new Error('Failed to schedule article');
         const targetName = targets.find(t => t.id === targetId)?.name || 'selected site';
         toast.success(`Scheduled for ${scheduledAt.toLocaleString()} on ${targetName}`);
-        setTimeout(() => onClose(), 1500);
       } else {
         // Publish now
         const res = await fetch('/api/articles/' + articleId + '/publish', {
@@ -140,7 +139,7 @@ export default function PublishModal({ articleId, onClose, onPublished }: Publis
         const failures = data.results.filter((r: SiteResult) => !r.success);
         if (successes.length > 0 && failures.length === 0) {
           toast.success('Published to ' + successes.length + ' site' + (successes.length > 1 ? 's' : '') + '!');
-          setTimeout(() => onPublished(successes[0].url || ''), 1500);
+          // Don't auto-close — let user continue to social posts or close manually
         } else if (successes.length > 0) {
           toast.success('Published to ' + successes.length + ', ' + failures.length + ' failed');
         } else {
@@ -357,7 +356,7 @@ export default function PublishModal({ articleId, onClose, onPublished }: Publis
       const data = await res.json();
 
       toast.success(`Queued ${data.count} social post${data.count > 1 ? 's' : ''}!`);
-      setTimeout(() => onClose(), 1500);
+      onClose();
     } catch (error) {
       toast.error('Failed to queue social posts');
       console.error('Queue error:', error);
