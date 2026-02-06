@@ -2,18 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { decrypt, encrypt } from '@/lib/encryption';
 import { sendEmail } from '@/lib/email';
-
-// X OAuth2 client configurations
-const X_APPS: Record<string, { clientId: string; clientSecret: string }> = {
-  'joetalkshow': {
-    clientId: 'SlJIVzZaZjd5Zm80SFJPUlZya3Q6MTpjaQ',
-    clientSecret: '7V4Rt9bVXp2U9tzxgkSWYAoNXhgRzb99XRGuyPCGQrTU3YpAGg',
-  },
-  'lizpeek': {
-    clientId: 'YmU5N0NyNGwtV1RNaFJvbVlOQks6MTpjaQ',
-    clientSecret: '948pJobXfoFGJx3LnPr1dZwlXtn_GizpkhmwKtvB2y9npp5Y9k',
-  },
-};
+import { getXAppCredentials } from '@/lib/x-oauth';
 
 // Cron job to refresh expiring social media tokens
 // Called every hour by the built-in scheduler (instrumentation.ts)
@@ -70,20 +59,15 @@ export async function GET(request: NextRequest) {
 
           const refreshToken = decrypt(account.refreshToken);
 
-          // Determine which app credentials to use
-          let clientId = process.env.X_CLIENT_ID || '';
-          let clientSecret = process.env.X_CLIENT_SECRET || '';
-
-          // Try to match account handle to known apps
+          // Look up app credentials by account handle
           const accountHandle = account.accountHandle.toLowerCase();
-          if (X_APPS[accountHandle]) {
-            clientId = X_APPS[accountHandle].clientId;
-            clientSecret = X_APPS[accountHandle].clientSecret;
-          }
+          const appCredentials = getXAppCredentials(accountHandle);
 
-          if (!clientId || !clientSecret) {
+          if (!appCredentials) {
             throw new Error('X client credentials not configured');
           }
+
+          const { clientId, clientSecret } = appCredentials;
 
           const tokenResponse = await fetch('https://api.twitter.com/2/oauth2/token', {
             method: 'POST',

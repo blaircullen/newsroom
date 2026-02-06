@@ -1,6 +1,7 @@
 import prisma from './prisma';
 import crypto from 'crypto';
 import { processImage, OptimizeOptions } from './imageOptimization';
+import { decrypt } from './encryption';
 
 interface PublishResult {
   success: boolean;
@@ -42,6 +43,22 @@ interface ImageData {
   buffer: Buffer;
   contentType: string;
   ext: string;
+}
+
+// Safely decrypt a value — handles both encrypted and legacy plaintext values
+function safeDecrypt(value: string | null | undefined): string | null {
+  if (!value) return null;
+  try {
+    // Encrypted values have the format "base64:base64:base64" (iv:authTag:ciphertext)
+    if (value.includes(':') && value.split(':').length === 3) {
+      return decrypt(value);
+    }
+    // Legacy plaintext value — return as-is
+    return value;
+  } catch {
+    // If decryption fails, assume it's a legacy plaintext value
+    return value;
+  }
 }
 
 // Constants
@@ -877,12 +894,12 @@ export async function publishArticle(
     name: targetRows[0].name,
     type: targetRows[0].type,
     url: targetRows[0].url,
-    apiKey: targetRows[0].api_key,
+    apiKey: safeDecrypt(targetRows[0].api_key),
     username: targetRows[0].username,
-    password: targetRows[0].password,
+    password: safeDecrypt(targetRows[0].password),
     blogId: targetRows[0].blog_id || null,
     clientId: targetRows[0].client_id || null,
-    clientSecret: targetRows[0].client_secret || null,
+    clientSecret: safeDecrypt(targetRows[0].client_secret),
     myshopifyDomain: targetRows[0].myshopify_domain || null,
     isActive: targetRows[0].is_active,
   };
@@ -954,12 +971,12 @@ export async function getPublishTargets() {
     name: t.name,
     type: t.type,
     url: t.url,
-    apiKey: t.api_key,
+    apiKey: safeDecrypt(t.api_key),
     username: t.username,
-    password: t.password,
+    password: safeDecrypt(t.password),
     blogId: t.blog_id || null,
     clientId: t.client_id || null,
-    clientSecret: t.client_secret || null,
+    clientSecret: safeDecrypt(t.client_secret),
     myshopifyDomain: t.myshopify_domain || null,
     isActive: t.is_active,
     createdAt: t.created_at,

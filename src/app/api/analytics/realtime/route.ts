@@ -131,6 +131,11 @@ let cachedResponse: { data: unknown; timestamp: number } | null = null;
 const RESPONSE_CACHE_TTL = 30 * 1000; // 30 seconds - balance between freshness and speed
 
 export async function GET(request: NextRequest) {
+  const session = await getServerSession(authOptions);
+  if (!session) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
   // Return cached response if fresh (for lightning fast mobile experience)
   if (cachedResponse && Date.now() - cachedResponse.timestamp < RESPONSE_CACHE_TTL) {
     return NextResponse.json(cachedResponse.data, {
@@ -139,10 +144,6 @@ export async function GET(request: NextRequest) {
         'X-Cache': 'HIT',
       },
     });
-  }
-  const session = await getServerSession(authOptions);
-  if (!session) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
   try {

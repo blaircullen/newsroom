@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import prisma from '@/lib/prisma';
+import crypto from 'crypto';
+import { encrypt } from '@/lib/encryption';
 
 export async function GET(request: NextRequest) {
   try {
@@ -84,10 +86,13 @@ export async function POST(request: NextRequest) {
 
     // Insert using raw query to avoid schema mismatch
     const cleanUrl = url.replace(/\/+$/, '');
-    // Generate a cuid-compatible ID (25 chars starting with 'c')
-    const timestamp = Date.now().toString(36);
-    const randomPart = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
-    const id = 'c' + (timestamp + randomPart).substring(0, 24);
+    // Generate a cuid-compatible ID using crypto for secure randomness
+    const id = 'c' + crypto.randomBytes(12).toString('hex');
+
+    // Encrypt sensitive credentials before storing
+    const encryptedApiKey = type === 'ghost' && apiKey ? encrypt(apiKey) : null;
+    const encryptedPassword = type === 'wordpress' && password ? encrypt(password) : null;
+    const encryptedClientSecret = type === 'shopify' && clientSecret ? encrypt(clientSecret) : null;
 
     await prisma.$executeRaw`
       INSERT INTO publish_targets (id, name, type, url, api_key, username, password, blog_id, client_id, client_secret, myshopify_domain, is_active, created_at, updated_at)
@@ -96,12 +101,12 @@ export async function POST(request: NextRequest) {
         ${name},
         ${type},
         ${cleanUrl},
-        ${type === 'ghost' ? apiKey : null},
+        ${encryptedApiKey},
         ${type === 'wordpress' ? username : null},
-        ${type === 'wordpress' ? password : null},
+        ${encryptedPassword},
         ${type === 'shopify' ? blogId || null : null},
         ${type === 'shopify' ? clientId : null},
-        ${type === 'shopify' ? clientSecret : null},
+        ${encryptedClientSecret},
         ${type === 'shopify' ? myshopifyDomain : null},
         true,
         NOW(),

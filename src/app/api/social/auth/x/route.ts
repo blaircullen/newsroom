@@ -3,19 +3,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { cookies } from 'next/headers';
 import crypto from 'crypto';
-
-const X_APPS: Record<string, { clientId: string; clientSecret: string; label: string }> = {
-  'joetalkshow': {
-    clientId: 'SlJIVzZaZjd5Zm80SFJPUlZya3Q6MTpjaQ',
-    clientSecret: '7V4Rt9bVXp2U9tzxgkSWYAoNXhgRzb99XRGuyPCGQrTU3YpAGg',
-    label: 'JoeTalkShow',
-  },
-  'lizpeek': {
-    clientId: 'YmU5N0NyNGwtV1RNaFJvbVlOQks6MTpjaQ',
-    clientSecret: '948pJobXfoFGJx3LnPr1dZwlXtn_GizpkhmwKtvB2y9npp5Y9k',
-    label: 'LizPeek',
-  },
-};
+import { getXAppCredentials } from '@/lib/x-oauth';
 
 // Generate random URL-safe string
 function generateRandomString(length: number): string {
@@ -43,28 +31,17 @@ export async function GET(request: NextRequest) {
     const appKey = searchParams.get('app');
 
     // Determine which X app to use
-    let clientId: string;
-    let clientSecret: string;
-    let appIdentifier: string;
+    const appIdentifier = appKey || 'default';
+    const credentials = getXAppCredentials(appIdentifier);
 
-    if (appKey && X_APPS[appKey]) {
-      const app = X_APPS[appKey];
-      clientId = app.clientId;
-      clientSecret = app.clientSecret;
-      appIdentifier = appKey;
-    } else {
-      // Fallback to environment variables
-      clientId = process.env.X_CLIENT_ID || '';
-      clientSecret = process.env.X_CLIENT_SECRET || '';
-      appIdentifier = 'default';
-
-      if (!clientId || !clientSecret) {
-        return NextResponse.json(
-          { error: 'X OAuth credentials not configured' },
-          { status: 500 }
-        );
-      }
+    if (!credentials) {
+      return NextResponse.json(
+        { error: 'X OAuth credentials not configured' },
+        { status: 500 }
+      );
     }
+
+    const { clientId, clientSecret } = credentials;
 
     // Generate PKCE parameters
     const codeVerifier = generateRandomString(128);
@@ -72,11 +49,10 @@ export async function GET(request: NextRequest) {
     const state = generateRandomString(32);
 
     // Store PKCE parameters and app identifier in cookie
+    // Note: clientId/clientSecret are looked up server-side via appIdentifier — never stored in cookies
     const cookieStore = await cookies();
     const oauthState = JSON.stringify({
       codeVerifier,
-      clientId,
-      clientSecret,
       state,
       appIdentifier,
     });

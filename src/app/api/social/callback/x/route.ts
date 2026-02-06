@@ -4,6 +4,7 @@ import { authOptions } from '@/lib/auth';
 import { cookies } from 'next/headers';
 import prisma from '@/lib/prisma';
 import { encrypt } from '@/lib/encryption';
+import { getXAppCredentials } from '@/lib/x-oauth';
 
 interface XTokenResponse {
   token_type: string;
@@ -66,8 +67,6 @@ export async function GET(request: NextRequest) {
 
     let oauthState: {
       codeVerifier: string;
-      clientId: string;
-      clientSecret: string;
       state: string;
       appIdentifier: string;
     };
@@ -88,17 +87,26 @@ export async function GET(request: NextRequest) {
       );
     }
 
+    // Look up credentials server-side using the app identifier
+    const credentials = getXAppCredentials(oauthState.appIdentifier);
+    if (!credentials) {
+      cookieStore.delete('x_oauth_state');
+      return NextResponse.redirect(
+        new URL('/admin/social-accounts?error=credentials_not_configured', process.env.NEXTAUTH_URL!)
+      );
+    }
+
     // Exchange code for tokens
     const redirectUri = `${process.env.NEXTAUTH_URL}/api/social/callback/x`;
     const tokenUrl = 'https://api.twitter.com/2/oauth2/token';
-    const basicAuth = Buffer.from(`${oauthState.clientId}:${oauthState.clientSecret}`).toString('base64');
+    const basicAuth = Buffer.from(`${credentials.clientId}:${credentials.clientSecret}`).toString('base64');
 
     const tokenParams = new URLSearchParams({
       grant_type: 'authorization_code',
       code,
       redirect_uri: redirectUri,
       code_verifier: oauthState.codeVerifier,
-      client_id: oauthState.clientId,
+      client_id: credentials.clientId,
     });
 
     const tokenResponse = await fetch(tokenUrl, {
