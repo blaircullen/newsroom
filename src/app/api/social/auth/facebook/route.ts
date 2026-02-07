@@ -49,7 +49,7 @@ export async function GET(request: NextRequest) {
     const authUrl = new URL('https://www.facebook.com/v19.0/dialog/oauth');
     authUrl.searchParams.set('client_id', facebookAppId);
     authUrl.searchParams.set('redirect_uri', redirectUri);
-    authUrl.searchParams.set('scope', 'pages_manage_posts,pages_read_engagement,read_insights');
+    authUrl.searchParams.set('scope', 'pages_manage_posts,pages_read_engagement');
     authUrl.searchParams.set('state', state);
 
     return NextResponse.redirect(authUrl.toString());
