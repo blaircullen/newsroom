@@ -570,7 +570,7 @@ export default function DashboardPage() {
       {/* Desktop View */}
       <div className="hidden md:block">
         {/* Page Header */}
-        <div className="flex items-center justify-between mb-8">
+        <div className="flex items-center justify-between mb-6">
           <div>
             <h1 className="font-display text-display-md text-ink-950 dark:text-ink-100">
               {greeting}, {firstName}
@@ -578,6 +578,34 @@ export default function DashboardPage() {
             <p className="text-ink-500 dark:text-ink-400 mt-1">
               {dateStr} &middot; {isAdmin ? 'Editorial Dashboard' : 'My Stories'}
             </p>
+            <div className="flex items-center gap-3 mt-3">
+              <span className="inline-flex items-center gap-1.5 text-sm text-ink-500 dark:text-ink-400">
+                <span className="font-display text-lg font-bold tabular-nums text-ink-900 dark:text-ink-100">{stats.total}</span>
+                stories
+              </span>
+              <span className="w-px h-4 bg-ink-200 dark:bg-ink-700" />
+              <span className="inline-flex items-center gap-1.5 text-sm text-ink-500 dark:text-ink-400">
+                <span className="font-display text-lg font-bold tabular-nums text-emerald-600 dark:text-emerald-400">{stats.published}</span>
+                published
+              </span>
+              <span className="w-px h-4 bg-ink-200 dark:bg-ink-700" />
+              <span className="inline-flex items-center gap-1.5 text-sm text-ink-500 dark:text-ink-400">
+                <span className="font-display text-lg font-bold tabular-nums text-amber-600 dark:text-amber-300">
+                  {(stats.totalViews || 0) > 999 ? `${((stats.totalViews || 0) / 1000).toFixed(1)}k` : (stats.totalViews || 0)}
+                </span>
+                views
+              </span>
+              {isAdmin && stats.submitted > 0 && (
+                <>
+                  <span className="w-px h-4 bg-ink-200 dark:bg-ink-700" />
+                  <span className="inline-flex items-center gap-1.5 text-sm font-medium text-blue-600 dark:text-blue-400">
+                    <span className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse" />
+                    <span className="font-display text-lg font-bold tabular-nums">{stats.submitted}</span>
+                    awaiting review
+                  </span>
+                </>
+              )}
+            </div>
           </div>
           <div className="flex items-center gap-3">
             {/* Sort dropdown */}
@@ -623,9 +651,6 @@ export default function DashboardPage() {
             </Link>
           </div>
         </div>
-
-        {/* Desktop Stats */}
-        <StatsGrid stats={stats} isAdmin={isAdmin} isUpdating={isAutoRefreshing} />
 
         {/* Daily Recap */}
         <DailyRecap />
