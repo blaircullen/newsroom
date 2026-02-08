@@ -171,7 +171,7 @@ export default function AppShell({ children, hideOnMobile = false }: AppShellPro
               </div>
               <div className="flex-1 min-w-0">
                 <p className="text-white text-sm font-medium truncate">{session.user.name}</p>
-                <p className="text-ink-500 text-[10px] capitalize">{session.user.role.toLowerCase()}</p>
+                <p className="text-ink-500 text-[10px] capitalize">{session.user.role === 'ADMIN' ? 'Managing Editor' : session.user.role.toLowerCase()}</p>
               </div>
               <button
                 onClick={() => signOut({ callbackUrl: '/login' })}
