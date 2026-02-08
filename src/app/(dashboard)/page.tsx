@@ -659,14 +659,6 @@ export default function DashboardPage() {
                   Show Daily Recap
                 </button>
               )}
-              {!showTopPerformer && topArticle && (
-                <button
-                  onClick={handleRestoreTopPerformer}
-                  className="text-sm text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 underline"
-                >
-                  Show Top Performer
-                </button>
-              )}
               <span className="inline-flex items-center gap-1.5 text-sm text-ink-500 dark:text-ink-400">
                 <span className="font-display text-lg font-bold tabular-nums text-ink-900 dark:text-ink-100">{stats.total}</span>
                 stories
@@ -683,6 +675,17 @@ export default function DashboardPage() {
                 </span>
                 views
               </span>
+              {!showTopPerformer && topArticle && (
+                <>
+                  <span className="w-px h-4 bg-ink-200 dark:bg-ink-700" />
+                  <button
+                    onClick={handleRestoreTopPerformer}
+                    className="text-sm text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 underline"
+                  >
+                    Show Top Performer
+                  </button>
+                </>
+              )}
               {isAdmin && stats.submitted > 0 && (
                 <>
                   <span className="w-px h-4 bg-ink-200 dark:bg-ink-700" />
