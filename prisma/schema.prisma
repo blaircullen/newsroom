@@ -217,27 +217,50 @@ model SocialAccount {
 }
 
 model SocialPost {
-  id              String           @id @default(cuid())
-  articleId       String           @map("article_id")
-  socialAccountId String           @map("social_account_id")
-  caption         String
-  imageUrl        String?          @map("image_url")
-  articleUrl      String           @map("article_url")
-  scheduledAt     DateTime         @map("scheduled_at")
-  sentAt          DateTime?        @map("sent_at")
-  platformPostId  String?          @map("platform_post_id")
-  status          SocialPostStatus @default(PENDING)
-  errorMessage    String?          @map("error_message")
-  createdAt       DateTime         @default(now()) @map("created_at")
-  updatedAt       DateTime         @updatedAt @map("updated_at")
-  article         Article          @relation(fields: [articleId], references: [id], onDelete: Cascade)
-  socialAccount   SocialAccount    @relation(fields: [socialAccountId], references: [id], onDelete: Cascade)
+  id                   String           @id @default(cuid())
+  articleId            String           @map("article_id")
+  socialAccountId      String           @map("social_account_id")
+  caption              String
+  imageUrl             String?          @map("image_url")
+  articleUrl           String           @map("article_url")
+  scheduledAt          DateTime         @map("scheduled_at")
+  sentAt               DateTime?        @map("sent_at")
+  platformPostId       String?          @map("platform_post_id")
+  status               SocialPostStatus @default(PENDING)
+  errorMessage         String?          @map("error_message")
+  likes                Int?
+  retweets             Int?
+  replies              Int?
+  impressions          Int?
+  views                Int?
+  engagementFetchedAt  DateTime?        @map("engagement_fetched_at")
+  createdAt            DateTime         @default(now()) @map("created_at")
+  updatedAt            DateTime         @updatedAt @map("updated_at")
+  article              Article          @relation(fields: [articleId], references: [id], onDelete: Cascade)
+  socialAccount        SocialAccount    @relation(fields: [socialAccountId], references: [id], onDelete: Cascade)
 
   @@index([status, scheduledAt])
+  @@index([status, sentAt])
   @@index([articleId])
   @@index([socialAccountId])
   @@index([scheduledAt])
   @@map("social_posts")
+}
+
+model CompetitorAccount {
+  id              String         @id @default(cuid())
+  platform        SocialPlatform
+  handle          String
+  name            String?
+  isActive        Boolean        @default(true) @map("is_active")
+  postingPattern  Json?          @map("posting_pattern")
+  avgEngagement   Json?          @map("avg_engagement")
+  lastScrapedAt   DateTime?      @map("last_scraped_at")
+  createdAt       DateTime       @default(now()) @map("created_at")
+  updatedAt       DateTime       @updatedAt @map("updated_at")
+
+  @@unique([platform, handle])
+  @@map("competitor_accounts")
 }
 
 model SiteVoiceProfile {
@@ -267,4 +290,18 @@ enum SocialPostStatus {
   SENDING
   SENT
   FAILED
+}
+
+model SystemAlert {
+  id         String    @id @default(cuid())
+  type       String    @unique
+  message    String
+  severity   String    @default("error")
+  isActive   Boolean   @default(true) @map("is_active")
+  resolvedAt DateTime? @map("resolved_at")
+  createdAt  DateTime  @default(now()) @map("created_at")
+  updatedAt  DateTime  @updatedAt @map("updated_at")
+
+  @@index([isActive])
+  @@map("system_alerts")
 }

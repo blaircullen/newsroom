@@ -41,6 +41,16 @@ COPY --from=builder /app/prisma ./prisma
 COPY --from=builder /app/.next/server/instrumentation* ./.next/server/
 COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
 COPY --from=builder /app/node_modules/nodemailer ./node_modules/nodemailer
+COPY --from=builder /app/node_modules/@the-convocation ./node_modules/@the-convocation
+COPY --from=builder /app/node_modules/@sinclair ./node_modules/@sinclair
+COPY --from=builder /app/node_modules/otpauth ./node_modules/otpauth
+COPY --from=builder /app/node_modules/tough-cookie ./node_modules/tough-cookie
+COPY --from=builder /app/node_modules/set-cookie-parser ./node_modules/set-cookie-parser
+COPY --from=builder /app/node_modules/linkedom ./node_modules/linkedom
+COPY --from=builder /app/node_modules/cross-fetch ./node_modules/cross-fetch
+COPY --from=builder /app/node_modules/headers-polyfill ./node_modules/headers-polyfill
+COPY --from=builder /app/node_modules/json-stable-stringify ./node_modules/json-stable-stringify
+COPY --from=builder /app/node_modules/x-client-transaction-id ./node_modules/x-client-transaction-id
 
 # Create cache directory with proper permissions
 RUN mkdir -p .next/cache && chown -R nextjs:nodejs .next

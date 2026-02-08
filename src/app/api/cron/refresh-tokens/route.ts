@@ -4,6 +4,7 @@ import { decrypt, encrypt } from '@/lib/encryption';
 import { sendEmail } from '@/lib/email';
 import { getXAppCredentials } from '@/lib/x-oauth';
 import { verifyBearerToken } from '@/lib/auth-utils';
+import { raiseAlert, resolveAlert } from '@/lib/system-alerts';
 
 // Cron job to refresh expiring social media tokens
 // Called every hour by the built-in scheduler (instrumentation.ts)
@@ -159,6 +160,14 @@ export async function GET(request: NextRequest) {
 
         failedCount++;
       }
+    }
+
+    // Raise or resolve system alert based on results
+    if (failedAccounts.length > 0) {
+      const names = failedAccounts.map((f) => f.account).join(', ');
+      await raiseAlert('token_refresh_failed', `Token refresh failed for: ${names}`);
+    } else if (expiringAccounts.length > 0) {
+      await resolveAlert('token_refresh_failed');
     }
 
     // Send email alert if any refreshes failed

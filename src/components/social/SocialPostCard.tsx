@@ -3,6 +3,8 @@
 import Image from 'next/image';
 import { FaXTwitter, FaFacebook } from 'react-icons/fa6';
 import { HiOutlineSparkles, HiOutlineTrash } from 'react-icons/hi2';
+import TimeSuggestions from './TimeSuggestions';
+import type { PostingProfile } from '@/lib/optimal-timing';
 
 interface AvailableUrl {
   name: string;
@@ -27,6 +29,7 @@ interface SocialPostCardProps {
   isGenerating: boolean;
   onRegenerate: () => void;
   onRemove: () => void;
+  postingProfile?: PostingProfile | null;
 }
 
 export default function SocialPostCard({
@@ -42,6 +45,7 @@ export default function SocialPostCard({
   isGenerating,
   onRegenerate,
   onRemove,
+  postingProfile,
 }: SocialPostCardProps) {
   const isX = account.platform === 'X';
   const isFacebook = account.platform === 'FACEBOOK';
@@ -154,10 +158,17 @@ export default function SocialPostCard({
         )}
       </div>
 
-      {/* Scheduled time */}
+      {/* Time suggestions + Scheduled time */}
       <div>
+        {postingProfile && (
+          <TimeSuggestions
+            profile={postingProfile}
+            onSelectTime={onScheduledAtChange}
+            selectedTime={scheduledAt}
+          />
+        )}
         <label className="block text-xs font-medium text-ink-500 dark:text-ink-400 mb-1">
-          Scheduled for
+          {postingProfile ? 'Or pick a custom time' : 'Scheduled for'}
         </label>
         <input
           type="datetime-local"

@@ -74,6 +74,38 @@ export async function register() {
           // Server not ready yet or network error, silently ignore
         }
       }, 86400 * 1000);
+
+      // 5. Social metrics fetch (every 6 hours)
+      console.log('[Scheduler] - Social metrics fetch (every 6h)');
+      setInterval(async () => {
+        try {
+          const res = await fetch(`${baseUrl}/api/cron/fetch-social-metrics`, {
+            headers: { 'Authorization': `Bearer ${cronSecret}` },
+          });
+          const data = await res.json();
+          if (data.updated > 0) {
+            console.log(`[Scheduler] ${data.message}`);
+          }
+        } catch {
+          // Server not ready yet or network error, silently ignore
+        }
+      }, 6 * 3600 * 1000);
+
+      // 6. Competitor scraper (every 12 hours)
+      console.log('[Scheduler] - Competitor scraper (every 12h)');
+      setInterval(async () => {
+        try {
+          const res = await fetch(`${baseUrl}/api/cron/scrape-competitors`, {
+            headers: { 'Authorization': `Bearer ${cronSecret}` },
+          });
+          const data = await res.json();
+          if (data.updated > 0) {
+            console.log(`[Scheduler] ${data.message}`);
+          }
+        } catch {
+          // Server not ready yet or network error, silently ignore
+        }
+      }, 12 * 3600 * 1000);
     }, 10000);
   }
 }

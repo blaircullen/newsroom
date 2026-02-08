@@ -11,6 +11,7 @@ import {
   HiOutlineBars3,
   HiOutlineXMark,
   HiOutlineMagnifyingGlass,
+  HiOutlineExclamationTriangle,
 } from 'react-icons/hi2';
 import { getNavItemsForRole, isNavItemActive } from '@/lib/navigation';
 
@@ -25,6 +26,8 @@ export default function AppShell({ children, hideOnMobile = false }: AppShellPro
   const router = useRouter();
   const pathname = usePathname();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [systemAlerts, setSystemAlerts] = useState<Array<{ id: string; type: string; message: string; severity: string }>>([]);
+  const [dismissedAlerts, setDismissedAlerts] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     if (status === 'unauthenticated') {
@@ -36,6 +39,23 @@ export default function AppShell({ children, hideOnMobile = false }: AppShellPro
   useEffect(() => {
     setMobileMenuOpen(false);
   }, [pathname]);
+
+  // Poll system alerts for admin/editor users
+  useEffect(() => {
+    if (status !== 'authenticated' || !session) return;
+    if (!['ADMIN', 'EDITOR'].includes(session.user.role)) return;
+
+    const fetchAlerts = () => {
+      fetch('/api/system/alerts')
+        .then((res) => (res.ok ? res.json() : { alerts: [] }))
+        .then((data) => setSystemAlerts(data.alerts || []))
+        .catch(() => {});
+    };
+
+    fetchAlerts();
+    const interval = setInterval(fetchAlerts, 60_000);
+    return () => clearInterval(interval);
+  }, [status, session]);
 
   if (status === 'loading') {
     return (
@@ -173,6 +193,31 @@ export default function AppShell({ children, hideOnMobile = false }: AppShellPro
 
       {/* Main Content */}
       <main id="main-content" className={`flex-1 md:ml-64 ${hideOnMobile ? 'pt-0' : 'pt-14 md:pt-0'}`}>
+        {/* System Alert Banners */}
+        {systemAlerts.filter((a) => !dismissedAlerts.has(a.id)).length > 0 && (
+          <div className="space-y-0">
+            {systemAlerts
+              .filter((a) => !dismissedAlerts.has(a.id))
+              .map((alert) => (
+                <div
+                  key={alert.id}
+                  className={`flex items-center gap-3 px-4 py-2.5 text-sm text-white ${
+                    alert.severity === 'warning' ? 'bg-amber-600' : 'bg-red-600'
+                  }`}
+                >
+                  <HiOutlineExclamationTriangle className="w-5 h-5 flex-shrink-0" />
+                  <span className="flex-1">{alert.message}</span>
+                  <button
+                    onClick={() => setDismissedAlerts((prev) => new Set(prev).add(alert.id))}
+                    className="p-1 rounded hover:bg-white/20 transition-colors flex-shrink-0"
+                    aria-label="Dismiss alert"
+                  >
+                    <HiOutlineXMark className="w-4 h-4" />
+                  </button>
+                </div>
+              ))}
+          </div>
+        )}
         <div className={`mx-auto ${hideOnMobile ? 'px-0 md:px-4 lg:px-8 py-0 md:py-6 lg:py-8 max-w-none md:max-w-7xl' : 'max-w-7xl px-4 sm:px-6 lg:px-8 py-4 sm:py-6 lg:py-8'}`}>
           {children}
         </div>

@@ -12,6 +12,7 @@ import {
 } from 'react-icons/hi2';
 import toast from 'react-hot-toast';
 import SocialPostCard from '@/components/social/SocialPostCard';
+import type { PostingProfile } from '@/lib/optimal-timing';
 
 interface PublishTarget {
   id: string;
@@ -35,6 +36,7 @@ interface SocialAccount {
   accountHandle: string;
   publishTargetId: string | null;
   isActive: boolean;
+  optimalHours: PostingProfile | null;
 }
 
 interface SocialPostDraft {
@@ -469,6 +471,7 @@ export default function PublishModal({ articleId, onClose, onPublished }: Publis
                       isGenerating={draft.isGenerating}
                       onRegenerate={() => handleRegenerateCaption(accountId)}
                       onRemove={() => handleRemovePost(accountId)}
+                      postingProfile={account.optimalHours}
                     />
                   );
                 })}

@@ -8,6 +8,8 @@ import { useRouter } from 'next/navigation';
 import toast from 'react-hot-toast';
 import AppShell from '@/components/layout/AppShell';
 import SocialPostCard from '@/components/social/SocialPostCard';
+import PostingHeatmap from '@/components/social/PostingHeatmap';
+import type { PostingProfile } from '@/lib/optimal-timing';
 import {
   HiOutlineMegaphone,
   HiOutlineTrash,
@@ -20,6 +22,9 @@ import {
   HiOutlineSparkles,
   HiOutlineArrowLeft,
   HiOutlinePencilSquare,
+  HiOutlineChartBarSquare,
+  HiOutlineChevronDown,
+  HiOutlineChevronUp,
 } from 'react-icons/hi2';
 import { FaXTwitter, FaFacebook } from 'react-icons/fa6';
 
@@ -67,6 +72,7 @@ interface SocialAccount {
   accountHandle: string;
   isActive: boolean;
   publishTarget: { id: string; name: string; url: string } | null;
+  optimalHours: PostingProfile | null;
 }
 
 interface PostDraft {
@@ -103,6 +109,7 @@ export default function SocialQueuePage() {
   const [selectedAccountIds, setSelectedAccountIds] = useState<Set<string>>(new Set());
   const [postDrafts, setPostDrafts] = useState<Map<string, PostDraft>>(new Map());
   const [isQueuingPosts, setIsQueuingPosts] = useState(false);
+  const [showInsights, setShowInsights] = useState(false);
 
   useEffect(() => {
     if (!session) return;
@@ -705,6 +712,39 @@ export default function SocialQueuePage() {
           )}
         </div>
 
+        {/* Posting Insights (collapsible heatmap) */}
+        {socialAccounts.length > 0 && socialAccounts.some(a => a.optimalHours) && (
+          <div className="bg-white dark:bg-ink-900 rounded-xl border border-ink-100 dark:border-ink-800 mb-6">
+            <button
+              type="button"
+              onClick={() => setShowInsights(!showInsights)}
+              className="w-full flex items-center justify-between px-4 py-3 text-sm font-medium text-ink-700 dark:text-ink-300 hover:bg-ink-50 dark:hover:bg-ink-800/50 rounded-xl transition-colors"
+            >
+              <div className="flex items-center gap-2">
+                <HiOutlineChartBarSquare className="w-4 h-4" />
+                Posting Insights
+              </div>
+              {showInsights ? (
+                <HiOutlineChevronUp className="w-4 h-4" />
+              ) : (
+                <HiOutlineChevronDown className="w-4 h-4" />
+              )}
+            </button>
+            {showInsights && (
+              <div className="px-4 pb-4 space-y-4">
+                {socialAccounts.filter(a => a.optimalHours).map(account => (
+                  <div key={account.id}>
+                    <p className="text-xs font-medium text-ink-500 mb-2">
+                      {account.accountName} (@{account.accountHandle})
+                    </p>
+                    {account.optimalHours && <PostingHeatmap profile={account.optimalHours} />}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
         {/* Queue List */}
         {isLoading ? (
           <div className="bg-white dark:bg-ink-900 rounded-xl border border-ink-100 dark:border-ink-800 p-8 text-center">
@@ -1189,6 +1229,7 @@ export default function SocialQueuePage() {
                                     return next;
                                   });
                                 }}
+                                postingProfile={account.optimalHours}
                               />
                             );
                           })}

@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
-import { calculateOptimalHours } from '@/lib/optimal-timing';
+import { Prisma } from '@prisma/client';
+import { calculatePostingProfile } from '@/lib/optimal-timing';
 import { verifyBearerToken } from '@/lib/auth-utils';
 
-// Cron job to update optimal posting hours for all social accounts
+// Cron job to update optimal posting profiles for all social accounts
 // Called daily by the built-in scheduler (instrumentation.ts)
 export async function GET(request: NextRequest) {
   try {
@@ -27,23 +28,23 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    console.log(`[Optimal Hours] Updating optimal hours for ${accounts.length} account(s)`);
+    console.log(`[Optimal Hours] Updating posting profiles for ${accounts.length} account(s)`);
 
     let updatedCount = 0;
 
     for (const account of accounts) {
       try {
-        const optimalHours = await calculateOptimalHours(account.id);
+        const profile = await calculatePostingProfile(account.id);
 
         await prisma.socialAccount.update({
           where: { id: account.id },
           data: {
-            optimalHours: optimalHours,
+            optimalHours: profile as unknown as Prisma.InputJsonValue,
             optimalHoursUpdatedAt: new Date(),
           },
         });
 
-        console.log(`[Optimal Hours] Updated ${account.accountName}: ${optimalHours.join(', ')}`);
+        console.log(`[Optimal Hours] Updated ${account.accountName}: ${profile.dataPoints} data source(s) active`);
         updatedCount++;
       } catch (error) {
         console.error(`[Optimal Hours] Failed to update ${account.accountName}:`, error);
@@ -51,7 +52,7 @@ export async function GET(request: NextRequest) {
     }
 
     return NextResponse.json({
-      message: `Updated optimal hours for ${updatedCount} of ${accounts.length} account(s)`,
+      message: `Updated posting profiles for ${updatedCount} of ${accounts.length} account(s)`,
       updated: updatedCount,
     });
   } catch (error) {
