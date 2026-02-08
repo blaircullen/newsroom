@@ -11,6 +11,7 @@ import AppShell from '@/components/layout/AppShell';
 import BottomNav from '@/components/layout/BottomNav';
 import ArticleCard, { Article } from '@/components/dashboard/ArticleCard';
 import StatsGrid from '@/components/dashboard/StatsGrid';
+import DailyRecap from '@/components/dashboard/DailyRecap';
 import HotSection, { StoryIdea } from '@/components/dashboard/HotSection';
 import AnalyticsSection from '@/components/dashboard/AnalyticsSection';
 import ProfileSection from '@/components/dashboard/ProfileSection';
@@ -443,6 +444,11 @@ export default function DashboardPage() {
               </div>
             </div>
 
+            {/* Daily Recap - Mobile */}
+            <div className="px-4 pt-2">
+              <DailyRecap />
+            </div>
+
             {/* Article Feed */}
             <div className="px-4 space-y-3">
               {isLoading ? (
@@ -575,6 +581,9 @@ export default function DashboardPage() {
 
         {/* Desktop Stats */}
         <StatsGrid stats={stats} isAdmin={isAdmin} isUpdating={isAutoRefreshing} />
+
+        {/* Daily Recap */}
+        <DailyRecap />
 
         {/* Story Ideas Panel - Desktop (Admin only) */}
         {isAdmin && storyIdeas.length > 0 && (

@@ -106,6 +106,20 @@ export async function register() {
           // Server not ready yet or network error, silently ignore
         }
       }, 12 * 3600 * 1000);
+
+      // 7. Daily recaps (every 12 hours — morning & evening)
+      console.log('[Scheduler] - Daily recaps (every 12h)');
+      setInterval(async () => {
+        try {
+          const res = await fetch(`${baseUrl}/api/cron/daily-recap`, {
+            headers: { 'Authorization': `Bearer ${cronSecret}` },
+          });
+          const data = await res.json();
+          console.log(`[Scheduler] ${data.message}`);
+        } catch {
+          // Server not ready yet or network error, silently ignore
+        }
+      }, 12 * 3600 * 1000);
     }, 10000);
   }
 }

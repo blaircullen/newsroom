@@ -305,3 +305,16 @@ model SystemAlert {
   @@index([isActive])
   @@map("system_alerts")
 }
+
+model DailyRecap {
+  id        String   @id @default(cuid())
+  type      String
+  date      DateTime @db.Date
+  recap     String   @db.Text
+  stats     Json
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@unique([type, date])
+  @@index([createdAt])
+  @@map("daily_recaps")
+}
