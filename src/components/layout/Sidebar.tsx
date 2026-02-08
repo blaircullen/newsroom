@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useSession, signOut } from 'next-auth/react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useSearchParams } from 'next/navigation';
 import {
   HiOutlineArrowRightOnRectangle,
   HiOutlineArrowTrendingUp,
@@ -213,10 +213,39 @@ function InsightsPanel() {
 export default function Sidebar() {
   const { data: session } = useSession();
   const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const [reviewCount, setReviewCount] = useState<number | null>(null);
+
+  // Build full path with query string for active link detection
+  const search = searchParams.toString();
+  const fullPath = search ? `${pathname}?${search}` : pathname;
+
+  // Fetch submitted article count for "For Review" visibility
+  useEffect(() => {
+    if (!session || !['ADMIN', 'EDITOR'].includes(session.user.role)) return;
+    const fetchCount = async () => {
+      try {
+        const res = await fetch('/api/articles/stats');
+        if (res.ok) {
+          const data = await res.json();
+          setReviewCount(data.submitted ?? 0);
+        }
+      } catch { /* ignore */ }
+    };
+    fetchCount();
+    const interval = setInterval(fetchCount, 60 * 1000);
+    return () => clearInterval(interval);
+  }, [session]);
 
   if (!session) return null;
 
-  const navItems = getNavItemsForRole(session.user.role);
+  const navItems = getNavItemsForRole(session.user.role).filter((item) => {
+    // Hide "For Review" when there are no submitted stories
+    if (item.href === '/dashboard?filter=submitted') {
+      return reviewCount !== null && reviewCount > 0;
+    }
+    return true;
+  });
 
   return (
     <aside className="fixed left-0 top-0 h-screen w-64 flex flex-col z-40 bg-gradient-to-b from-ink-950 to-ink-900">
@@ -236,7 +265,7 @@ export default function Sidebar() {
         {/* Navigation */}
         <nav className="py-4 px-3 space-y-0.5" aria-label="Main navigation">
           {navItems.map((item) => {
-            const isActive = isNavItemActive(item.href, pathname);
+            const isActive = isNavItemActive(item.href, fullPath);
             const Icon = item.icon;
             return (
               <Link key={item.href} href={item.href}
@@ -246,6 +275,11 @@ export default function Sidebar() {
                 aria-current={isActive ? 'page' : undefined}>
                 <Icon className={`w-5 h-5 flex-shrink-0 ${isActive ? 'text-press-400' : ''}`} />
                 {item.label}
+                {item.href === '/dashboard?filter=submitted' && reviewCount !== null && reviewCount > 0 && (
+                  <span className="ml-auto text-[10px] font-bold bg-press-500/20 text-press-400 px-1.5 py-0.5 rounded-full">
+                    {reviewCount}
+                  </span>
+                )}
               </Link>
             );
           })}

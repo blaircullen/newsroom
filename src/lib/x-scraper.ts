@@ -39,7 +39,7 @@ export async function getScraperInstance(): Promise<Scraper> {
   const email = process.env.X_SCRAPER_EMAIL;
 
   if (!username || !password) {
-    await raiseAlert('x_scraper_auth', 'X scraper credentials (X_SCRAPER_USERNAME or X_SCRAPER_PASSWORD) are not configured');
+    console.warn('[X Scraper] X_SCRAPER_USERNAME or X_SCRAPER_PASSWORD not configured — skipping');
     throw new Error('[X Scraper] Missing X_SCRAPER_USERNAME or X_SCRAPER_PASSWORD');
   }
 

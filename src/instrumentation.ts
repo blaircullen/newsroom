@@ -61,9 +61,9 @@ export async function register() {
         }
       }, 3600 * 1000);
 
-      // 4. Optimal hours update (every 24 hours)
+      // 4. Optimal hours update (every 24 hours, runs once on startup then daily)
       console.log('[Scheduler] - Optimal hours update (every 24h)');
-      setInterval(async () => {
+      const runOptimalHours = async () => {
         try {
           const res = await fetch(`${baseUrl}/api/cron/update-optimal-hours`, {
             headers: { 'Authorization': `Bearer ${cronSecret}` },
@@ -73,7 +73,9 @@ export async function register() {
         } catch {
           // Server not ready yet or network error, silently ignore
         }
-      }, 86400 * 1000);
+      };
+      runOptimalHours(); // Run immediately on startup
+      setInterval(runOptimalHours, 86400 * 1000);
 
       // 5. Social metrics fetch (every 6 hours)
       console.log('[Scheduler] - Social metrics fetch (every 6h)');
@@ -107,9 +109,9 @@ export async function register() {
         }
       }, 12 * 3600 * 1000);
 
-      // 7. Daily recaps (every 12 hours — morning & evening)
+      // 7. Daily recaps (every 12 hours — morning & evening, runs once on startup)
       console.log('[Scheduler] - Daily recaps (every 12h)');
-      setInterval(async () => {
+      const runDailyRecap = async () => {
         try {
           const res = await fetch(`${baseUrl}/api/cron/daily-recap`, {
             headers: { 'Authorization': `Bearer ${cronSecret}` },
@@ -119,7 +121,9 @@ export async function register() {
         } catch {
           // Server not ready yet or network error, silently ignore
         }
-      }, 12 * 3600 * 1000);
+      };
+      runDailyRecap(); // Run immediately on startup
+      setInterval(runDailyRecap, 12 * 3600 * 1000);
     }, 10000);
   }
 }

@@ -3,7 +3,6 @@ import {
   HiOutlineClipboardDocumentCheck,
   HiOutlineUserGroup,
   HiOutlineGlobeAlt,
-  HiOutlinePlusCircle,
   HiOutlineCalendarDays,
   HiOutlineChartBar,
   HiOutlineMegaphone,
@@ -25,12 +24,6 @@ export const navItems: NavItem[] = [
     href: '/dashboard',
     label: 'Dashboard',
     icon: HiOutlineNewspaper,
-    showFor: () => true,
-  },
-  {
-    href: '/editor',
-    label: 'New Story',
-    icon: HiOutlinePlusCircle,
     showFor: () => true,
   },
   {
@@ -91,11 +84,16 @@ export function getNavItemsForRole(role: string): NavItem[] {
 }
 
 /**
- * Check if a path is active (exact match or starts with path for non-dashboard routes)
+ * Check if a path is active (exact match or starts with path for non-dashboard routes).
+ * For links with query params, requires the full href (including query) to match.
  */
-export function isNavItemActive(itemHref: string, currentPath: string): boolean {
-  if (itemHref === '/dashboard') {
-    return currentPath === '/dashboard';
+export function isNavItemActive(itemHref: string, currentPathWithSearch: string): boolean {
+  // Links with query params require exact path+query match
+  if (itemHref.includes('?')) {
+    return currentPathWithSearch === itemHref;
   }
-  return currentPath.startsWith(itemHref.split('?')[0]);
+  if (itemHref === '/dashboard') {
+    return currentPathWithSearch === '/dashboard';
+  }
+  return currentPathWithSearch.startsWith(itemHref);
 }

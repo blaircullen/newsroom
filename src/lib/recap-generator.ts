@@ -277,7 +277,7 @@ export async function generateRecapText(stats: RecapStats, type: 'morning' | 'ev
 - Top articles:
 ${topArticlesList || 'No articles in this period'}
 
-Remember: 3-4 sentences, name-drop the top article and top writer if available, one joke or clever observation. No emojis. No hashtags.`;
+Remember: 2-3 sentences MAX. Name-drop the top article and top writer if available, one joke or clever observation. No emojis. No hashtags. Do NOT start with any greeting like "Good morning" or "Good evening" — just dive straight into the recap.`;
 
   const response = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
@@ -289,7 +289,7 @@ Remember: 3-4 sentences, name-drop the top article and top writer if available, 
     body: JSON.stringify({
       model: 'claude-sonnet-4-20250514',
       max_tokens: 300,
-      system: 'You are the in-house news anchor for a digital newsroom. You deliver daily performance recaps with the energy of a late-night monologue — sharp, witty, and occasionally self-deprecating about the media industry. Keep it punchy (3-4 sentences). Name-drop the top article and top writer. Include exactly one joke or clever observation. No emojis. No hashtags. Write like you\'re doing a 15-second desk bit before cutting to commercial.',
+      system: 'You are the in-house news anchor for a digital newsroom. You deliver daily performance recaps with the energy of a late-night monologue — sharp, witty, and occasionally self-deprecating about the media industry. Keep it tight (2-3 sentences MAX). Name-drop the top article and top writer. Include exactly one joke or clever observation. No emojis. No hashtags. NEVER start with a greeting like "Good morning" or "Good evening" — jump straight into the recap. Write like you\'re doing a 10-second desk bit before cutting to commercial.',
       messages: [{ role: 'user', content: userPrompt }],
     }),
   });

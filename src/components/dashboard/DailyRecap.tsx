@@ -1,15 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import Link from 'next/link';
-import {
-  HiOutlineSparkles,
-  HiOutlineArrowTrendingUp,
-  HiOutlineArrowTrendingDown,
-  HiOutlineEye,
-  HiOutlineDocumentText,
-  HiOutlinePencilSquare,
-} from 'react-icons/hi2';
+import { HiOutlineSparkles } from 'react-icons/hi2';
 
 interface TopArticle {
   id: string;
@@ -79,18 +71,18 @@ export default function DailyRecap() {
   // Loading skeleton
   if (isLoading) {
     return (
-      <div className="mb-8 bg-gradient-to-r from-violet-50 to-indigo-50 dark:from-violet-900/20 dark:to-indigo-900/20 rounded-xl border border-violet-200 dark:border-violet-800 overflow-hidden animate-pulse">
-        <div className="px-5 py-4 flex items-center gap-3">
-          <div className="w-9 h-9 rounded-lg bg-violet-200 dark:bg-violet-700" />
-          <div className="flex-1">
-            <div className="h-4 w-32 bg-violet-200 dark:bg-violet-700 rounded" />
-            <div className="h-3 w-48 bg-violet-100 dark:bg-violet-800 rounded mt-1.5" />
+      <div className="mb-8 relative rounded-2xl overflow-hidden animate-pulse">
+        <div className="absolute inset-0 bg-gradient-to-br from-violet-600 via-indigo-600 to-fuchsia-600 opacity-90" />
+        <div className="relative px-6 py-5">
+          <div className="flex items-center gap-3 mb-4">
+            <div className="w-8 h-8 rounded-full bg-white/20" />
+            <div className="h-4 w-40 bg-white/20 rounded-full" />
           </div>
-        </div>
-        <div className="px-5 pb-5 space-y-2">
-          <div className="h-3 w-full bg-violet-100 dark:bg-violet-800 rounded" />
-          <div className="h-3 w-5/6 bg-violet-100 dark:bg-violet-800 rounded" />
-          <div className="h-3 w-4/6 bg-violet-100 dark:bg-violet-800 rounded" />
+          <div className="space-y-2.5">
+            <div className="h-3.5 w-full bg-white/15 rounded-full" />
+            <div className="h-3.5 w-5/6 bg-white/15 rounded-full" />
+            <div className="h-3.5 w-3/5 bg-white/15 rounded-full" />
+          </div>
         </div>
       </div>
     );
@@ -99,107 +91,46 @@ export default function DailyRecap() {
   const currentRecap = activeType === 'morning' ? recaps?.morning : recaps?.evening;
   if (!currentRecap) return null;
 
-  const stats = currentRecap.stats;
-  const changePercent = stats.previousPeriodPageviews > 0
-    ? Math.round(((stats.totalPageviews - stats.previousPeriodPageviews) / stats.previousPeriodPageviews) * 100)
-    : null;
-  const isUp = changePercent !== null && changePercent >= 0;
   const hasBothRecaps = recaps?.morning && recaps?.evening;
 
   return (
-    <div className="mb-8 bg-gradient-to-r from-violet-50 to-indigo-50 dark:from-violet-900/20 dark:to-indigo-900/20 rounded-xl border border-violet-200 dark:border-violet-800 overflow-hidden">
-      {/* Header */}
-      <div className="px-5 py-4 flex items-center gap-3">
-        <div className="w-9 h-9 rounded-lg bg-violet-100 dark:bg-violet-800 flex items-center justify-center">
-          <HiOutlineSparkles className="w-5 h-5 text-violet-600 dark:text-violet-400" />
-        </div>
-        <div className="flex-1">
-          <div className="flex items-center gap-2">
-            <h3 className="font-display font-semibold text-ink-900 dark:text-ink-100">
-              Newsroom Recap
-            </h3>
+    <div className="mb-8 relative rounded-2xl overflow-hidden group">
+      {/* Gradient background */}
+      <div className="absolute inset-0 bg-gradient-to-br from-violet-600 via-indigo-600 to-fuchsia-600 dark:from-violet-700 dark:via-indigo-700 dark:to-fuchsia-700" />
+      {/* Subtle noise/texture overlay */}
+      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_rgba(255,255,255,0.15)_0%,_transparent_60%)]" />
+
+      <div className="relative px-6 py-5">
+        {/* Header row */}
+        <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center gap-2.5">
+            <HiOutlineSparkles className="w-5 h-5 text-amber-300" />
+            <span className="text-sm font-bold text-white/90 uppercase tracking-widest">
+              The Recap
+            </span>
             <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${
               activeType === 'morning'
-                ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-400'
-                : 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/40 dark:text-indigo-400'
+                ? 'bg-amber-400/20 text-amber-200 ring-1 ring-amber-400/30'
+                : 'bg-sky-400/20 text-sky-200 ring-1 ring-sky-400/30'
             }`}>
-              {activeType === 'morning' ? 'Morning' : 'Evening'}
+              {activeType === 'morning' ? 'AM' : 'PM'}
             </span>
           </div>
-          <p className="text-xs text-ink-500 dark:text-ink-400">
-            {activeType === 'morning' ? "Yesterday's" : "Today's"} performance at a glance
-          </p>
+          {hasBothRecaps && (
+            <button
+              onClick={() => setActiveType(prev => prev === 'morning' ? 'evening' : 'morning')}
+              className="px-3 py-1 text-[11px] font-semibold text-white/70 bg-white/10 rounded-full hover:bg-white/20 hover:text-white transition-all"
+            >
+              {activeType === 'morning' ? 'PM Edition' : 'AM Edition'}
+            </button>
+          )}
         </div>
-        {/* Toggle if both recaps exist */}
-        {hasBothRecaps && (
-          <button
-            onClick={() => setActiveType(prev => prev === 'morning' ? 'evening' : 'morning')}
-            className="px-3 py-1.5 text-xs font-medium text-violet-600 dark:text-violet-400 bg-violet-100 dark:bg-violet-800/50 rounded-lg hover:bg-violet-200 dark:hover:bg-violet-700/50 transition-colors"
-          >
-            {activeType === 'morning' ? 'Evening' : 'Morning'}
-          </button>
-        )}
-      </div>
 
-      {/* Recap text */}
-      <div className="px-5 pb-4">
-        <p className="text-sm text-ink-700 dark:text-ink-300 leading-relaxed">
+        {/* Recap text */}
+        <p className="text-[15px] leading-relaxed text-white/95 font-medium">
           {currentRecap.recap}
         </p>
       </div>
-
-      {/* Stats bar */}
-      <div className="px-5 pb-4 flex items-center gap-6 text-xs">
-        <div className="flex items-center gap-1.5 text-ink-600 dark:text-ink-400">
-          <HiOutlineEye className="w-4 h-4" />
-          <span className="font-semibold">{stats.totalPageviews.toLocaleString()}</span>
-          <span>views</span>
-          {changePercent !== null && (
-            <span className={`flex items-center gap-0.5 font-semibold ${
-              isUp ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-500 dark:text-red-400'
-            }`}>
-              {isUp ? <HiOutlineArrowTrendingUp className="w-3.5 h-3.5" /> : <HiOutlineArrowTrendingDown className="w-3.5 h-3.5" />}
-              {Math.abs(changePercent)}%
-            </span>
-          )}
-        </div>
-        <div className="flex items-center gap-1.5 text-ink-600 dark:text-ink-400">
-          <HiOutlineDocumentText className="w-4 h-4" />
-          <span className="font-semibold">{stats.totalArticles}</span>
-          <span>published</span>
-        </div>
-        {stats.topWriter && (
-          <div className="flex items-center gap-1.5 text-ink-600 dark:text-ink-400">
-            <HiOutlinePencilSquare className="w-4 h-4" />
-            <span className="font-semibold">{stats.topWriter.name}</span>
-          </div>
-        )}
-      </div>
-
-      {/* Top articles */}
-      {stats.topArticles.length > 0 && (
-        <div className="px-5 pb-5 border-t border-violet-200/50 dark:border-violet-700/30 pt-3">
-          <div className="space-y-1.5">
-            {stats.topArticles.slice(0, 3).map((article, index) => (
-              <Link
-                key={article.id}
-                href={`/editor/${article.id}`}
-                className="flex items-center gap-2.5 group"
-              >
-                <span className="w-5 h-5 rounded-full bg-violet-200 dark:bg-violet-700 text-violet-700 dark:text-violet-300 text-[10px] font-bold flex items-center justify-center flex-shrink-0">
-                  {index + 1}
-                </span>
-                <span className="text-xs text-ink-700 dark:text-ink-300 truncate group-hover:text-violet-600 dark:group-hover:text-violet-400 transition-colors flex-1">
-                  {article.headline}
-                </span>
-                <span className="text-[10px] font-semibold text-ink-400 dark:text-ink-500 flex-shrink-0">
-                  {article.pageviews.toLocaleString()}
-                </span>
-              </Link>
-            ))}
-          </div>
-        </div>
-      )}
     </div>
   );
 }
