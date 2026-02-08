@@ -517,15 +517,20 @@ export default function DashboardPage() {
             {/* Daily Recap - Mobile (with dismiss) */}
             {showDailyRecap && (
               <div className="px-4 mb-4">
-                <div className="relative">
+                <div className="relative group/recap">
+                  {/* Dismiss button with tooltip */}
                   <button
                     onClick={handleDismissDailyRecap}
-                    className="absolute top-4 right-2 z-20 p-1.5 rounded-full text-white/40 hover:text-white/60 hover:bg-white/10 transition-colors"
+                    className="absolute top-4 right-2 z-20 p-2 rounded-full bg-white/10 hover:bg-white/20 backdrop-blur-sm transition-all group/btn"
                     title="Dismiss recap"
                   >
-                    <HiOutlineXMark className="w-4 h-4" />
+                    <HiOutlineXMark className="w-5 h-5 text-white/70 group-hover/btn:text-white" />
+                    {/* Tooltip */}
+                    <span className="absolute -bottom-8 right-0 px-2 py-1 bg-slate-900 text-white text-xs rounded whitespace-nowrap opacity-0 group-hover/btn:opacity-100 pointer-events-none transition-opacity">
+                      Dismiss
+                    </span>
                   </button>
-                  <div className="pr-10">
+                  <div className="pr-12">
                     <DailyRecap />
                   </div>
                 </div>
@@ -535,15 +540,20 @@ export default function DashboardPage() {
             {/* Top Performer - Mobile (with dismiss) */}
             {showTopPerformer && topArticle && (
               <div className="px-4 mb-4">
-                <div className="rounded-2xl bg-gradient-to-br from-amber-900/40 via-orange-900/40 to-amber-900/40 border border-amber-500/30 p-4 relative">
+                <div className="rounded-2xl bg-gradient-to-br from-amber-900/40 via-orange-900/40 to-amber-900/40 border border-amber-500/30 p-4 relative group/top">
+                  {/* Dismiss button with tooltip */}
                   <button
                     onClick={handleDismissTopPerformer}
-                    className="absolute top-3 right-3 z-20 p-1.5 rounded-full text-amber-300/40 hover:text-amber-300 hover:bg-amber-900/40 transition-colors"
+                    className="absolute top-3 right-3 z-20 p-2 rounded-full bg-amber-900/30 hover:bg-amber-900/50 backdrop-blur-sm transition-all group/btn"
                     title="Dismiss top story"
                   >
-                    <HiOutlineXMark className="w-4 h-4" />
+                    <HiOutlineXMark className="w-5 h-5 text-amber-300/70 group-hover/btn:text-amber-200" />
+                    {/* Tooltip */}
+                    <span className="absolute -bottom-8 right-0 px-2 py-1 bg-amber-900 text-amber-100 text-xs rounded whitespace-nowrap opacity-0 group-hover/btn:opacity-100 pointer-events-none transition-opacity">
+                      Dismiss
+                    </span>
                   </button>
-                  <div className="pr-10">
+                  <div className="pr-12">
                     <div className="flex items-center gap-2 mb-2">
                       <HiOutlineStar className="w-4 h-4 text-amber-300" />
                       <span className="text-xs font-bold text-amber-300 uppercase tracking-wider">Your Top Story</span>
@@ -744,15 +754,20 @@ export default function DashboardPage() {
 
         {/* Daily Recap - Desktop (with dismiss) */}
         {showDailyRecap && (
-          <div className="relative mb-8">
+          <div className="relative mb-8 group/recap">
+            {/* Dismiss button with tooltip */}
             <button
               onClick={handleDismissDailyRecap}
-              className="absolute top-4 right-4 z-20 p-1.5 rounded-full text-white/40 hover:text-white/60 hover:bg-white/10 transition-colors"
+              className="absolute top-4 right-4 z-20 p-2 rounded-full bg-white/10 hover:bg-white/20 backdrop-blur-sm transition-all group/btn"
               title="Dismiss recap"
             >
-              <HiOutlineXMark className="w-5 h-5" />
+              <HiOutlineXMark className="w-5 h-5 text-white/70 group-hover/btn:text-white" />
+              {/* Tooltip */}
+              <span className="absolute -bottom-8 right-0 px-2 py-1 bg-slate-900 text-white text-xs rounded whitespace-nowrap opacity-0 group-hover/btn:opacity-100 pointer-events-none transition-opacity">
+                Dismiss
+              </span>
             </button>
-            <div className="pr-12">
+            <div className="pr-14">
               <DailyRecap />
             </div>
           </div>
@@ -760,15 +775,20 @@ export default function DashboardPage() {
 
         {/* Top Performer - Desktop (with dismiss) */}
         {showTopPerformer && topArticle && (
-          <div className="mb-8 rounded-2xl bg-gradient-to-r from-amber-50 to-orange-50 dark:from-amber-900/20 dark:to-orange-900/20 border border-amber-200 dark:border-amber-700 p-5 md:p-6 relative">
+          <div className="mb-8 rounded-2xl bg-gradient-to-r from-amber-50 to-orange-50 dark:from-amber-900/20 dark:to-orange-900/20 border border-amber-200 dark:border-amber-700 p-5 md:p-6 relative group/top">
+            {/* Dismiss button with tooltip */}
             <button
               onClick={handleDismissTopPerformer}
-              className="absolute top-4 right-4 z-20 p-1.5 rounded-full text-amber-600/40 dark:text-amber-400/40 hover:text-amber-600 dark:hover:text-amber-400 hover:bg-amber-100 dark:hover:bg-amber-900/40 transition-colors"
+              className="absolute top-4 right-4 z-20 p-2 rounded-full bg-amber-200/50 hover:bg-amber-200 dark:bg-amber-900/30 dark:hover:bg-amber-900/50 backdrop-blur-sm transition-all group/btn"
               title="Dismiss top performer"
             >
-              <HiOutlineXMark className="w-5 h-5" />
+              <HiOutlineXMark className="w-5 h-5 text-amber-700 group-hover/btn:text-amber-900 dark:text-amber-300 dark:group-hover/btn:text-amber-100" />
+              {/* Tooltip */}
+              <span className="absolute -bottom-8 right-0 px-2 py-1 bg-amber-900 dark:bg-amber-800 text-amber-100 text-xs rounded whitespace-nowrap opacity-0 group-hover/btn:opacity-100 pointer-events-none transition-opacity">
+                Dismiss
+              </span>
             </button>
-            <div className="flex items-start gap-5 pr-12">
+            <div className="flex items-start gap-5 pr-14">
               {topArticle.featuredImage && (
                 <div className="hidden lg:block w-32 h-20 rounded-lg overflow-hidden flex-shrink-0">
                   <img src={topArticle.featuredImage} alt="" className="w-full h-full object-cover" />
