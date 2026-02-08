@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { HiOutlineSparkles } from 'react-icons/hi2';
 
 interface TopArticle {
   id: string;
@@ -62,12 +61,10 @@ export default function DailyRecap() {
 
   useEffect(() => {
     fetchRecaps();
-    // Poll every 5 minutes
     const interval = setInterval(fetchRecaps, 5 * 60 * 1000);
     return () => clearInterval(interval);
   }, [fetchRecaps]);
 
-  // Don't render anything if no recaps exist
   if (!isLoading && (!recaps || (!recaps.morning && !recaps.evening))) {
     return null;
   }
@@ -76,16 +73,17 @@ export default function DailyRecap() {
   if (isLoading) {
     return (
       <div className="mb-8 relative rounded-2xl overflow-hidden animate-pulse">
-        <div className="absolute inset-0 bg-gradient-to-br from-violet-600 via-indigo-600 to-fuchsia-600 opacity-90" />
+        <div className="absolute inset-0 bg-gradient-to-br from-[#0a1628] via-[#111d35] to-[#0a1628]" />
+        <div className="absolute top-0 left-0 right-0 h-1 bg-red-800/40" />
         <div className="relative px-6 py-5">
           <div className="flex items-center gap-3 mb-4">
-            <div className="w-8 h-8 rounded-full bg-white/20" />
-            <div className="h-4 w-40 bg-white/20 rounded-full" />
+            <div className="w-5 h-5 bg-white/10 rounded" />
+            <div className="h-4 w-40 bg-white/10 rounded-full" />
           </div>
           <div className="space-y-2.5">
-            <div className="h-3.5 w-full bg-white/15 rounded-full" />
-            <div className="h-3.5 w-5/6 bg-white/15 rounded-full" />
-            <div className="h-3.5 w-3/5 bg-white/15 rounded-full" />
+            <div className="h-3.5 w-full bg-white/8 rounded-full" />
+            <div className="h-3.5 w-5/6 bg-white/8 rounded-full" />
+            <div className="h-3.5 w-3/5 bg-white/8 rounded-full" />
           </div>
         </div>
       </div>
@@ -99,58 +97,95 @@ export default function DailyRecap() {
 
   return (
     <div className="mb-8 relative rounded-2xl overflow-hidden group">
-      {/* Gradient background */}
-      <div className="absolute inset-0 bg-gradient-to-br from-violet-600 via-indigo-600 to-fuchsia-600 dark:from-violet-700 dark:via-indigo-700 dark:to-fuchsia-700" />
-      {/* Subtle noise/texture overlay */}
-      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_rgba(255,255,255,0.15)_0%,_transparent_60%)]" />
+      {/* Deep navy patriotic base */}
+      <div className="absolute inset-0 bg-gradient-to-br from-[#0a1628] via-[#111d35] to-[#0d1a2d]" />
+
+      {/* Scattered stars pattern */}
+      <div
+        className="absolute inset-0"
+        style={{
+          backgroundImage: `
+            radial-gradient(1.2px 1.2px at 8% 15%, rgba(255,255,255,0.18), transparent),
+            radial-gradient(1px 1px at 22% 55%, rgba(255,255,255,0.12), transparent),
+            radial-gradient(1.4px 1.4px at 38% 25%, rgba(255,255,255,0.15), transparent),
+            radial-gradient(1px 1px at 52% 70%, rgba(255,255,255,0.10), transparent),
+            radial-gradient(1.3px 1.3px at 68% 12%, rgba(255,255,255,0.14), transparent),
+            radial-gradient(1px 1px at 82% 45%, rgba(255,255,255,0.09), transparent),
+            radial-gradient(1.2px 1.2px at 15% 80%, rgba(255,255,255,0.11), transparent),
+            radial-gradient(1px 1px at 45% 90%, rgba(255,255,255,0.08), transparent),
+            radial-gradient(1.3px 1.3px at 72% 78%, rgba(255,255,255,0.12), transparent),
+            radial-gradient(1px 1px at 92% 25%, rgba(255,255,255,0.10), transparent),
+            radial-gradient(1.5px 1.5px at 5% 45%, rgba(255,255,255,0.16), transparent),
+            radial-gradient(1px 1px at 58% 40%, rgba(255,255,255,0.08), transparent)
+          `,
+        }}
+      />
+
+      {/* Subtle diagonal pinstripes */}
+      <div
+        className="absolute inset-0 opacity-[0.03]"
+        style={{
+          backgroundImage: 'repeating-linear-gradient(-45deg, transparent, transparent 30px, white 30px, white 31px)',
+        }}
+      />
+
+      {/* Red accent stripe - top */}
+      <div className="absolute top-0 left-0 right-0 h-[3px] bg-gradient-to-r from-red-700 via-red-500 to-red-700" />
+
+      {/* Subtle red glow */}
+      <div className="absolute -top-8 right-16 w-40 h-40 bg-red-600/[0.06] rounded-full blur-3xl" />
+      <div className="absolute -bottom-8 left-16 w-32 h-32 bg-blue-400/[0.04] rounded-full blur-3xl" />
 
       <div className="relative px-6 py-5">
         {/* Header row */}
         <div className="flex items-center justify-between mb-3">
-          <div className="flex items-center gap-2.5">
-            <HiOutlineSparkles className="w-5 h-5 text-amber-300" />
-            <span className="font-display text-base font-bold text-white/90 uppercase tracking-widest">
+          <div className="flex items-center gap-3">
+            {/* Red star */}
+            <svg className="w-5 h-5 text-red-500 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+              <path d="M10 0l2.5 6.9H20l-6 4.6 2.3 7L10 13.8l-6.3 4.7 2.3-7-6-4.6h7.5z"/>
+            </svg>
+            <span className="font-display text-base font-bold text-white uppercase tracking-[0.2em]">
               The Recap
             </span>
-            <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${
+            <span className={`inline-flex items-center px-2.5 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider ${
               activeType === 'morning'
-                ? 'bg-amber-400/20 text-amber-200 ring-1 ring-amber-400/30'
-                : 'bg-sky-400/20 text-sky-200 ring-1 ring-sky-400/30'
+                ? 'bg-red-500/15 text-red-300 ring-1 ring-red-500/25'
+                : 'bg-blue-400/15 text-blue-300 ring-1 ring-blue-400/25'
             }`}>
-              {activeType === 'morning' ? 'Morning Edition' : 'Evening Edition'}
+              {activeType === 'morning' ? 'Morning Briefing' : 'Evening Briefing'}
             </span>
           </div>
           {hasBothRecaps && (
             <button
               onClick={() => setActiveType(prev => prev === 'morning' ? 'evening' : 'morning')}
-              className="px-3 py-1 text-[11px] font-semibold text-white/70 bg-white/10 rounded-full hover:bg-white/20 hover:text-white transition-all"
+              className="px-3 py-1 text-[11px] font-semibold text-white/50 bg-white/5 rounded hover:bg-white/10 hover:text-white/80 transition-all border border-white/5"
             >
-              {activeType === 'morning' ? 'Evening Edition' : 'Morning Edition'}
+              {activeType === 'morning' ? 'Evening Briefing' : 'Morning Briefing'}
             </button>
           )}
         </div>
 
         {/* Recap text */}
-        <p className="text-[15px] leading-relaxed text-white/95 font-medium">
+        <p className="text-[15px] leading-relaxed text-white/85 font-medium">
           {currentRecap.recap}
         </p>
 
         {/* Stats footer */}
         {currentRecap.stats && currentRecap.stats.totalPageviews > 0 && (
-          <div className="flex items-center gap-4 pt-3 mt-3 border-t border-white/10 text-xs text-white/60">
-            <span className="flex items-center gap-1">
-              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+          <div className="flex items-center gap-4 pt-3 mt-3 border-t border-white/[0.06] text-xs text-white/40">
+            <span className="flex items-center gap-1.5">
+              <svg className="w-3.5 h-3.5 text-red-400/60" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M2.036 12.322a1.012 1.012 0 0 1 0-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178Z" />
                 <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
               </svg>
-              {currentRecap.stats.totalPageviews.toLocaleString()} views
+              <span className="text-white/60 font-medium">{currentRecap.stats.totalPageviews.toLocaleString()}</span> views
             </span>
             {currentRecap.stats.topWriter && (
-              <span className="flex items-center gap-1">
-                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M11.48 3.499a.562.562 0 0 1 1.04 0l2.125 5.111a.563.563 0 0 0 .475.345l5.518.442c.499.04.701.663.321.988l-4.204 3.602a.563.563 0 0 0-.182.557l1.285 5.385a.562.562 0 0 1-.84.61l-4.725-2.885a.562.562 0 0 0-.586 0L6.982 20.54a.562.562 0 0 1-.84-.61l1.285-5.386a.562.562 0 0 0-.182-.557l-4.204-3.602a.562.562 0 0 1 .321-.988l5.518-.442a.563.563 0 0 0 .475-.345L11.48 3.5Z" />
+              <span className="flex items-center gap-1.5">
+                <svg className="w-3.5 h-3.5 text-red-400/60" fill="currentColor" viewBox="0 0 20 20">
+                  <path d="M10 0l2.5 6.9H20l-6 4.6 2.3 7L10 13.8l-6.3 4.7 2.3-7-6-4.6h7.5z"/>
                 </svg>
-                {currentRecap.stats.topWriter.name} leading
+                <span className="text-white/60 font-medium">{currentRecap.stats.topWriter.name}</span> leading
               </span>
             )}
           </div>
