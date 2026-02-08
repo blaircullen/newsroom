@@ -29,6 +29,7 @@ interface TrendingData {
 interface HotArticle {
   id: string;
   headline: string;
+  recentPageviews: number;
   totalPageviews: number;
   isNew: boolean;
   rankChange: number | null;
@@ -153,7 +154,7 @@ function InsightsPanel() {
                   {article.headline}
                 </p>
                 <p className="text-xs text-ink-500 mt-1">
-                  {article.totalPageviews.toLocaleString()} views
+                  {(article.recentPageviews || article.totalPageviews).toLocaleString()} views
                 </p>
               </div>
               {article.isNew && (
