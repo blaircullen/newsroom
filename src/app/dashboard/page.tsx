@@ -31,6 +31,8 @@ import {
   HiOutlineClock,
   HiOutlineExclamationTriangle,
   HiOutlineXMark,
+  HiOutlineCalendarDays,
+  HiOutlineStar,
 } from 'react-icons/hi2';
 
 type TabId = 'home' | 'hot' | 'analytics' | 'profile';
@@ -362,6 +364,17 @@ export default function DashboardPage() {
   const medianPageviews = pageviewsArray.length > 0 ? pageviewsArray[Math.floor(pageviewsArray.length / 2)] : 0;
   const topPerformerThreshold = medianPageviews * 2.5;
 
+  // Greeting helper
+  const hour = new Date().getHours();
+  const greeting = hour >= 5 && hour < 12 ? 'Good morning' : hour >= 12 && hour < 17 ? 'Good afternoon' : 'Good evening';
+  const firstName = session?.user?.name?.split(' ')[0] || 'there';
+  const dateStr = new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
+  const shortDateStr = new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
+
+  // Top performing article
+  const sortedByViews = [...publishedArticles].sort((a, b) => b.totalPageviews - a.totalPageviews);
+  const topArticle = sortedByViews.length > 0 && sortedByViews[0].totalPageviews > 20 ? sortedByViews[0] : null;
+
   return (
     <AppShell hideOnMobile>
       {/* Mobile View Container */}
@@ -394,16 +407,17 @@ export default function DashboardPage() {
               <div className="px-4 pt-3 pb-4">
                 <div className="flex items-center justify-between mb-4">
                   <div>
-                    <div className="flex items-start gap-0">
-                      <span className="font-black text-[32px] leading-none tracking-[-2px] text-white">N</span>
-                      <span className="font-black text-[32px] leading-none tracking-[-2px] text-press-500">R</span>
-                      <svg width="12" height="12" viewBox="0 0 20 20" fill="none" className="ml-0.5 mt-0.5">
-                        <path d="M10 0l2.5 6.9H20l-6 4.6 2.3 7L10 13.8l-6.3 4.7 2.3-7-6-4.6h7.5z" fill="#D42B2B"/>
-                      </svg>
+                    <h1 className="font-display text-2xl font-bold text-white">
+                      {greeting}, {firstName}!
+                    </h1>
+                    <div className="flex items-center gap-1.5 mt-1">
+                      <HiOutlineCalendarDays className="w-3.5 h-3.5 text-white/50" />
+                      <p className="text-sm text-white/50">{shortDateStr}</p>
                     </div>
-                    <p className="text-xs text-white/60 mt-0.5">
-                      {session?.user?.name || 'User'}
-                    </p>
+                    <div className="flex items-start gap-0 mt-1.5 opacity-40">
+                      <span className="font-black text-[18px] leading-none tracking-[-1px] text-white">N</span>
+                      <span className="font-black text-[18px] leading-none tracking-[-1px] text-press-500">R</span>
+                    </div>
                   </div>
                   <button
                     onClick={() => handleTabChange('profile')}
@@ -444,10 +458,43 @@ export default function DashboardPage() {
               </div>
             </div>
 
-            {/* Daily Recap - Mobile */}
+            {/* Mobile Stats */}
             <div className="px-4 pt-2">
+              <StatsGrid stats={stats} isAdmin={isAdmin} isUpdating={isAutoRefreshing} />
+            </div>
+
+            {/* Daily Recap - Mobile */}
+            <div className="px-4">
               <DailyRecap />
             </div>
+
+            {/* Top Performer - Mobile */}
+            {topArticle && (
+              <div className="px-4 mb-4">
+                <div className="rounded-2xl bg-gradient-to-br from-amber-900/40 via-orange-900/40 to-amber-900/40 border border-amber-500/30 p-4">
+                  <div className="flex items-center gap-2 mb-2">
+                    <HiOutlineStar className="w-4 h-4 text-amber-300" />
+                    <span className="text-xs font-bold text-amber-300 uppercase tracking-wider">Your Top Story</span>
+                  </div>
+                  <Link href={`/editor/${topArticle.id}`} className="block">
+                    <h3 className="font-display text-lg font-bold text-white line-clamp-2 mb-2">
+                      {topArticle.headline}
+                    </h3>
+                  </Link>
+                  <div className="flex items-center gap-3">
+                    <span className="text-2xl font-display font-bold text-amber-200">
+                      {topArticle.totalPageviews.toLocaleString()} views
+                    </span>
+                    {topArticle.totalPageviews >= topPerformerThreshold && topPerformerThreshold > 0 && (
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 text-[10px] font-bold">
+                        <HiOutlineArrowTrendingUp className="w-3 h-3" />
+                        Trending
+                      </span>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
 
             {/* Article Feed */}
             <div className="px-4 space-y-3">
@@ -526,12 +573,10 @@ export default function DashboardPage() {
         <div className="flex items-center justify-between mb-8">
           <div>
             <h1 className="font-display text-display-md text-ink-950 dark:text-ink-100">
-              {isAdmin ? 'Editorial Dashboard' : 'My Stories'}
+              {greeting}, {firstName}
             </h1>
-            <p className="text-ink-400 mt-1">
-              {isAdmin
-                ? 'Review and manage all submitted stories'
-                : 'Write, edit, and track your stories'}
+            <p className="text-ink-500 dark:text-ink-400 mt-1">
+              {dateStr} &middot; {isAdmin ? 'Editorial Dashboard' : 'My Stories'}
             </p>
           </div>
           <div className="flex items-center gap-3">
@@ -584,6 +629,47 @@ export default function DashboardPage() {
 
         {/* Daily Recap */}
         <DailyRecap />
+
+        {/* Top Performer - Desktop */}
+        {topArticle && (
+          <div className="mb-8 rounded-2xl bg-gradient-to-r from-amber-50 to-orange-50 dark:from-amber-900/20 dark:to-orange-900/20 border border-amber-200 dark:border-amber-700 p-5 md:p-6">
+            <div className="flex items-start gap-5">
+              {topArticle.featuredImage && (
+                <div className="hidden lg:block w-32 h-20 rounded-lg overflow-hidden flex-shrink-0">
+                  <img src={topArticle.featuredImage} alt="" className="w-full h-full object-cover" />
+                </div>
+              )}
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 mb-2">
+                  <HiOutlineStar className="w-4 h-4 text-amber-500 dark:text-amber-400" />
+                  <span className="text-xs font-bold text-amber-600 dark:text-amber-400 uppercase tracking-wider">Your Top Performer</span>
+                </div>
+                <Link href={`/editor/${topArticle.id}`} className="block group">
+                  <h3 className="font-display text-lg font-bold text-ink-900 dark:text-ink-100 group-hover:text-amber-700 dark:group-hover:text-amber-300 transition-colors line-clamp-1">
+                    {topArticle.headline}
+                  </h3>
+                </Link>
+                <div className="flex items-center gap-4 mt-2">
+                  <span className="text-3xl font-display font-bold text-amber-600 dark:text-amber-300">
+                    {topArticle.totalPageviews.toLocaleString()}
+                  </span>
+                  <span className="text-sm text-ink-500 dark:text-ink-400">pageviews</span>
+                  <span className="text-sm text-ink-400 dark:text-ink-500">&middot;</span>
+                  <span className="text-sm text-ink-500 dark:text-ink-400">
+                    {topArticle.totalUniqueVisitors.toLocaleString()} unique readers
+                  </span>
+                </div>
+              </div>
+              <Link
+                href={`/editor/${topArticle.id}`}
+                className="hidden md:inline-flex items-center gap-1.5 px-4 py-2 text-sm font-semibold text-amber-700 dark:text-amber-300 bg-amber-100 dark:bg-amber-800/30 rounded-lg hover:bg-amber-200 dark:hover:bg-amber-800/50 transition-colors flex-shrink-0"
+              >
+                View Article
+                <HiOutlineArrowTopRightOnSquare className="w-4 h-4" />
+              </Link>
+            </div>
+          </div>
+        )}
 
         {/* Story Ideas Panel - Desktop (Admin only) */}
         {isAdmin && storyIdeas.length > 0 && (
