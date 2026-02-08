@@ -109,6 +109,34 @@ export default function ArticleCard({
   const hasAnalytics = article.status === 'PUBLISHED' && (article.totalPageviews > 0 || article.totalUniqueVisitors > 0);
   const timeAgo = getTimeAgo(new Date(article.updatedAt));
 
+  // CRITICAL FIX: Conditional text colors for mobile based on background
+  // Top performers have light backgrounds (amber-50) → need DARK text
+  // Regular cards have dark backgrounds (slate-800) → need LIGHT text
+  const mobileHeadlineClass = isTopPerformer 
+    ? 'text-amber-900' 
+    : 'text-white';
+  
+  const mobileSubheadlineClass = isTopPerformer 
+    ? 'text-amber-800' 
+    : 'text-white/60';
+  
+  const mobileMetaClass = isTopPerformer 
+    ? 'text-amber-700' 
+    : 'text-white/50';
+  
+  const mobileBorderClass = isTopPerformer 
+    ? 'border-amber-200' 
+    : 'border-white/10';
+  
+  const mobileIconClass = isTopPerformer 
+    ? 'text-amber-600' 
+    : 'text-white/40 group-active:text-press-400';
+
+  // Mobile status badge - adjust for top performers
+  const mobileStatusClass = isTopPerformer
+    ? 'from-amber-600/30 to-orange-600/20 border-amber-500/50 text-amber-900'
+    : config.mobileClass;
+
   return (
     <div
       className={`rounded-xl md:rounded-xl border transition-all duration-200 group relative ${
@@ -134,7 +162,7 @@ export default function ArticleCard({
           {/* Mobile Header - Status Badge */}
           <div className="flex items-center justify-between mb-3 md:hidden">
             <div className="flex items-center gap-2">
-              <div className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-gradient-to-r ${config.mobileClass} border`}>
+              <div className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-gradient-to-r ${mobileStatusClass} border`}>
                 <span className={`w-1.5 h-1.5 rounded-full ${dotClass}`} />
                 <span className="text-[10px] font-bold uppercase tracking-wider">
                   {article.status}
@@ -142,7 +170,7 @@ export default function ArticleCard({
               </div>
             </div>
             {article.status === 'PUBLISHED' && article.totalPageviews > 0 && (
-              <div className="flex items-center gap-1 text-emerald-400">
+              <div className={`flex items-center gap-1 ${isTopPerformer ? 'text-amber-700' : 'text-emerald-400'}`}>
                 <HiOutlineEye className="w-4 h-4" />
                 <span className="text-sm font-semibold">{article.totalPageviews.toLocaleString()}</span>
               </div>
@@ -184,14 +212,14 @@ export default function ArticleCard({
                 </div>
               </div>
 
-              {/* Mobile Headline */}
-              <h3 className="md:hidden text-base font-bold text-white line-clamp-2 leading-snug mb-2 group-active:text-press-400 transition-colors">
+              {/* Mobile Headline - FIXED: Conditional text color */}
+              <h3 className={`md:hidden text-base font-bold line-clamp-2 leading-snug mb-2 group-active:text-press-400 transition-colors ${mobileHeadlineClass}`}>
                 {article.headline}
               </h3>
 
-              {/* Mobile Subheadline */}
+              {/* Mobile Subheadline - FIXED: Conditional text color */}
               {article.subHeadline && (
-                <p className="md:hidden text-sm text-white/60 line-clamp-2 leading-relaxed mb-3">
+                <p className={`md:hidden text-sm line-clamp-2 leading-relaxed mb-3 ${mobileSubheadlineClass}`}>
                   {article.subHeadline}
                 </p>
               )}
@@ -231,14 +259,14 @@ export default function ArticleCard({
                 )}
               </div>
 
-              {/* Mobile Footer */}
-              <div className="flex md:hidden items-center justify-between pt-3 border-t border-white/10">
-                <div className="flex items-center gap-2 text-xs text-white/50">
+              {/* Mobile Footer - FIXED: Conditional text colors */}
+              <div className={`flex md:hidden items-center justify-between pt-3 border-t ${mobileBorderClass}`}>
+                <div className={`flex items-center gap-2 text-xs ${mobileMetaClass}`}>
                   <span>{article.author?.name || 'Unknown'}</span>
-                  <span className="text-white/30">•</span>
+                  <span className={isTopPerformer ? 'text-amber-500' : 'text-white/30'}>•</span>
                   <span>{timeAgo}</span>
                 </div>
-                <div className="text-white/40 group-active:text-press-400 transition-colors">
+                <div className={`transition-colors ${mobileIconClass}`}>
                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                   </svg>
