@@ -5,6 +5,8 @@ import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import toast from 'react-hot-toast';
 import AppShell from '@/components/layout/AppShell';
+import PostingHeatmap from '@/components/social/PostingHeatmap';
+import type { PostingProfile } from '@/lib/optimal-timing';
 import {
   HiOutlineShare,
   HiOutlinePlusCircle,
@@ -15,6 +17,8 @@ import {
   HiOutlineExclamationTriangle,
   HiOutlineXCircle,
   HiOutlineChevronDown,
+  HiOutlineClock,
+  HiOutlineChartBarSquare,
 } from 'react-icons/hi2';
 import { FaXTwitter, FaFacebook } from 'react-icons/fa6';
 
@@ -35,6 +39,8 @@ interface SocialAccount {
   } | null;
   createdAt: string;
   updatedAt: string;
+  optimalHours: PostingProfile | null;
+  optimalHoursUpdatedAt: string | null;
 }
 
 interface Site {
@@ -62,6 +68,60 @@ export default function AdminSocialAccountsPage() {
   const [formSiteId, setFormSiteId] = useState('');
   const [formTokenExpiresAt, setFormTokenExpiresAt] = useState('');
   const [showTokenFields, setShowTokenFields] = useState(false);
+  const [expandedHeatmaps, setExpandedHeatmaps] = useState<Set<string>>(new Set());
+
+  function toggleHeatmap(accountId: string) {
+    setExpandedHeatmaps(prev => {
+      const next = new Set(prev);
+      if (next.has(accountId)) next.delete(accountId);
+      else next.add(accountId);
+      return next;
+    });
+  }
+
+  function getTimingStatus(account: SocialAccount): { label: string; color: string } {
+    if (!account.optimalHours) {
+      return { label: 'No Timing Data', color: 'bg-ink-100 text-ink-500' };
+    }
+    if (!account.optimalHoursUpdatedAt) {
+      return { label: 'Timing Stale', color: 'bg-yellow-50 text-yellow-700' };
+    }
+    const ageMs = Date.now() - new Date(account.optimalHoursUpdatedAt).getTime();
+    const ageHours = ageMs / (1000 * 60 * 60);
+    if (ageHours <= 25) {
+      return { label: 'Timing Active', color: 'bg-green-50 text-green-700' };
+    }
+    return { label: 'Timing Stale', color: 'bg-yellow-50 text-yellow-700' };
+  }
+
+  function getRelativeTime(dateStr: string | null): string {
+    if (!dateStr) return 'Never';
+    const diffMs = Date.now() - new Date(dateStr).getTime();
+    const diffMins = Math.floor(diffMs / 60000);
+    if (diffMins < 1) return 'Just now';
+    if (diffMins < 60) return `${diffMins}m ago`;
+    const diffHours = Math.floor(diffMins / 60);
+    if (diffHours < 24) return `${diffHours}h ago`;
+    const diffDays = Math.floor(diffHours / 24);
+    if (diffDays === 1) return 'Yesterday';
+    return `${diffDays}d ago`;
+  }
+
+  function getTopTimesInsight(profile: PostingProfile): string {
+    const slots: { day: number; hour: number; score: number }[] = [];
+    for (let d = 0; d < 7; d++) {
+      for (let h = 0; h < 24; h++) {
+        const score = profile.weeklyScores[d]?.[h] ?? 0;
+        if (score > 0) slots.push({ day: d, hour: h, score });
+      }
+    }
+    slots.sort((a, b) => b.score - a.score);
+    const top = slots.slice(0, 3);
+    if (top.length === 0) return '';
+    const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    const formatHour = (h: number) => h === 0 ? '12a' : h < 12 ? `${h}a` : h === 12 ? '12p' : `${h - 12}p`;
+    return 'Best: ' + top.map(s => `${dayNames[s.day]} ${formatHour(s.hour)}`).join(', ');
+  }
 
   useEffect(() => {
     if (session?.user?.role !== 'ADMIN') {
@@ -575,6 +635,39 @@ export default function AdminSocialAccountsPage() {
                           Token has expired. Reconnect to continue posting.
                         </p>
                       )}
+
+                      {/* Optimal Timing Status */}
+                      {(() => {
+                        const timing = getTimingStatus(account);
+                        return (
+                          <div className="flex items-center gap-2 flex-wrap mt-2">
+                            <span className={`text-xs font-medium px-2 py-1 rounded-full flex items-center gap-1 ${timing.color}`}>
+                              <HiOutlineClock className="w-3 h-3" /> {timing.label}
+                            </span>
+                            {account.optimalHours && (
+                              <>
+                                <span className="text-xs font-medium px-2 py-1 rounded-full bg-ink-50 text-ink-600">
+                                  {account.optimalHours.dataPoints}/4 sources
+                                </span>
+                                <span className="text-xs text-ink-400">
+                                  Updated {getRelativeTime(account.optimalHoursUpdatedAt)}
+                                </span>
+                                <span className="text-xs text-ink-400 italic">
+                                  {getTopTimesInsight(account.optimalHours)}
+                                </span>
+                                <button
+                                  type="button"
+                                  onClick={() => toggleHeatmap(account.id)}
+                                  className="text-xs font-medium text-press-600 hover:text-press-700 flex items-center gap-1"
+                                >
+                                  <HiOutlineChartBarSquare className="w-3 h-3" />
+                                  {expandedHeatmaps.has(account.id) ? 'Hide Heatmap' : 'View Heatmap'}
+                                </button>
+                              </>
+                            )}
+                          </div>
+                        );
+                      })()}
                     </div>
                   </div>
 
@@ -605,6 +698,13 @@ export default function AdminSocialAccountsPage() {
                     </button>
                   </div>
                 </div>
+
+                {/* Expanded Heatmap */}
+                {expandedHeatmaps.has(account.id) && account.optimalHours && (
+                  <div className="mt-4 pt-4 border-t border-ink-100">
+                    <PostingHeatmap profile={account.optimalHours} compact />
+                  </div>
+                )}
               </div>
             ))}
           </div>

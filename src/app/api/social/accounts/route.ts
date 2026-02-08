@@ -74,6 +74,9 @@ export async function GET(request: NextRequest) {
       // Mask tokens for security
       accessTokenPreview: maskToken(account.accessToken),
       refreshTokenPreview: account.refreshToken ? maskToken(account.refreshToken) : null,
+      // Optimal timing data
+      optimalHours: account.optimalHours,
+      optimalHoursUpdatedAt: account.optimalHoursUpdatedAt,
     }));
 
     return NextResponse.json(transformedAccounts);
