@@ -9,13 +9,10 @@ import Link from 'next/link';
 import AppShell from '@/components/layout/AppShell';
 import PublishingInsights from '@/components/calendar/PublishingInsights';
 import {
-  HiOutlineCalendarDays,
   HiOutlineChevronLeft,
   HiOutlineChevronRight,
   HiOutlineClock,
-  HiOutlineDocumentText,
   HiOutlineGlobeAlt,
-  HiOutlineLightBulb,
 } from 'react-icons/hi2';
 
 interface CalendarArticle {
@@ -40,23 +37,9 @@ export default function CalendarPage() {
   const [articles, setArticles] = useState<CalendarArticle[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [view, setView] = useState<'month' | 'week'>('month');
-  const [insightsOpen, setInsightsOpen] = useState(false);
   const [expandedDates, setExpandedDates] = useState<Set<string>>(new Set());
 
   const isAdmin = session?.user?.role === 'ADMIN' || session?.user?.role === 'EDITOR';
-
-  // Load insights sidebar state from localStorage on mount
-  useEffect(() => {
-    const saved = localStorage.getItem('calendar-insights-open');
-    if (saved === 'true') {
-      setInsightsOpen(true);
-    }
-  }, []);
-
-  // Persist insights sidebar state to localStorage
-  useEffect(() => {
-    localStorage.setItem('calendar-insights-open', String(insightsOpen));
-  }, [insightsOpen]);
 
   // Get calendar dates
   const calendarData = useMemo(() => {
@@ -153,18 +136,6 @@ export default function CalendarPage() {
             </p>
           </div>
           <div className="flex items-center gap-3">
-            {/* Insights toggle button */}
-            <button
-              onClick={() => setInsightsOpen(!insightsOpen)}
-              className={`flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-lg border transition-colors ${
-                insightsOpen
-                  ? 'bg-press-50 dark:bg-press-900/30 text-press-600 dark:text-press-400 border-press-200 dark:border-press-800'
-                  : 'text-ink-600 dark:text-ink-300 bg-white dark:bg-ink-800 border-ink-200 dark:border-ink-700 hover:bg-ink-50 dark:hover:bg-ink-700'
-              }`}
-            >
-              <HiOutlineLightBulb className="w-4 h-4" />
-              <span className="hidden sm:inline">Insights</span>
-            </button>
             <button
               onClick={goToToday}
               className="px-3 py-2 text-sm font-medium text-ink-600 dark:text-ink-300 bg-white dark:bg-ink-800 border border-ink-200 dark:border-ink-700 rounded-lg hover:bg-ink-50 dark:hover:bg-ink-700 transition-colors"
@@ -303,17 +274,8 @@ export default function CalendarPage() {
           </div>
 
           {/* Publishing Insights Sidebar */}
-          <div
-            className={`transition-all duration-300 ease-in-out overflow-hidden hidden lg:block ${
-              insightsOpen ? 'w-80 opacity-100' : 'w-0 opacity-0'
-            }`}
-          >
-            <div className="w-80">
-              <PublishingInsights
-                isOpen={insightsOpen}
-                onClose={() => setInsightsOpen(false)}
-              />
-            </div>
+          <div className="w-80 hidden lg:block flex-shrink-0">
+            <PublishingInsights />
           </div>
         </div>
       </div>

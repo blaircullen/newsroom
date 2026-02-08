@@ -3,7 +3,6 @@
 import { useState, useEffect } from 'react';
 import {
   HiOutlineChartBarSquare,
-  HiOutlineXMark,
   HiOutlineSparkles,
 } from 'react-icons/hi2';
 
@@ -46,23 +45,16 @@ interface PublishingInsightsResponse {
   generatedAt: string;
 }
 
-interface PublishingInsightsProps {
-  isOpen: boolean;
-  onClose: () => void;
-}
-
 const DAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 const HOUR_LABELS = [0, 6, 12, 18];
 
-export default function PublishingInsights({ isOpen, onClose }: PublishingInsightsProps) {
+export default function PublishingInsights() {
   const [data, setData] = useState<PublishingInsightsResponse | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [selectedSite, setSelectedSite] = useState<string>('all');
   const [period, setPeriod] = useState<'30d' | '90d' | 'all'>('90d');
 
   useEffect(() => {
-    if (!isOpen) return;
-
     const fetchData = async () => {
       setIsLoading(true);
       try {
@@ -79,7 +71,7 @@ export default function PublishingInsights({ isOpen, onClose }: PublishingInsigh
     };
 
     fetchData();
-  }, [isOpen, period]);
+  }, [period]);
 
   // Get current site data or aggregate all sites
   const currentSiteData = (): SiteInsights | null => {
@@ -190,19 +182,13 @@ export default function PublishingInsights({ isOpen, onClose }: PublishingInsigh
   return (
     <div className="bg-white dark:bg-ink-900 rounded-2xl border border-ink-100 dark:border-ink-800 h-full flex flex-col">
       {/* Header */}
-      <div className="flex items-center justify-between px-4 py-3 border-b border-ink-100 dark:border-ink-800">
+      <div className="px-4 py-3 border-b border-ink-100 dark:border-ink-800">
         <div className="flex items-center gap-2">
           <HiOutlineSparkles className="w-5 h-5 text-press-500" />
           <h3 className="font-display font-semibold text-ink-900 dark:text-white">
             Publishing Insights
           </h3>
         </div>
-        <button
-          onClick={onClose}
-          className="p-1 rounded-lg hover:bg-ink-100 dark:hover:bg-ink-800 transition-colors"
-        >
-          <HiOutlineXMark className="w-5 h-5 text-ink-400" />
-        </button>
       </div>
 
       {/* Content */}

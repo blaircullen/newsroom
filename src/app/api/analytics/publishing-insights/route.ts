@@ -90,12 +90,14 @@ export async function GET(request: NextRequest) {
       },
     });
 
-    // Group by site
+    // Group by site (split pipe-delimited multi-site values into individual sites)
     const siteGroups: Record<string, typeof articles> = {};
     for (const article of articles) {
-      const site = article.publishedSite!;
-      if (!siteGroups[site]) siteGroups[site] = [];
-      siteGroups[site].push(article);
+      const sites = article.publishedSite!.split(' | ').map(s => s.trim()).filter(Boolean);
+      for (const site of sites) {
+        if (!siteGroups[site]) siteGroups[site] = [];
+        siteGroups[site].push(article);
+      }
     }
 
     // Process each site
