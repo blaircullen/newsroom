@@ -84,14 +84,14 @@ function StatCard({
   };
 
   return (
-    <div className={`bg-white dark:bg-ink-900 rounded-2xl border p-4 md:p-6 transition-all duration-300 ${
+    <div className={`bg-white dark:bg-ink-900 rounded-xl border p-3 md:p-4 transition-all duration-300 ${
       highlight ? 'border-blue-200 dark:border-blue-800 shadow-card ring-1 ring-blue-100 dark:ring-blue-900' : 'border-ink-100 dark:border-ink-800'
     } ${isUpdating ? 'ring-2 ring-press-200/50 dark:ring-press-700/50' : ''}`}>
       <div className="flex items-center justify-between mb-2 md:mb-3">
-        <div className={`w-9 h-9 md:w-11 md:h-11 rounded-lg flex items-center justify-center ${colorMap[color]} transition-all duration-300 ${
+        <div className={`w-8 h-8 md:w-9 md:h-9 rounded-lg flex items-center justify-center ${colorMap[color]} transition-all duration-300 ${
           isUpdating ? 'scale-105' : 'scale-100'
         }`}>
-          <Icon className="w-5 h-5 md:w-6 md:h-6" />
+          <Icon className="w-4 h-4 md:w-5 md:h-5" />
         </div>
         {highlight && (
           <span className="w-2 h-2 md:w-2.5 md:h-2.5 rounded-full bg-blue-500 animate-pulse" />
@@ -100,7 +100,7 @@ function StatCard({
           <span className="w-1.5 h-1.5 md:w-2 md:h-2 rounded-full bg-press-400 animate-pulse" />
         )}
       </div>
-      <p className="text-2xl md:text-4xl font-display font-bold tabular-nums text-ink-900 dark:text-ink-100">
+      <p className="text-xl md:text-2xl font-display font-bold tabular-nums text-ink-900 dark:text-ink-100">
         <AnimatedNumber value={value} isUpdating={isUpdating} />
       </p>
       <p className="text-[10px] md:text-xs text-ink-400 mt-0.5">{label}</p>

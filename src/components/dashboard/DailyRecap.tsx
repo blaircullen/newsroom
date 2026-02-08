@@ -43,8 +43,12 @@ export default function DailyRecap() {
       const data: RecapsResponse = await res.json();
       setRecaps(data);
 
-      // Default to the most recent recap
-      if (data.evening) {
+      // Default to time-appropriate recap
+      const hour = new Date().getHours();
+      const isMorning = hour >= 5 && hour < 14;
+      if (isMorning && data.morning) {
+        setActiveType('morning');
+      } else if (data.evening) {
         setActiveType('evening');
       } else if (data.morning) {
         setActiveType('morning');
