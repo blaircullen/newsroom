@@ -68,8 +68,10 @@ export default function DashboardPage() {
   const [creatingFromIdea, setCreatingFromIdea] = useState<string | null>(null);
   const [showAllHot, setShowAllHot] = useState(false);
   const [dismissedIdeas, setDismissedIdeas] = useState<string[]>([]);
+  const [showDailyRecap, setShowDailyRecap] = useState(true);
+  const [showTopPerformer, setShowTopPerformer] = useState(true);
 
-  // Load dismissed ideas from localStorage on mount
+  // Load dismissed ideas and sections from localStorage on mount
   useEffect(() => {
     const stored = localStorage.getItem('dismissedStoryIdeas');
     if (stored) {
@@ -79,7 +81,34 @@ export default function DashboardPage() {
         // Invalid JSON, ignore
       }
     }
+    
+    const recapDismissed = localStorage.getItem('dailyRecap-dismissed');
+    const topPerformerDismissed = localStorage.getItem('topPerformer-dismissed');
+    
+    if (recapDismissed === 'true') setShowDailyRecap(false);
+    if (topPerformerDismissed === 'true') setShowTopPerformer(false);
   }, []);
+
+  // Dismiss handlers for sections
+  const handleDismissDailyRecap = () => {
+    setShowDailyRecap(false);
+    localStorage.setItem('dailyRecap-dismissed', 'true');
+  };
+
+  const handleDismissTopPerformer = () => {
+    setShowTopPerformer(false);
+    localStorage.setItem('topPerformer-dismissed', 'true');
+  };
+
+  const handleRestoreDailyRecap = () => {
+    setShowDailyRecap(true);
+    localStorage.setItem('dailyRecap-dismissed', 'false');
+  };
+
+  const handleRestoreTopPerformer = () => {
+    setShowTopPerformer(true);
+    localStorage.setItem('topPerformer-dismissed', 'false');
+  };
 
   // Dismiss a story idea and persist to localStorage
   const dismissStoryIdea = (headline: string) => {
@@ -429,6 +458,28 @@ export default function DashboardPage() {
                   </button>
                 </div>
 
+                {/* Restore buttons if sections are dismissed */}
+                {(!showDailyRecap || !showTopPerformer) && (
+                  <div className="flex gap-2 mb-3">
+                    {!showDailyRecap && (
+                      <button
+                        onClick={handleRestoreDailyRecap}
+                        className="text-xs text-press-400 hover:text-press-300 underline"
+                      >
+                        Show Recap
+                      </button>
+                    )}
+                    {!showTopPerformer && topArticle && (
+                      <button
+                        onClick={handleRestoreTopPerformer}
+                        className="text-xs text-press-400 hover:text-press-300 underline"
+                      >
+                        Show Top Story
+                      </button>
+                    )}
+                  </div>
+                )}
+
                 {/* Filter Pills */}
                 <div className="flex gap-2 overflow-x-auto pb-2 -mx-4 px-4 scrollbar-none">
                   {[
@@ -463,15 +514,31 @@ export default function DashboardPage() {
               <StatsGrid stats={stats} isAdmin={isAdmin} isUpdating={isAutoRefreshing} />
             </div>
 
-            {/* Daily Recap - Mobile */}
-            <div className="px-4">
-              <DailyRecap />
-            </div>
+            {/* Daily Recap - Mobile (with dismiss) */}
+            {showDailyRecap && (
+              <div className="px-4 relative">
+                <button
+                  onClick={handleDismissDailyRecap}
+                  className="absolute top-2 right-6 z-10 p-1.5 rounded-full text-white/40 hover:text-white/60 hover:bg-white/10 transition-colors"
+                  title="Dismiss recap"
+                >
+                  <HiOutlineXMark className="w-4 h-4" />
+                </button>
+                <DailyRecap />
+              </div>
+            )}
 
-            {/* Top Performer - Mobile */}
-            {topArticle && (
+            {/* Top Performer - Mobile (with dismiss) */}
+            {showTopPerformer && topArticle && (
               <div className="px-4 mb-4">
-                <div className="rounded-2xl bg-gradient-to-br from-amber-900/40 via-orange-900/40 to-amber-900/40 border border-amber-500/30 p-4">
+                <div className="rounded-2xl bg-gradient-to-br from-amber-900/40 via-orange-900/40 to-amber-900/40 border border-amber-500/30 p-4 relative">
+                  <button
+                    onClick={handleDismissTopPerformer}
+                    className="absolute top-2 right-2 p-1.5 rounded-full text-amber-300/40 hover:text-amber-300 hover:bg-amber-900/40 transition-colors"
+                    title="Dismiss top story"
+                  >
+                    <HiOutlineXMark className="w-4 h-4" />
+                  </button>
                   <div className="flex items-center gap-2 mb-2">
                     <HiOutlineStar className="w-4 h-4 text-amber-300" />
                     <span className="text-xs font-bold text-amber-300 uppercase tracking-wider">Your Top Story</span>
@@ -576,9 +643,26 @@ export default function DashboardPage() {
               {greeting}, {firstName}
             </h1>
             <p className="text-ink-500 dark:text-ink-400 mt-1">
-              {dateStr} &middot; {isAdmin ? 'Editorial Dashboard' : 'My Stories'}
+              {dateStr}
             </p>
             <div className="flex items-center gap-3 mt-3">
+              {/* Restore buttons if sections are dismissed */}
+              {!showDailyRecap && (
+                <button
+                  onClick={handleRestoreDailyRecap}
+                  className="text-sm text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 underline"
+                >
+                  Show Daily Recap
+                </button>
+              )}
+              {!showTopPerformer && topArticle && (
+                <button
+                  onClick={handleRestoreTopPerformer}
+                  className="text-sm text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 underline"
+                >
+                  Show Top Performer
+                </button>
+              )}
               <span className="inline-flex items-center gap-1.5 text-sm text-ink-500 dark:text-ink-400">
                 <span className="font-display text-lg font-bold tabular-nums text-ink-900 dark:text-ink-100">{stats.total}</span>
                 stories
@@ -652,12 +736,30 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        {/* Daily Recap */}
-        <DailyRecap />
+        {/* Daily Recap - Desktop (with dismiss) */}
+        {showDailyRecap && (
+          <div className="relative mb-8">
+            <button
+              onClick={handleDismissDailyRecap}
+              className="absolute top-4 right-4 z-10 p-1.5 rounded-full text-white/40 hover:text-white/60 hover:bg-white/10 transition-colors"
+              title="Dismiss recap"
+            >
+              <HiOutlineXMark className="w-5 h-5" />
+            </button>
+            <DailyRecap />
+          </div>
+        )}
 
-        {/* Top Performer - Desktop */}
-        {topArticle && (
-          <div className="mb-8 rounded-2xl bg-gradient-to-r from-amber-50 to-orange-50 dark:from-amber-900/20 dark:to-orange-900/20 border border-amber-200 dark:border-amber-700 p-5 md:p-6">
+        {/* Top Performer - Desktop (with dismiss) */}
+        {showTopPerformer && topArticle && (
+          <div className="mb-8 rounded-2xl bg-gradient-to-r from-amber-50 to-orange-50 dark:from-amber-900/20 dark:to-orange-900/20 border border-amber-200 dark:border-amber-700 p-5 md:p-6 relative">
+            <button
+              onClick={handleDismissTopPerformer}
+              className="absolute top-4 right-4 p-1.5 rounded-full text-amber-600/40 dark:text-amber-400/40 hover:text-amber-600 dark:hover:text-amber-400 hover:bg-amber-100 dark:hover:bg-amber-900/40 transition-colors"
+              title="Dismiss top performer"
+            >
+              <HiOutlineXMark className="w-5 h-5" />
+            </button>
             <div className="flex items-start gap-5">
               {topArticle.featuredImage && (
                 <div className="hidden lg:block w-32 h-20 rounded-lg overflow-hidden flex-shrink-0">
