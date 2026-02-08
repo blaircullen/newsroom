@@ -85,10 +85,13 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 });
     }
 
-    const { publishTargetId, articleIds, rawText } = body as {
+    const { publishTargetId, articleIds, rawText, voiceDescription, systemPrompt, customNotes } = body as {
       publishTargetId: string;
       articleIds?: string[];
       rawText?: string;
+      voiceDescription?: string;
+      systemPrompt?: string;
+      customNotes?: string | null;
     };
 
     // Validate publishTargetId
@@ -105,7 +108,33 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Publish target not found' }, { status: 404 });
     }
 
-    // Must provide either rawText or articleIds
+    // If voiceDescription and systemPrompt are provided directly, save without regenerating
+    if (typeof voiceDescription === 'string' && voiceDescription.trim() && typeof systemPrompt === 'string' && systemPrompt.trim()) {
+      const voiceProfile = await prisma.siteVoiceProfile.upsert({
+        where: { publishTargetId },
+        update: {
+          voiceDescription: voiceDescription.trim(),
+          systemPrompt: systemPrompt.trim(),
+          customNotes: customNotes || null,
+          updatedAt: new Date(),
+        },
+        create: {
+          publishTargetId,
+          voiceDescription: voiceDescription.trim(),
+          systemPrompt: systemPrompt.trim(),
+          customNotes: customNotes || null,
+          sampleArticleIds: [],
+        },
+        include: {
+          publishTarget: {
+            select: { id: true, name: true, url: true },
+          },
+        },
+      });
+      return NextResponse.json(voiceProfile, { status: 201 });
+    }
+
+    // Must provide either rawText or articleIds for generation
     const useRawText = typeof rawText === 'string' && rawText.trim().length >= 200;
     const useArticles = Array.isArray(articleIds) && articleIds.length >= 5 && articleIds.length <= 10;
 

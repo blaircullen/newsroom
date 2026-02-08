@@ -19,6 +19,7 @@ import {
   HiOutlineMagnifyingGlass,
   HiOutlineSparkles,
   HiOutlineArrowLeft,
+  HiOutlinePencilSquare,
 } from 'react-icons/hi2';
 import { FaXTwitter, FaFacebook } from 'react-icons/fa6';
 
@@ -492,6 +493,22 @@ export default function SocialQueuePage() {
         });
       }
     }
+  }
+
+  function handleWriteCaptions() {
+    if (!selectedArticle || selectedAccountIds.size === 0) return;
+
+    const accountIds = Array.from(selectedAccountIds);
+    const draftsMap = new Map<string, PostDraft>();
+    for (const accountId of accountIds) {
+      draftsMap.set(accountId, {
+        accountId,
+        caption: '',
+        scheduledAt: getSuggestedTime(),
+        isGenerating: false,
+      });
+    }
+    setPostDrafts(new Map(draftsMap));
   }
 
   async function handleRegenerateCaption(accountId: string) {
@@ -1100,15 +1117,26 @@ export default function SocialQueuePage() {
                             ))}
                           </div>
 
-                          <button
-                            type="button"
-                            onClick={handleGenerateCaptions}
-                            disabled={selectedAccountIds.size === 0}
-                            className="mt-3 flex items-center gap-2 px-4 py-2 bg-press-600 text-white text-sm font-medium rounded-lg hover:bg-press-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                          >
-                            <HiOutlineSparkles className="w-4 h-4" />
-                            Generate Captions
-                          </button>
+                          <div className="mt-3 flex items-center gap-2">
+                            <button
+                              type="button"
+                              onClick={handleGenerateCaptions}
+                              disabled={selectedAccountIds.size === 0}
+                              className="flex items-center gap-2 px-4 py-2 bg-press-600 text-white text-sm font-medium rounded-lg hover:bg-press-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                              <HiOutlineSparkles className="w-4 h-4" />
+                              Generate Captions
+                            </button>
+                            <button
+                              type="button"
+                              onClick={handleWriteCaptions}
+                              disabled={selectedAccountIds.size === 0}
+                              className="flex items-center gap-2 px-4 py-2 border border-ink-200 dark:border-ink-700 text-ink-700 dark:text-ink-300 text-sm font-medium rounded-lg hover:bg-ink-50 dark:hover:bg-ink-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                              <HiOutlinePencilSquare className="w-4 h-4" />
+                              Write Caption
+                            </button>
+                          </div>
                         </div>
                       )}
 
