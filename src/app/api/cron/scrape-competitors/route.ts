@@ -18,13 +18,12 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Check if scraper credentials are configured
-    if (!process.env.X_SCRAPER_USERNAME || !process.env.X_SCRAPER_PASSWORD) {
-      return NextResponse.json({
-        message: 'X scraper credentials not configured, skipping',
-        updated: 0,
-      });
-    }
+    // X scraper is disabled — Cloudflare blocks requests from cloud server IPs.
+    // Competitor data must be gathered via the X API v2 or manual import.
+    return NextResponse.json({
+      message: 'Competitor scraping disabled (Cloudflare blocks cloud IPs)',
+      updated: 0,
+    });
 
     const competitors = await prisma.competitorAccount.findMany({
       where: { isActive: true, platform: 'X' },
