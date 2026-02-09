@@ -10,7 +10,7 @@ export interface StoryIdea {
 // In-memory cache
 let cachedIdeas: StoryIdea[] = [];
 let cacheTimestamp = 0;
-const CACHE_TTL = 15 * 60 * 1000; // 15 minutes
+const CACHE_TTL = 10 * 60 * 1000; // 10 minutes
 
 // Extract keywords from headline for fuzzy matching
 function extractKeywords(text: string): Set<string> {
@@ -42,8 +42,13 @@ function areRelated(headline1: string, headline2: string): boolean {
   return overlap >= 3 || (minSize > 0 && overlap / minSize >= 0.4);
 }
 
-// Fetch RSS feed headlines
-async function fetchRssHeadlines(url: string, name: string): Promise<string[]> {
+interface RssItem {
+  title: string;
+  link: string;
+}
+
+// Fetch RSS feed items with links
+async function fetchRssItems(url: string, name: string): Promise<RssItem[]> {
   try {
     const response = await fetch(url, {
       headers: {
@@ -55,34 +60,37 @@ async function fetchRssHeadlines(url: string, name: string): Promise<string[]> {
 
     const xml = await response.text();
     const $ = cheerio.load(xml, { xmlMode: true });
-    const headlines: string[] = [];
+    const items: RssItem[] = [];
 
-    $('item title').each((_, el) => {
-      const title = $(el).text().trim();
-      if (title) headlines.push(title);
+    $('item').each((_, el) => {
+      const title = $(el).find('title').first().text().trim();
+      const link = $(el).find('link').first().text().trim();
+      if (title && link) items.push({ title, link });
     });
 
-    console.log(`[${name}] Found ${headlines.length} headlines`);
-    return headlines;
+    console.log(`[${name}] Found ${items.length} headlines`);
+    return items;
   } catch (error) {
     console.error(`[${name}] Error fetching RSS:`, error);
     return [];
   }
 }
 
-// Fetch all cross-reference sources
-async function fetchCrossReferenceHeadlines(): Promise<string[]> {
-  const sources = [
-    { url: 'https://www.bizpacreview.com/feed/', name: 'BizPac' },
-    { url: 'https://bonginoreport.com/index.rss', name: 'Bongino' },
-  ];
+// RSS sources that serve as both story idea sources and cross-references
+const rssSources = [
+  { url: 'https://www.bizpacreview.com/feed/', name: 'BizPac' },
+  { url: 'https://bonginoreport.com/index.rss', name: 'Bongino' },
+];
 
+// Fetch all RSS source items
+async function fetchAllRssItems(): Promise<{ name: string; items: RssItem[] }[]> {
   const results = await Promise.all(
-    sources.map(src => fetchRssHeadlines(src.url, src.name))
+    rssSources.map(async (src) => ({
+      name: src.name,
+      items: await fetchRssItems(src.url, src.name),
+    }))
   );
-
-  // Combine all headlines
-  return results.flat();
+  return results;
 }
 
 export async function scrapeStoryIdeas(): Promise<StoryIdea[]> {
@@ -92,15 +100,18 @@ export async function scrapeStoryIdeas(): Promise<StoryIdea[]> {
   }
 
   try {
-    // Fetch CFP and cross-reference sources in parallel
-    const [cfpResponse, crossRefHeadlines] = await Promise.all([
+    // Fetch CFP and RSS sources in parallel
+    const [cfpResponse, rssResults] = await Promise.all([
       fetch('https://citizenfreepress.com/', {
         headers: {
           'User-Agent': 'Mozilla/5.0 (compatible; NewsroomBot/1.0)',
         },
       }),
-      fetchCrossReferenceHeadlines(),
+      fetchAllRssItems(),
     ]);
+
+    // Collect all RSS headlines for cross-referencing
+    const allRssHeadlines = rssResults.flatMap(r => r.items.map(i => i.title));
 
     if (!cfpResponse.ok) {
       console.error('[CFP Scraper] Failed to fetch:', cfpResponse.status);
@@ -141,6 +152,7 @@ export async function scrapeStoryIdeas(): Promise<StoryIdea[]> {
       'reuters.com': 'Reuters',
       'apnews.com': 'AP News',
       'bizpacreview.com': 'BizPac',
+      'bonginoreport.com': 'Bongino',
     };
 
     // CFP uses list items with links for headlines
@@ -187,8 +199,8 @@ export async function scrapeStoryIdeas(): Promise<StoryIdea[]> {
           // Keep as Web
         }
 
-        // Check if this story appears in any cross-reference source (trending)
-        const isTrending = crossRefHeadlines.some(refHeadline => areRelated(text, refHeadline));
+        // Check if this story appears in any RSS source (trending)
+        const isTrending = allRssHeadlines.some(refHeadline => areRelated(text, refHeadline));
 
         ideas.push({
           headline: text,
@@ -199,7 +211,27 @@ export async function scrapeStoryIdeas(): Promise<StoryIdea[]> {
       }
     });
 
-    // Dedupe by headline and take top 10, prioritizing trending stories
+    // Add RSS source items as story ideas too
+    const cfpHeadlines = ideas.map(i => i.headline);
+    for (const rssSource of rssResults) {
+      for (const item of rssSource.items.slice(0, 15)) {
+        // Check if trending: appears in CFP or another RSS source
+        const otherRssHeadlines = rssResults
+          .filter(r => r.name !== rssSource.name)
+          .flatMap(r => r.items.map(i => i.title));
+        const allOtherHeadlines = [...cfpHeadlines, ...otherRssHeadlines];
+        const isTrending = allOtherHeadlines.some(h => areRelated(item.title, h));
+
+        ideas.push({
+          headline: item.title,
+          sourceUrl: item.link,
+          source: rssSource.name,
+          trending: isTrending,
+        });
+      }
+    }
+
+    // Dedupe by headline and take top 20, prioritizing trending stories
     const seen = new Set<string>();
     const uniqueIdeas = ideas
       .filter((idea) => {
@@ -214,7 +246,7 @@ export async function scrapeStoryIdeas(): Promise<StoryIdea[]> {
         if (!a.trending && b.trending) return 1;
         return 0;
       })
-      .slice(0, 10);
+      .slice(0, 20);
 
     // Update cache
     cachedIdeas = uniqueIdeas;
