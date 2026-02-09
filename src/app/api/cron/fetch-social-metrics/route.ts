@@ -9,28 +9,33 @@ import { raiseAlert, resolveAlert } from '@/lib/system-alerts';
 /**
  * Fetch tweet engagement metrics via X API v2 using the account's OAuth token.
  */
-async function fetchTweetMetricsViaAPI(tweetId: string, accessToken: string): Promise<{
-  likes: number;
-  retweets: number;
-  replies: number;
-  views: number;
-} | null> {
+type TweetMetricsResult =
+  | { status: 'ok'; likes: number; retweets: number; replies: number; views: number }
+  | { status: 'rate_limited' }
+  | { status: 'error'; code: number };
+
+async function fetchTweetMetricsViaAPI(tweetId: string, accessToken: string): Promise<TweetMetricsResult> {
   const url = `https://api.twitter.com/2/tweets/${tweetId}?tweet.fields=public_metrics`;
   const response = await fetch(url, {
     headers: { 'Authorization': `Bearer ${accessToken}` },
   });
 
+  if (response.status === 429) {
+    return { status: 'rate_limited' };
+  }
+
   if (!response.ok) {
     const errText = await response.text();
     console.error(`[X API] Failed to fetch tweet ${tweetId}: ${response.status} ${errText}`);
-    return null;
+    return { status: 'error', code: response.status };
   }
 
   const data = await response.json();
   const metrics = data.data?.public_metrics;
-  if (!metrics) return null;
+  if (!metrics) return { status: 'error', code: 0 };
 
   return {
+    status: 'ok',
     likes: metrics.like_count ?? 0,
     retweets: metrics.retweet_count ?? 0,
     replies: metrics.reply_count ?? 0,
@@ -70,25 +75,31 @@ export async function GET(request: NextRequest) {
     console.log(`[Social Metrics] Fetching metrics for ${posts.length} post(s)`);
 
     let updatedCount = 0;
+    let rateLimitedCount = 0;
+    let errorCount = 0;
 
     for (const post of posts) {
       try {
         if (post.socialAccount.platform === 'X' && post.platformPostId) {
           // Fetch X engagement via API v2 using account's OAuth token
           const accessToken = decrypt(post.socialAccount.accessToken);
-          const engagement = await fetchTweetMetricsViaAPI(post.platformPostId, accessToken);
-          if (engagement) {
+          const result = await fetchTweetMetricsViaAPI(post.platformPostId, accessToken);
+          if (result.status === 'ok') {
             await prisma.socialPost.update({
               where: { id: post.id },
               data: {
-                likes: engagement.likes,
-                retweets: engagement.retweets,
-                replies: engagement.replies,
-                views: engagement.views,
+                likes: result.likes,
+                retweets: result.retweets,
+                replies: result.replies,
+                views: result.views,
                 engagementFetchedAt: new Date(),
               },
             });
             updatedCount++;
+          } else if (result.status === 'rate_limited') {
+            rateLimitedCount++;
+          } else {
+            errorCount++;
           }
         } else if (post.socialAccount.platform === 'FACEBOOK' && post.platformPostId) {
           // Fetch Facebook engagement via Graph API
@@ -110,22 +121,33 @@ export async function GET(request: NextRequest) {
               },
             });
             updatedCount++;
+          } else {
+            errorCount++;
           }
         }
       } catch (error) {
+        errorCount++;
         console.error(`[Social Metrics] Failed to fetch metrics for post ${post.id}:`, error);
       }
     }
 
-    if (updatedCount === 0 && posts.length > 0) {
-      await raiseAlert('metrics_fetch_failed', `Failed to fetch engagement metrics for all ${posts.length} recent post(s)`);
-    } else if (updatedCount > 0) {
+    // Only alert on real failures, not rate limits (which are expected on free tier)
+    if (errorCount > 0 && updatedCount === 0 && rateLimitedCount === 0) {
+      await raiseAlert('metrics_fetch_failed', `Failed to fetch engagement metrics for all ${posts.length} recent post(s) — possible auth or API issue`);
+    } else if (updatedCount > 0 || rateLimitedCount > 0) {
       await resolveAlert('metrics_fetch_failed');
     }
 
+    const summary = `Updated ${updatedCount} of ${posts.length} post(s)` +
+      (rateLimitedCount > 0 ? `, ${rateLimitedCount} rate-limited` : '') +
+      (errorCount > 0 ? `, ${errorCount} failed` : '');
+    console.log(`[Social Metrics] ${summary}`);
+
     return NextResponse.json({
-      message: `Updated metrics for ${updatedCount} of ${posts.length} post(s)`,
+      message: summary,
       updated: updatedCount,
+      rateLimited: rateLimitedCount,
+      errors: errorCount,
     });
   } catch (error) {
     console.error('[Social Metrics] Cron error:', error);
