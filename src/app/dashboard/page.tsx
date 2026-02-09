@@ -436,16 +436,18 @@ export default function DashboardPage() {
               <div className="px-4 pt-3 pb-4">
                 <div className="flex items-center justify-between mb-4">
                   <div>
-                    <h1 className="font-display text-2xl font-bold text-white">
-                      {greeting}, {firstName}!
-                    </h1>
+                    <div className="flex items-center gap-2">
+                      <div className="flex items-start gap-0 opacity-40">
+                        <span className="font-black text-[22px] leading-none tracking-[-1px] text-white">N</span>
+                        <span className="font-black text-[22px] leading-none tracking-[-1px] text-press-500">R</span>
+                      </div>
+                      <h1 className="font-display text-2xl font-bold text-white">
+                        {greeting}, {firstName}!
+                      </h1>
+                    </div>
                     <div className="flex items-center gap-1.5 mt-1">
                       <HiOutlineCalendarDays className="w-3.5 h-3.5 text-white/50" />
                       <p className="text-sm text-white/50">{shortDateStr}</p>
-                    </div>
-                    <div className="flex items-start gap-0 mt-1.5 opacity-40">
-                      <span className="font-black text-[18px] leading-none tracking-[-1px] text-white">N</span>
-                      <span className="font-black text-[18px] leading-none tracking-[-1px] text-press-500">R</span>
                     </div>
                   </div>
                   <button
@@ -480,39 +482,11 @@ export default function DashboardPage() {
                   </div>
                 )}
 
-                {/* Filter Pills */}
-                <div className="flex gap-2 overflow-x-auto pb-2 -mx-4 px-4 scrollbar-none">
-                  {[
-                    { label: 'All', value: null, icon: HiOutlineHome },
-                    { label: 'Published', value: 'PUBLISHED', icon: HiOutlineCheckCircle },
-                    { label: 'Drafts', value: 'DRAFT', icon: HiOutlinePencilSquare },
-                    ...(isAdmin ? [{ label: 'Review', value: 'SUBMITTED', icon: HiOutlineClock }] : []),
-                  ].map((filter) => {
-                    const Icon = filter.icon;
-                    const isActive = activeFilter === filter.value || (activeFilter === '' && filter.value === null);
-                    return (
-                      <button
-                        key={filter.label}
-                        onClick={() => handleFilterChange(filter.value || '')}
-                        className={`flex items-center gap-1.5 px-4 py-2.5 rounded-full text-xs font-semibold whitespace-nowrap transition-all active:scale-95 ${
-                          isActive
-                            ? 'bg-press-500 text-white shadow-lg shadow-press-500/30'
-                            : 'bg-slate-800 text-slate-400 border border-slate-700 active:bg-slate-700'
-                        }`}
-                      >
-                        <Icon className="w-4 h-4" />
-                        {filter.label}
-                      </button>
-                    );
-                  })}
-                </div>
+                {/* Filter pills removed from mobile — desktop keeps them */}
               </div>
             </div>
 
-            {/* Mobile Stats */}
-            <div className="px-4 pt-2">
-              <StatsGrid stats={stats} isAdmin={isAdmin} isUpdating={isAutoRefreshing} />
-            </div>
+            {/* Stats Grid - Desktop only (rendered in desktop section) */}
 
             {/* Daily Recap - Mobile (with dismiss) */}
             {showDailyRecap && (

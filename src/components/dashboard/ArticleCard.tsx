@@ -109,43 +109,23 @@ export default function ArticleCard({
   const hasAnalytics = article.status === 'PUBLISHED' && (article.totalPageviews > 0 || article.totalUniqueVisitors > 0);
   const timeAgo = getTimeAgo(new Date(article.updatedAt));
 
-  // CRITICAL FIX: Conditional text colors for mobile based on background
-  // Top performers have light backgrounds (amber-50) → need DARK text
-  // Regular cards have dark backgrounds (slate-800) → need LIGHT text
-  const mobileHeadlineClass = isTopPerformer 
-    ? 'text-amber-900' 
-    : 'text-white';
-  
-  const mobileSubheadlineClass = isTopPerformer 
-    ? 'text-amber-800' 
-    : 'text-white/60';
-  
-  const mobileMetaClass = isTopPerformer 
-    ? 'text-amber-700' 
-    : 'text-white/50';
-  
-  const mobileBorderClass = isTopPerformer 
-    ? 'border-amber-200' 
-    : 'border-white/10';
-  
-  const mobileIconClass = isTopPerformer 
-    ? 'text-amber-600' 
-    : 'text-white/40 group-active:text-press-400';
-
-  // Mobile status badge - adjust for top performers
-  const mobileStatusClass = isTopPerformer
-    ? 'from-amber-600/30 to-orange-600/20 border-amber-500/50 text-amber-900'
-    : config.mobileClass;
+  // Mobile: all cards use dark background — text is always light
+  const mobileHeadlineClass = 'text-white';
+  const mobileSubheadlineClass = 'text-white/60';
+  const mobileMetaClass = 'text-white/50';
+  const mobileBorderClass = isTopPerformer ? 'border-amber-500/30' : 'border-white/10';
+  const mobileIconClass = 'text-white/40 group-active:text-press-400';
+  const mobileStatusClass = config.mobileClass;
 
   return (
     <div
       className={`rounded-xl md:rounded-xl border transition-all duration-200 group relative ${
         isTopPerformer
-          ? 'bg-gradient-to-br from-amber-50 to-orange-50 dark:from-amber-900/20 dark:to-orange-900/20 border-transparent shadow-lg shadow-amber-100/50 dark:shadow-amber-900/30 ring-2 ring-amber-400/30 dark:ring-amber-600/30'
+          ? 'bg-slate-800/70 md:bg-gradient-to-br md:from-amber-50 md:to-orange-50 md:dark:from-amber-900/20 md:dark:to-orange-900/20 border-l-[3px] border-l-amber-500 border-slate-600/50 md:border-l-0 md:border-transparent md:shadow-lg md:shadow-amber-100/50 md:dark:shadow-amber-900/30 md:ring-2 md:ring-amber-400/30 md:dark:ring-amber-600/30'
           : 'bg-slate-800/70 md:bg-white md:dark:bg-ink-900 border-slate-600/50 md:border-ink-100 md:dark:border-ink-800 hover:shadow-card-hover md:hover:border-ink-200 md:dark:hover:border-ink-700'
       }`}
     >
-      {/* Top Performer Badge - Desktop only */}
+      {/* Top Performer Badge - Desktop: absolute corner badge */}
       {isTopPerformer && (
         <div className="absolute -top-2 -right-2 z-10 hidden md:block">
           <div className="flex items-center gap-1.5 px-3 py-1.5 bg-gradient-to-r from-amber-500 to-orange-500 text-white rounded-full text-xs font-bold shadow-lg shadow-amber-500/30">
@@ -168,9 +148,17 @@ export default function ArticleCard({
                   {article.status}
                 </span>
               </div>
+              {isTopPerformer && (
+                <div className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-500/20 border border-amber-500/30">
+                  <svg className="w-3 h-3 text-amber-400" fill="currentColor" viewBox="0 0 20 20">
+                    <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                  </svg>
+                  <span className="text-[10px] font-bold text-amber-300 uppercase tracking-wider">Top</span>
+                </div>
+              )}
             </div>
             {article.status === 'PUBLISHED' && article.totalPageviews > 0 && (
-              <div className={`flex items-center gap-1 ${isTopPerformer ? 'text-amber-700' : 'text-emerald-400'}`}>
+              <div className={`flex items-center gap-1 ${isTopPerformer ? 'text-amber-400' : 'text-emerald-400'}`}>
                 <HiOutlineEye className="w-4 h-4" />
                 <span className="text-sm font-semibold">{article.totalPageviews.toLocaleString()}</span>
               </div>
@@ -263,7 +251,7 @@ export default function ArticleCard({
               <div className={`flex md:hidden items-center justify-between pt-3 border-t ${mobileBorderClass}`}>
                 <div className={`flex items-center gap-2 text-xs ${mobileMetaClass}`}>
                   <span>{article.author?.name || 'Unknown'}</span>
-                  <span className={isTopPerformer ? 'text-amber-500' : 'text-white/30'}>•</span>
+                  <span className={isTopPerformer ? 'text-amber-400/50' : 'text-white/30'}>•</span>
                   <span>{timeAgo}</span>
                 </div>
                 <div className={`transition-colors ${mobileIconClass}`}>
