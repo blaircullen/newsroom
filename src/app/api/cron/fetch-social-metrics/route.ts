@@ -4,8 +4,39 @@ import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { decrypt } from '@/lib/encryption';
 import { verifyBearerToken } from '@/lib/auth-utils';
-import { fetchTweetEngagement } from '@/lib/x-scraper';
 import { raiseAlert, resolveAlert } from '@/lib/system-alerts';
+
+/**
+ * Fetch tweet engagement metrics via X API v2 using the account's OAuth token.
+ */
+async function fetchTweetMetricsViaAPI(tweetId: string, accessToken: string): Promise<{
+  likes: number;
+  retweets: number;
+  replies: number;
+  views: number;
+} | null> {
+  const url = `https://api.twitter.com/2/tweets/${tweetId}?tweet.fields=public_metrics`;
+  const response = await fetch(url, {
+    headers: { 'Authorization': `Bearer ${accessToken}` },
+  });
+
+  if (!response.ok) {
+    const errText = await response.text();
+    console.error(`[X API] Failed to fetch tweet ${tweetId}: ${response.status} ${errText}`);
+    return null;
+  }
+
+  const data = await response.json();
+  const metrics = data.data?.public_metrics;
+  if (!metrics) return null;
+
+  return {
+    likes: metrics.like_count ?? 0,
+    retweets: metrics.retweet_count ?? 0,
+    replies: metrics.reply_count ?? 0,
+    views: metrics.impression_count ?? 0,
+  };
+}
 
 /**
  * Cron job to fetch engagement metrics for recently sent social posts.
@@ -43,8 +74,9 @@ export async function GET(request: NextRequest) {
     for (const post of posts) {
       try {
         if (post.socialAccount.platform === 'X' && post.platformPostId) {
-          // Fetch X engagement via scraper
-          const engagement = await fetchTweetEngagement(post.platformPostId);
+          // Fetch X engagement via API v2 using account's OAuth token
+          const accessToken = decrypt(post.socialAccount.accessToken);
+          const engagement = await fetchTweetMetricsViaAPI(post.platformPostId, accessToken);
           if (engagement) {
             await prisma.socialPost.update({
               where: { id: post.id },
