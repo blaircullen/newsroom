@@ -19,22 +19,20 @@ export async function GET() {
       return NextResponse.json(cachedResponse.data);
     }
 
-    // Get the most recent recap
-    const latestRecap = await prisma.dailyRecap.findFirst({
+    // Only show today's recaps — never stale ones from yesterday
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const recaps = await prisma.dailyRecap.findMany({
+      where: { date: today },
       orderBy: { createdAt: 'desc' },
     });
 
-    if (!latestRecap) {
+    if (recaps.length === 0) {
       const result = { morning: null, evening: null };
       cachedResponse = { data: result, timestamp: Date.now() };
       return NextResponse.json(result);
     }
-
-    // Get both recaps for the same date
-    const recaps = await prisma.dailyRecap.findMany({
-      where: { date: latestRecap.date },
-      orderBy: { createdAt: 'desc' },
-    });
 
     const morning = recaps.find(r => r.type === 'morning');
     const evening = recaps.find(r => r.type === 'evening');
