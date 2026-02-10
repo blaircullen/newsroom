@@ -11,7 +11,7 @@ import AppShell from '@/components/layout/AppShell';
 import BottomNav from '@/components/layout/BottomNav';
 import ArticleCard, { Article } from '@/components/dashboard/ArticleCard';
 import StatsGrid from '@/components/dashboard/StatsGrid';
-import DailyRecap from '@/components/dashboard/DailyRecap';
+
 import HotSection, { StoryIdea } from '@/components/dashboard/HotSection';
 import AnalyticsSection from '@/components/dashboard/AnalyticsSection';
 import ProfileSection from '@/components/dashboard/ProfileSection';
@@ -471,11 +471,6 @@ export default function DashboardPage() {
 
             {/* Stats Grid - Desktop only (rendered in desktop section) */}
 
-            {/* Daily Recap - Mobile */}
-            <div className="px-4">
-              <DailyRecap />
-            </div>
-
             {/* Top Performer - Mobile (with dismiss) */}
             {showTopPerformer && topArticle && (
               <div className="px-4 mb-4">
@@ -675,9 +670,6 @@ export default function DashboardPage() {
             </Link>
           </div>
         </div>
-
-        {/* Daily Recap - Desktop */}
-        <DailyRecap />
 
         {/* Top Performer - Desktop (with dismiss) */}
         {showTopPerformer && topArticle && (

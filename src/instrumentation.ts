@@ -109,21 +109,7 @@ export async function register() {
         }
       }, 12 * 3600 * 1000);
 
-      // 7. Daily recaps (every 12 hours — morning & evening, runs once on startup)
-      console.log('[Scheduler] - Daily recaps (every 12h)');
-      const runDailyRecap = async () => {
-        try {
-          const res = await fetch(`${baseUrl}/api/cron/daily-recap`, {
-            headers: { 'Authorization': `Bearer ${cronSecret}` },
-          });
-          const data = await res.json();
-          console.log(`[Scheduler] ${data.message}`);
-        } catch {
-          // Server not ready yet or network error, silently ignore
-        }
-      };
-      runDailyRecap(); // Run immediately on startup
-      setInterval(runDailyRecap, 12 * 3600 * 1000);
+
     }, 10000);
   }
 }

@@ -4,7 +4,7 @@ import { authOptions } from '@/lib/auth';
 import prisma from '@/lib/prisma';
 
 const VALID_FEATURES = [
-  'dashboard', 'story_ideas', 'daily_recap', 'hot_articles',
+  'dashboard', 'story_ideas', 'hot_articles',
   'editor', 'image_picker', 'calendar', 'analytics_hub',
   'social_queue', 'publish_modal', 'command_palette',
   'admin_sites', 'admin_users', 'admin_voice_profiles',
