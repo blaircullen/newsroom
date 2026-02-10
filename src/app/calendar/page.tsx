@@ -8,6 +8,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import AppShell from '@/components/layout/AppShell';
 import PublishingInsights from '@/components/calendar/PublishingInsights';
+import { useTrack } from '@/hooks/useTrack';
 import {
   HiOutlineChevronLeft,
   HiOutlineChevronRight,
@@ -33,6 +34,7 @@ const MONTHS = [
 export default function CalendarPage() {
   const { data: session } = useSession();
   const router = useRouter();
+  const track = useTrack('calendar');
   const [currentDate, setCurrentDate] = useState(new Date());
   const [articles, setArticles] = useState<CalendarArticle[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -105,10 +107,12 @@ export default function CalendarPage() {
     const newDate = new Date(currentDate);
     newDate.setMonth(newDate.getMonth() + direction);
     setCurrentDate(newDate);
+    track('calendar', 'navigate_month', { direction });
   };
 
   const goToToday = () => {
     setCurrentDate(new Date());
+    track('calendar', 'go_today');
   };
 
   const isToday = (date: Date) => {

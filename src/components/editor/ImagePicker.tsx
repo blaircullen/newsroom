@@ -9,6 +9,7 @@ import {
   HiOutlineCloudArrowUp,
   HiOutlineFolder,
 } from 'react-icons/hi2';
+import { useTrack } from '@/hooks/useTrack';
 
 interface DriveImage {
   id: string;
@@ -30,6 +31,7 @@ interface ImagePickerProps {
 type Tab = 'browse' | 'upload';
 
 export default function ImagePicker({ isOpen, onClose, onSelect, selectedImageId }: ImagePickerProps) {
+  const track = useTrack();
   const [activeTab, setActiveTab] = useState<Tab>('browse');
   const [images, setImages] = useState<DriveImage[]>([]);
   const [search, setSearch] = useState('');
@@ -183,6 +185,7 @@ export default function ImagePicker({ isOpen, onClose, onSelect, selectedImageId
       }
 
       // Select the uploaded image immediately
+      track('image_picker', 'select_image', { source: 'upload' });
       onSelect(data.image);
       resetUploadState();
     } catch (error: any) {
@@ -308,7 +311,7 @@ export default function ImagePicker({ isOpen, onClose, onSelect, selectedImageId
                     {images.map((image) => (
                       <button
                         key={image.id}
-                        onClick={() => onSelect(image)}
+                        onClick={() => { track('image_picker', 'select_image', { source: 'browse' }); onSelect(image); }}
                         className={`relative group rounded-lg overflow-hidden border-2 transition-all duration-150 aspect-[4/3]
                           ${selectedImageId === image.id
                             ? 'border-press-500 ring-2 ring-press-500/20'

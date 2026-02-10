@@ -15,6 +15,7 @@ import DailyRecap from '@/components/dashboard/DailyRecap';
 import HotSection, { StoryIdea } from '@/components/dashboard/HotSection';
 import AnalyticsSection from '@/components/dashboard/AnalyticsSection';
 import ProfileSection from '@/components/dashboard/ProfileSection';
+import { useTrack } from '@/hooks/useTrack';
 import {
   HiOutlineDocumentText,
   HiOutlinePlusCircle,
@@ -93,6 +94,7 @@ export default function DashboardPage() {
   const handleDismissDailyRecap = () => {
     setShowDailyRecap(false);
     localStorage.setItem('dailyRecap-dismissed', 'true');
+    track('daily_recap', 'dismiss');
   };
 
   const handleDismissTopPerformer = () => {
@@ -112,6 +114,7 @@ export default function DashboardPage() {
 
   // Dismiss a story idea and persist to localStorage
   const dismissStoryIdea = (headline: string) => {
+    track('story_ideas', 'dismiss', { headline });
     // Read directly from localStorage (source of truth) to avoid stale React state
     let current: string[] = [];
     try {
@@ -133,6 +136,7 @@ export default function DashboardPage() {
   const [pullDistance, setPullDistance] = useState(0);
   const touchStartY = useRef(0);
 
+  const track = useTrack('dashboard');
   const isAdmin = session?.user?.role === 'ADMIN' || session?.user?.role === 'EDITOR';
 
   // Handle tab change (state only - no URL update to avoid hydration issues)
@@ -248,6 +252,7 @@ export default function DashboardPage() {
   // Pull-to-refresh handlers
   const handlePullToRefresh = async () => {
     setIsRefreshing(true);
+    track('dashboard', 'pull_to_refresh');
     await Promise.all([fetchArticles(), fetchHotArticles(), fetchStoryIdeas()]);
     setTimeout(() => setIsRefreshing(false), 600);
   };
@@ -279,6 +284,7 @@ export default function DashboardPage() {
   const handleFilterChange = (filter: string) => {
     setActiveFilter(filter);
     setCurrentPage(1);
+    track('dashboard', 'filter', { filter: filter || 'all' });
   };
 
   const handleDelete = async (id: string) => {
@@ -326,6 +332,7 @@ export default function DashboardPage() {
   };
 
   const handleCreateFromIdea = async (idea: StoryIdea) => {
+    track('story_ideas', 'click', { headline: idea.headline });
     setCreatingFromIdea(idea.headline);
     try {
       // Step 1: Use AI to generate article content from the source URL
@@ -674,6 +681,7 @@ export default function DashboardPage() {
                   onChange={(e) => {
                     setSortBy(e.target.value);
                     setCurrentPage(1);
+                    track('dashboard', 'sort', { sortBy: e.target.value });
                   }}
                   className="appearance-none pl-4 pr-10 py-2.5 bg-white dark:bg-ink-900 border border-ink-200 dark:border-ink-700 text-ink-700 dark:text-ink-200 rounded-lg font-semibold text-sm hover:bg-ink-50 dark:hover:bg-ink-800 transition-all cursor-pointer focus:outline-none focus:ring-2 focus:ring-ink-300 dark:focus:ring-ink-600"
                 >

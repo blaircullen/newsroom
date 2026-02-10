@@ -7,6 +7,7 @@ import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import toast from 'react-hot-toast';
 import AppShell from '@/components/layout/AppShell';
+import { useTrack } from '@/hooks/useTrack';
 import {
   HiOutlineUserGroup,
   HiOutlinePlusCircle,
@@ -28,6 +29,7 @@ interface User {
 export default function AdminUsersPage() {
   const { data: session } = useSession();
   const router = useRouter();
+  useTrack('admin_users');
   const [users, setUsers] = useState<User[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [showCreateForm, setShowCreateForm] = useState(false);

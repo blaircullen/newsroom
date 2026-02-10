@@ -11,6 +11,7 @@ import {
   HiOutlineShare,
 } from 'react-icons/hi2';
 import toast from 'react-hot-toast';
+import { useTrack } from '@/hooks/useTrack';
 import SocialPostCard from '@/components/social/SocialPostCard';
 import type { PostingProfile } from '@/lib/optimal-timing';
 
@@ -54,6 +55,7 @@ interface PublishModalProps {
 }
 
 export default function PublishModal({ articleId, onClose, onPublished }: PublishModalProps) {
+  const track = useTrack('publish_modal');
   const [targets, setTargets] = useState<PublishTarget[]>([]);
   const [selectedTargets, setSelectedTargets] = useState<Set<string>>(new Set());
   const [isLoading, setIsLoading] = useState(true);
@@ -108,6 +110,7 @@ export default function PublishModal({ articleId, onClose, onPublished }: Publis
       toast.error('Select a date and time for scheduling');
       return;
     }
+    track('publish_modal', publishMode === 'schedule' ? 'schedule' : 'publish');
 
     setIsPublishing(true);
     setResults(null);

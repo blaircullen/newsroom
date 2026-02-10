@@ -10,6 +10,7 @@ import AppShell from '@/components/layout/AppShell';
 import RichEditor from '@/components/editor/RichEditor';
 import TagInput from '@/components/editor/TagInput';
 import ImagePicker from '@/components/editor/ImagePicker';
+import { useTrack } from '@/hooks/useTrack';
 import {
   HiOutlinePhoto,
   HiOutlineCloudArrowUp,
@@ -28,6 +29,7 @@ export default function NewEditorPage() {
   const { data: session } = useSession();
   const router = useRouter();
 
+  const track = useTrack('editor');
   const isAdmin = session?.user?.role === 'ADMIN';
 
   // Editor mode (admin only)
@@ -76,6 +78,7 @@ export default function NewEditorPage() {
     }
 
     setIsImporting(true);
+    track('editor', 'ai_import');
 
     try {
       const res = await fetch('/api/articles/import', {
@@ -128,6 +131,7 @@ export default function NewEditorPage() {
     }
 
     submit ? setIsSubmitting(true) : setIsSaving(true);
+    track('editor', submit ? 'submit' : 'save_draft');
 
     try {
       // Create article

@@ -8,6 +8,7 @@ import { useRouter } from 'next/navigation';
 import AppShell from '@/components/layout/AppShell';
 import WriterLeaderboard from '@/components/dashboard/WriterLeaderboard';
 import Sparkline from '@/components/ui/Sparkline';
+import { useTrack } from '@/hooks/useTrack';
 import {
   HiOutlineChartBar,
   HiOutlineEye,
@@ -45,6 +46,7 @@ interface RealtimeData {
 export default function AnalyticsPage() {
   const { data: session } = useSession();
   const router = useRouter();
+  const track = useTrack('analytics_hub');
   const [period, setPeriod] = useState<'12h' | '24h' | '7d' | '30d'>('12h');
   const [articles, setArticles] = useState<ArticleStats[]>([]);
   const [overview, setOverview] = useState<OverviewStats | null>(null);
@@ -169,7 +171,7 @@ export default function AnalyticsPage() {
             ] as const).map((option) => (
               <button
                 key={option.value}
-                onClick={() => setPeriod(option.value)}
+                onClick={() => { setPeriod(option.value); track('analytics_hub', 'change_period', { period: option.value }); }}
                 className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${
                   period === option.value
                     ? 'bg-ink-900 dark:bg-ink-700 text-white'

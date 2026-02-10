@@ -10,6 +10,7 @@ import AppShell from '@/components/layout/AppShell';
 import SocialPostCard from '@/components/social/SocialPostCard';
 import PostingHeatmap from '@/components/social/PostingHeatmap';
 import type { PostingProfile } from '@/lib/optimal-timing';
+import { useTrack } from '@/hooks/useTrack';
 import {
   HiOutlineMegaphone,
   HiOutlineTrash,
@@ -85,6 +86,7 @@ interface PostDraft {
 export default function SocialQueuePage() {
   const { data: session } = useSession();
   const router = useRouter();
+  const track = useTrack('social_queue');
   const [posts, setPosts] = useState<SocialPost[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [selectedDate, setSelectedDate] = useState<string>(
@@ -143,6 +145,7 @@ export default function SocialQueuePage() {
   }
 
   async function handleApprove(postId: string) {
+    track('social_queue', 'approve');
     try {
       const res = await fetch(`/api/social/queue/${postId}`, {
         method: 'POST',
@@ -165,6 +168,7 @@ export default function SocialQueuePage() {
 
   async function handleSendNow(postId: string) {
     if (!confirm('Send this post immediately?')) return;
+    track('social_queue', 'send_now');
     try {
       const res = await fetch(`/api/social/queue/${postId}`, {
         method: 'POST',
@@ -367,6 +371,7 @@ export default function SocialQueuePage() {
   }
 
   async function openCreateModal() {
+    track('social_queue', 'create_post');
     setShowCreateModal(true);
     setCreateStep('article');
     setSelectedArticle(null);
@@ -447,6 +452,7 @@ export default function SocialQueuePage() {
 
   async function handleGenerateCaptions() {
     if (!selectedArticle || selectedAccountIds.size === 0) return;
+    track('social_queue', 'generate_caption');
 
     // Initialize drafts for all selected accounts
     const accountIds = Array.from(selectedAccountIds);

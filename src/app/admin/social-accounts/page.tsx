@@ -5,6 +5,7 @@ import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import toast from 'react-hot-toast';
 import AppShell from '@/components/layout/AppShell';
+import { useTrack } from '@/hooks/useTrack';
 import PostingHeatmap from '@/components/social/PostingHeatmap';
 import type { PostingProfile } from '@/lib/optimal-timing';
 import {
@@ -51,6 +52,7 @@ interface Site {
 export default function AdminSocialAccountsPage() {
   const { data: session } = useSession();
   const router = useRouter();
+  useTrack('admin_social_accounts');
   const [accounts, setAccounts] = useState<SocialAccount[]>([]);
   const [sites, setSites] = useState<Site[]>([]);
   const [isLoading, setIsLoading] = useState(true);

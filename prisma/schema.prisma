@@ -318,3 +318,16 @@ model DailyRecap {
   @@index([createdAt])
   @@map("daily_recaps")
 }
+
+model FeatureEvent {
+  id        String   @id @default(cuid())
+  feature   String
+  action    String
+  metadata  Json?
+  role      Role?
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([feature, action])
+  @@index([createdAt])
+  @@map("feature_events")
+}
