@@ -81,6 +81,7 @@ const rssSources = [
   { url: 'https://www.bizpacreview.com/feed/', name: 'BizPac' },
   { url: 'https://bonginoreport.com/index.rss', name: 'Bongino' },
   { url: 'https://www.thegatewaypundit.com/feed/', name: 'Gateway Pundit' },
+  { url: 'https://freebeacon.com/feed/', name: 'Free Beacon' },
 ];
 
 // Fetch all RSS source items
@@ -154,6 +155,7 @@ export async function scrapeStoryIdeas(): Promise<StoryIdea[]> {
       'apnews.com': 'AP News',
       'bizpacreview.com': 'BizPac',
       'bonginoreport.com': 'Bongino',
+      'freebeacon.com': 'Free Beacon',
     };
 
     // CFP uses list items with links for headlines
