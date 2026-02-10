@@ -12,6 +12,7 @@ import { raiseAlert, resolveAlert } from '@/lib/system-alerts';
 type TweetMetricsResult =
   | { status: 'ok'; likes: number; retweets: number; replies: number; views: number }
   | { status: 'rate_limited' }
+  | { status: 'unauthorized' }
   | { status: 'error'; code: number };
 
 async function fetchTweetMetricsViaAPI(tweetId: string, accessToken: string): Promise<TweetMetricsResult> {
@@ -22,6 +23,11 @@ async function fetchTweetMetricsViaAPI(tweetId: string, accessToken: string): Pr
 
   if (response.status === 429) {
     return { status: 'rate_limited' };
+  }
+
+  // 401/403 = token lacks read scope (X free tier only supports posting, not reading metrics)
+  if (response.status === 401 || response.status === 403) {
+    return { status: 'unauthorized' };
   }
 
   if (!response.ok) {
@@ -76,6 +82,7 @@ export async function GET(request: NextRequest) {
 
     let updatedCount = 0;
     let rateLimitedCount = 0;
+    let unauthorizedCount = 0;
     let errorCount = 0;
 
     for (const post of posts) {
@@ -98,6 +105,8 @@ export async function GET(request: NextRequest) {
             updatedCount++;
           } else if (result.status === 'rate_limited') {
             rateLimitedCount++;
+          } else if (result.status === 'unauthorized') {
+            unauthorizedCount++;
           } else {
             errorCount++;
           }
@@ -122,6 +131,8 @@ export async function GET(request: NextRequest) {
             });
             updatedCount++;
           } else {
+            const errText = await response.text().catch(() => '');
+            console.error(`[Facebook API] Failed to fetch metrics for post ${post.platformPostId}: ${response.status} ${errText}`);
             errorCount++;
           }
         }
@@ -131,15 +142,16 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    // Only alert on real failures, not rate limits (which are expected on free tier)
+    // Only alert on real unexpected failures (not rate limits or 401s from X free tier)
     if (errorCount > 0 && updatedCount === 0 && rateLimitedCount === 0) {
-      await raiseAlert('metrics_fetch_failed', `Failed to fetch engagement metrics for all ${posts.length} recent post(s) — possible auth or API issue`);
-    } else if (updatedCount > 0 || rateLimitedCount > 0) {
+      await raiseAlert('metrics_fetch_failed', `Failed to fetch engagement metrics for ${errorCount} post(s) — possible auth or API issue`);
+    } else {
       await resolveAlert('metrics_fetch_failed');
     }
 
     const summary = `Updated ${updatedCount} of ${posts.length} post(s)` +
       (rateLimitedCount > 0 ? `, ${rateLimitedCount} rate-limited` : '') +
+      (unauthorizedCount > 0 ? `, ${unauthorizedCount} skipped (X free tier)` : '') +
       (errorCount > 0 ? `, ${errorCount} failed` : '');
     console.log(`[Social Metrics] ${summary}`);
 
@@ -147,6 +159,7 @@ export async function GET(request: NextRequest) {
       message: summary,
       updated: updatedCount,
       rateLimited: rateLimitedCount,
+      unauthorized: unauthorizedCount,
       errors: errorCount,
     });
   } catch (error) {
