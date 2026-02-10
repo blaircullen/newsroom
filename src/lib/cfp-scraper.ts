@@ -80,6 +80,7 @@ async function fetchRssItems(url: string, name: string): Promise<RssItem[]> {
 const rssSources = [
   { url: 'https://www.bizpacreview.com/feed/', name: 'BizPac' },
   { url: 'https://bonginoreport.com/index.rss', name: 'Bongino' },
+  { url: 'https://www.thegatewaypundit.com/feed/', name: 'Gateway Pundit' },
 ];
 
 // Fetch all RSS source items
@@ -225,6 +226,19 @@ export async function scrapeStoryIdeas(): Promise<StoryIdea[]> {
     const cfpHeadlines = ideas.map(i => i.headline);
     for (const rssSource of rssResults) {
       for (const item of rssSource.items.slice(0, 15)) {
+        const titleLower = item.title.toLowerCase();
+        // Skip blocked content
+        if (
+          titleLower.includes('steve bannon') ||
+          titleLower.includes('war room') ||
+          item.link.includes('x.com/') ||
+          item.link.includes('twitter.com/') ||
+          item.link.includes('youtube.com/') ||
+          item.link.includes('youtu.be/') ||
+          item.link.includes('rumble.com/') ||
+          item.link.includes('reddit.com/')
+        ) continue;
+
         // Check if trending: appears in CFP or another RSS source
         const otherRssHeadlines = rssResults
           .filter(r => r.name !== rssSource.name)
