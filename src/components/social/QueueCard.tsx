@@ -167,7 +167,7 @@ export default function QueueCard({
             <span className={`text-xs font-medium whitespace-nowrap ${
               isPosted ? 'text-ink-300' : 'text-ink-700 dark:text-ink-300'
             }`}>
-              {post.socialAccount.accountHandle}
+              {post.socialAccount.accountName}
             </span>
             <span className={`text-[11px] whitespace-nowrap ${
               isPosted ? 'text-ink-500' : 'text-ink-400'
