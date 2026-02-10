@@ -19,23 +19,27 @@ export async function GET() {
       return NextResponse.json(cachedResponse.data);
     }
 
-    // Show today's recaps in US Eastern time (where users are)
-    const eastern = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/New_York' }));
-    eastern.setHours(0, 0, 0, 0);
+    // Fetch the most recent morning and evening recaps (within last 36 hours)
+    // Morning recaps are stored with yesterday's date (they cover yesterday's performance),
+    // so we can't filter by today's date — instead fetch the latest by createdAt.
+    const cutoff = new Date(Date.now() - 36 * 60 * 60 * 1000);
 
-    const recaps = await prisma.dailyRecap.findMany({
-      where: { date: eastern },
-      orderBy: { createdAt: 'desc' },
-    });
+    const [morning, evening] = await Promise.all([
+      prisma.dailyRecap.findFirst({
+        where: { type: 'morning', createdAt: { gte: cutoff } },
+        orderBy: { createdAt: 'desc' },
+      }),
+      prisma.dailyRecap.findFirst({
+        where: { type: 'evening', createdAt: { gte: cutoff } },
+        orderBy: { createdAt: 'desc' },
+      }),
+    ]);
 
-    if (recaps.length === 0) {
+    if (!morning && !evening) {
       const result = { morning: null, evening: null };
       cachedResponse = { data: result, timestamp: Date.now() };
       return NextResponse.json(result);
     }
-
-    const morning = recaps.find(r => r.type === 'morning');
-    const evening = recaps.find(r => r.type === 'evening');
 
     const formatRecap = (recap: typeof morning) =>
       recap
