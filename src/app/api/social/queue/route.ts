@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import prisma from '@/lib/prisma';
+import { etDateString, etMidnightToUTC } from '@/lib/date-utils';
 
 interface QueuePostPayload {
   articleId: string;
@@ -50,22 +51,22 @@ export async function GET(request: NextRequest) {
       where.socialAccount.publishTargetId = publishTargetId;
     }
 
-    // Date filter
+    // Date filter (all dates interpreted as Eastern Time)
     if (dateParam) {
-      const startDate = new Date(dateParam);
-      const endDate = new Date(dateParam);
-      endDate.setDate(endDate.getDate() + 1);
+      const startDate = etMidnightToUTC(dateParam);
+      const [yr, mo, dy] = dateParam.split('-').map(Number);
+      const nextDayDate = new Date(Date.UTC(yr, mo - 1, dy + 1));
+      const nextDateStr = nextDayDate.toISOString().split('T')[0];
+      const endDate = etMidnightToUTC(nextDateStr);
 
       where.scheduledAt = {
         gte: startDate,
         lt: endDate,
       };
     } else {
-      // Default: show today + future
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
+      // Default: show today (ET) + future
       where.scheduledAt = {
-        gte: today,
+        gte: etMidnightToUTC(etDateString()),
       };
     }
 

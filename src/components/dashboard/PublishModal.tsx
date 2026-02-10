@@ -12,6 +12,7 @@ import {
 } from 'react-icons/hi2';
 import toast from 'react-hot-toast';
 import { useTrack } from '@/hooks/useTrack';
+import { etDateString, etDatetimeLocalValue } from '@/lib/date-utils';
 import SocialPostCard from '@/components/social/SocialPostCard';
 import type { PostingProfile } from '@/lib/optimal-timing';
 
@@ -239,11 +240,10 @@ export default function PublishModal({ articleId, onClose, onPublished }: Publis
     }
   };
 
-  // Get suggested post time (1 hour from now)
+  // Get suggested post time (1 hour from now, in ET)
   const getSuggestedTime = () => {
-    const date = new Date();
-    date.setHours(date.getHours() + 1);
-    return date.toISOString().slice(0, 16);
+    const date = new Date(Date.now() + 60 * 60 * 1000);
+    return etDatetimeLocalValue(date);
   };
 
   // Handle caption change
@@ -595,7 +595,7 @@ export default function PublishModal({ articleId, onClose, onPublished }: Publis
                         type="date"
                         value={scheduledDate}
                         onChange={(e) => setScheduledDate(e.target.value)}
-                        min={new Date().toISOString().split('T')[0]}
+                        min={etDateString()}
                         className="w-full px-3 py-2 border border-ink-200 dark:border-ink-600 rounded-lg text-sm bg-white dark:bg-ink-900 text-ink-900 dark:text-ink-100 focus:outline-none focus:ring-2 focus:ring-press-500/20 focus:border-press-500"
                       />
                     </div>

@@ -9,6 +9,7 @@ import Link from 'next/link';
 import AppShell from '@/components/layout/AppShell';
 import PublishingInsights from '@/components/calendar/PublishingInsights';
 import { useTrack } from '@/hooks/useTrack';
+import { etDateString } from '@/lib/date-utils';
 import {
   HiOutlineChevronLeft,
   HiOutlineChevronRight,
@@ -95,10 +96,10 @@ export default function CalendarPage() {
 
   // Get articles for a specific date
   const getArticlesForDate = (date: Date) => {
-    const dateStr = date.toISOString().split('T')[0];
+    const dateStr = etDateString(date);
     return articles.filter((a) => {
-      const pubDate = a.publishedAt ? new Date(a.publishedAt).toISOString().split('T')[0] : null;
-      const schedDate = a.scheduledPublishAt ? new Date(a.scheduledPublishAt).toISOString().split('T')[0] : null;
+      const pubDate = a.publishedAt ? etDateString(new Date(a.publishedAt)) : null;
+      const schedDate = a.scheduledPublishAt ? etDateString(new Date(a.scheduledPublishAt)) : null;
       return pubDate === dateStr || schedDate === dateStr;
     });
   };
@@ -116,8 +117,7 @@ export default function CalendarPage() {
   };
 
   const isToday = (date: Date) => {
-    const today = new Date();
-    return date.toDateString() === today.toDateString();
+    return etDateString(date) === etDateString(new Date());
   };
 
   const isCurrentMonth = (date: Date) => {

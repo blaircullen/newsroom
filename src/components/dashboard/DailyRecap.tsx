@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import { nowET } from '@/lib/date-utils';
 
 interface TopArticle {
   id: string;
@@ -42,8 +43,8 @@ export default function DailyRecap() {
       const data: RecapsResponse = await res.json();
       setRecaps(data);
 
-      // Default to time-appropriate recap
-      const hour = new Date().getHours();
+      // Default to time-appropriate recap (Eastern Time)
+      const hour = nowET().getHours();
       const isMorning = hour >= 5 && hour < 14;
       if (isMorning && data.morning) {
         setActiveType('morning');

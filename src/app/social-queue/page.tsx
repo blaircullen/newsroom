@@ -11,6 +11,7 @@ import SocialPostCard from '@/components/social/SocialPostCard';
 import PostingHeatmap from '@/components/social/PostingHeatmap';
 import type { PostingProfile } from '@/lib/optimal-timing';
 import { useTrack } from '@/hooks/useTrack';
+import { etDateString, etDatetimeLocalValue } from '@/lib/date-utils';
 import {
   HiOutlineMegaphone,
   HiOutlineTrash,
@@ -90,7 +91,7 @@ export default function SocialQueuePage() {
   const [posts, setPosts] = useState<SocialPost[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [selectedDate, setSelectedDate] = useState<string>(
-    new Date().toISOString().split('T')[0]
+    etDateString()
   );
   const [statusFilter, setStatusFilter] = useState<string>('ALL');
   const [platformFilter, setPlatformFilter] = useState<string>('ALL');
@@ -350,6 +351,7 @@ export default function SocialQueuePage() {
   function formatDateTime(dateStr: string) {
     const date = new Date(dateStr);
     return date.toLocaleString('en-US', {
+      timeZone: 'America/New_York',
       month: 'short',
       day: 'numeric',
       hour: 'numeric',
@@ -359,15 +361,14 @@ export default function SocialQueuePage() {
   }
 
   function setToday() {
-    setSelectedDate(new Date().toISOString().split('T')[0]);
+    setSelectedDate(etDateString());
   }
 
   // --- Create Post modal logic ---
 
   function getSuggestedTime() {
-    const d = new Date();
-    d.setHours(d.getHours() + 1, 0, 0, 0);
-    return d.toISOString().slice(0, 16);
+    const d = new Date(Date.now() + 60 * 60 * 1000);
+    return etDatetimeLocalValue(d);
   }
 
   async function openCreateModal() {
@@ -831,7 +832,7 @@ export default function SocialQueuePage() {
                       {editingSchedule === post.id ? (
                         <input
                           type="datetime-local"
-                          defaultValue={new Date(post.scheduledAt).toISOString().slice(0, 16)}
+                          defaultValue={etDatetimeLocalValue(new Date(post.scheduledAt))}
                           onBlur={(e) => saveSchedule(post.id, new Date(e.target.value).toISOString())}
                           onKeyDown={(e) => {
                             if (e.key === 'Escape') setEditingSchedule(null);

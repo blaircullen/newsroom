@@ -16,6 +16,7 @@ import HotSection, { StoryIdea } from '@/components/dashboard/HotSection';
 import AnalyticsSection from '@/components/dashboard/AnalyticsSection';
 import ProfileSection from '@/components/dashboard/ProfileSection';
 import { useTrack } from '@/hooks/useTrack';
+import { nowET } from '@/lib/date-utils';
 import {
   HiOutlineDocumentText,
   HiOutlinePlusCircle,
@@ -400,12 +401,13 @@ export default function DashboardPage() {
   const medianPageviews = pageviewsArray.length > 0 ? pageviewsArray[Math.floor(pageviewsArray.length / 2)] : 0;
   const topPerformerThreshold = medianPageviews * 2.5;
 
-  // Greeting helper
-  const hour = new Date().getHours();
+  // Greeting helper (Eastern Time)
+  const etNow = nowET();
+  const hour = etNow.getHours();
   const greeting = hour >= 5 && hour < 12 ? 'Good morning' : hour >= 12 && hour < 17 ? 'Good afternoon' : 'Good evening';
   const firstName = session?.user?.name?.split(' ')[0] || 'there';
-  const dateStr = new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
-  const shortDateStr = new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
+  const dateStr = new Date().toLocaleDateString('en-US', { timeZone: 'America/New_York', weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
+  const shortDateStr = new Date().toLocaleDateString('en-US', { timeZone: 'America/New_York', weekday: 'long', month: 'long', day: 'numeric' });
 
   // Top performing article
   const sortedByViews = [...publishedArticles].sort((a, b) => b.totalPageviews - a.totalPageviews);

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import prisma from '@/lib/prisma';
+import { utcToET } from '@/lib/date-utils';
 
 const DAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 const MIN_ARTICLES_FOR_INSIGHTS = 25;
@@ -115,11 +116,11 @@ export async function GET(request: NextRequest) {
             .map(() => ({ totalPV: 0, totalVisitors: 0, count: 0 }))
         );
 
-      // Aggregate data
+      // Aggregate data (convert to Eastern Time for accurate day/hour)
       for (const article of siteArticles) {
-        const pubDate = new Date(article.publishedAt!);
-        const day = pubDate.getDay(); // 0-6
-        const hour = pubDate.getHours(); // 0-23
+        const pubDate = utcToET(new Date(article.publishedAt!));
+        const day = pubDate.getDay(); // 0-6 in ET
+        const hour = pubDate.getHours(); // 0-23 in ET
         const pv = article.totalPageviews || 0;
         const visitors = article.totalUniqueVisitors || 0;
 

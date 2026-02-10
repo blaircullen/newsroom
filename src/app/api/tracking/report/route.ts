@@ -62,13 +62,13 @@ export async function GET(request: NextRequest) {
     // Sort by count descending
     usage.sort((a, b) => b.count - a.count);
 
-    // Heatmap: usage by day of week and hour
+    // Heatmap: usage by day of week and hour (in Eastern Time)
     const heatmapRows = await prisma.$queryRaw<
       Array<{ dow: number; hour: number; count: bigint }>
     >`
       SELECT
-        EXTRACT(DOW FROM created_at) AS dow,
-        EXTRACT(HOUR FROM created_at) AS hour,
+        EXTRACT(DOW FROM created_at AT TIME ZONE 'America/New_York') AS dow,
+        EXTRACT(HOUR FROM created_at AT TIME ZONE 'America/New_York') AS hour,
         COUNT(*) AS count
       FROM feature_events
       WHERE created_at >= ${since}
