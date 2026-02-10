@@ -10,7 +10,7 @@ export interface StoryIdea {
 // In-memory cache
 let cachedIdeas: StoryIdea[] = [];
 let cacheTimestamp = 0;
-const CACHE_TTL = 10 * 60 * 1000; // 10 minutes
+const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
 
 // Extract keywords from headline for fuzzy matching
 function extractKeywords(text: string): Set<string> {
@@ -162,11 +162,21 @@ export async function scrapeStoryIdeas(): Promise<StoryIdea[]> {
       const text = $link.text().trim();
 
       const textLower = text.toLowerCase();
+      // Skip social media links — AI can't generate articles from these
+      const isBlockedDomain = href && (
+        href.includes('x.com/') ||
+        href.includes('twitter.com/') ||
+        href.includes('youtube.com/') ||
+        href.includes('youtu.be/') ||
+        href.includes('rumble.com/') ||
+        href.includes('reddit.com/')
+      );
       if (
         href &&
         text &&
         text.length > 20 &&
         text.length < 200 &&
+        !isBlockedDomain &&
         !href.includes('citizenfreepress.com/category') &&
         !href.includes('/about') &&
         !href.includes('/contact') &&
