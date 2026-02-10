@@ -140,16 +140,40 @@ export default function SocialQueuePage() {
   const scheduledGroups = useMemo(() => groupPostsByPerson(scheduledPosts), [scheduledPosts]);
   const postedGroups = useMemo(() => groupPostsByPerson(postedPosts), [postedPosts]);
 
-  // Auto-expand FAILED/PENDING groups, collapse APPROVED
+  // Auto-expand scheduled groups: show up to 4 posts worth of groups expanded
+  // FAILED/PENDING always expand; then fill remaining slots with other groups
   useEffect(() => {
     const expanded = new Set<string>();
+    let postCount = 0;
+
+    // First pass: always expand FAILED/PENDING
     for (const group of scheduledGroups) {
       if (group.urgency === 'FAILED' || group.urgency === 'PENDING') {
         expanded.add(group.accountName);
+        postCount += group.posts.length;
       }
     }
+
+    // Second pass: expand remaining groups until we hit 4 posts
+    for (const group of scheduledGroups) {
+      if (postCount >= 4) break;
+      if (!expanded.has(group.accountName)) {
+        expanded.add(group.accountName);
+        postCount += group.posts.length;
+      }
+    }
+
     setExpandedScheduledGroups(expanded);
   }, [scheduledGroups]);
+
+  // Auto-expand all posted groups by default
+  useEffect(() => {
+    const expanded = new Set<string>();
+    for (const group of postedGroups) {
+      expanded.add(group.accountName);
+    }
+    setExpandedPostedGroups(expanded);
+  }, [postedGroups]);
 
   // Inline editing state
   const [regeneratingCaption, setRegeneratingCaption] = useState<string | null>(null);
@@ -727,13 +751,18 @@ export default function SocialQueuePage() {
                       }
                       variant="posted"
                     >
-                      {group.posts.map((post) => (
+                      {group.posts.slice(0, 3).map((post) => (
                         <QueueCard
                           key={post.id}
                           post={post}
                           variant="posted"
                         />
                       ))}
+                      {group.posts.length > 3 && (
+                        <p className="text-xs text-ink-500 text-center py-1">
+                          +{group.posts.length - 3} more
+                        </p>
+                      )}
                     </PersonGroupCard>
                   ))}
                 </div>

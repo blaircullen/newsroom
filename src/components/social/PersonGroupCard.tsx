@@ -16,7 +16,7 @@ interface PersonGroupCardProps {
 }
 
 const urgencyDot: Record<string, string> = {
-  FAILED: 'bg-red-500',
+  FAILED: 'bg-red-500 animate-pulse',
   PENDING: 'bg-yellow-500',
   APPROVED: 'bg-emerald-500',
   SENT: 'bg-emerald-500',
@@ -60,9 +60,11 @@ export default function PersonGroupCard({
   return (
     <div
       className={`rounded-xl border overflow-hidden ${
-        isPosted
-          ? 'border-ink-700/30 bg-ink-800/30'
-          : 'border-ink-100 dark:border-ink-800 bg-white dark:bg-ink-900'
+        urgency === 'FAILED' && !isPosted
+          ? 'border-red-300 dark:border-red-800 bg-red-50 dark:bg-red-950/30'
+          : isPosted
+            ? 'border-ink-700/30 bg-ink-800/30'
+            : 'border-ink-100 dark:border-ink-800 bg-white dark:bg-ink-900'
       }`}
     >
       {/* Header */}
@@ -87,6 +89,13 @@ export default function PersonGroupCard({
           {accountName}
         </span>
 
+        {/* Failed badge */}
+        {urgency === 'FAILED' && !isPosted && (
+          <span className="text-[10px] font-bold uppercase tracking-wide text-red-600 dark:text-red-400 bg-red-100 dark:bg-red-900/50 px-1.5 py-0.5 rounded flex-shrink-0">
+            Failed
+          </span>
+        )}
+
         {/* Platform badges */}
         <div className="flex items-center gap-1 flex-shrink-0">
           {Array.from(platforms).map((p) => (
@@ -100,9 +109,11 @@ export default function PersonGroupCard({
         {/* Post count badge */}
         <span
           className={`text-xs font-medium px-2 py-0.5 rounded-full ${
-            isPosted
-              ? 'bg-ink-700 text-ink-300'
-              : 'bg-ink-100 dark:bg-ink-800 text-ink-500 dark:text-ink-400'
+            urgency === 'FAILED' && !isPosted
+              ? 'bg-red-500 text-white'
+              : isPosted
+                ? 'bg-ink-700 text-ink-300'
+                : 'bg-ink-100 dark:bg-ink-800 text-ink-500 dark:text-ink-400'
           }`}
         >
           {postCount}
