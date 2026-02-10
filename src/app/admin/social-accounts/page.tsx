@@ -596,7 +596,9 @@ export default function AdminSocialAccountsPage() {
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 mb-1">
                         <h4 className="text-ink-900 font-semibold text-sm">{account.accountName}</h4>
-                        <span className="text-ink-400 text-sm">{account.accountHandle}</span>
+                        {account.platform !== 'FACEBOOK' && (
+                          <span className="text-ink-400 text-sm">@{account.accountHandle}</span>
+                        )}
                       </div>
                       <div className="flex items-center gap-2 flex-wrap">
                         {/* Site Assignment */}

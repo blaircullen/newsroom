@@ -75,7 +75,9 @@ export default function SocialPostCard({
             <p className="font-medium text-ink-900 dark:text-ink-100 text-sm">
               {account.accountName}
             </p>
-            <p className="text-ink-400 text-xs">@{account.accountHandle}</p>
+            {account.platform !== 'FACEBOOK' && (
+              <p className="text-ink-400 text-xs">@{account.accountHandle}</p>
+            )}
           </div>
         </div>
         <button

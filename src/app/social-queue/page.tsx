@@ -823,10 +823,9 @@ export default function SocialQueuePage() {
                                       {account.accountName}
                                     </p>
                                     <p className="text-xs text-ink-400">
-                                      @{account.accountHandle}
-                                      {account.publishTarget && (
-                                        <> &middot; {account.publishTarget.name}</>
-                                      )}
+                                      {account.platform !== 'FACEBOOK' && <>@{account.accountHandle}</>}
+                                      {account.platform !== 'FACEBOOK' && account.publishTarget && <> &middot; </>}
+                                      {account.publishTarget && account.publishTarget.name}
                                     </p>
                                   </div>
                                 </div>

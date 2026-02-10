@@ -499,7 +499,7 @@ export default function PublishModal({ articleId, onClose, onPublished }: Publis
                         .filter(acc => !socialPostDrafts.has(acc.id))
                         .map(acc => (
                           <option key={acc.id} value={acc.id}>
-                            {acc.platform} - @{acc.accountHandle}
+                            {acc.platform} - {acc.accountName}
                           </option>
                         ))}
                     </select>
