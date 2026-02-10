@@ -1,10 +1,89 @@
 import prisma from '@/lib/prisma';
-import { decrypt } from '@/lib/encryption';
+import { decrypt, encrypt } from '@/lib/encryption';
+import { getXAppCredentials } from '@/lib/x-oauth';
 
 interface SendResult {
   success: boolean;
   platformPostId?: string;
   error?: string;
+}
+
+/**
+ * Ensure the X access token is fresh. If expired or expiring within 5 minutes,
+ * refresh it using the stored refresh token and update the database.
+ * Returns the valid access token.
+ */
+async function ensureFreshXToken(account: {
+  id: string;
+  accessToken: string;
+  refreshToken: string | null;
+  tokenExpiresAt: Date | null;
+  accountHandle: string;
+}): Promise<string> {
+  const accessToken = decrypt(account.accessToken);
+
+  // If no expiry info or token is still valid for >5 minutes, use as-is
+  if (account.tokenExpiresAt) {
+    const fiveMinutesFromNow = new Date(Date.now() + 5 * 60 * 1000);
+    if (account.tokenExpiresAt > fiveMinutesFromNow) {
+      return accessToken;
+    }
+  } else {
+    // No expiry tracked — use the token and hope for the best
+    return accessToken;
+  }
+
+  // Token is expired or expiring soon — refresh it
+  console.log(`[Social Sender] Token expired/expiring for ${account.accountHandle}, refreshing...`);
+
+  if (!account.refreshToken) {
+    throw new Error('Token expired and no refresh token available — re-authenticate this account');
+  }
+
+  const refreshToken = decrypt(account.refreshToken);
+  const appCredentials = getXAppCredentials(account.accountHandle.toLowerCase());
+
+  if (!appCredentials) {
+    throw new Error('X client credentials not configured for this account');
+  }
+
+  const { clientId, clientSecret } = appCredentials;
+
+  const tokenResponse = await fetch('https://api.twitter.com/2/oauth2/token', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/x-www-form-urlencoded',
+      'Authorization': `Basic ${Buffer.from(`${clientId}:${clientSecret}`).toString('base64')}`,
+    },
+    body: new URLSearchParams({
+      grant_type: 'refresh_token',
+      refresh_token: refreshToken,
+      client_id: clientId,
+    }),
+    signal: AbortSignal.timeout(30000),
+  });
+
+  if (!tokenResponse.ok) {
+    const errorData = await tokenResponse.json().catch(() => ({}));
+    throw new Error(`Token refresh failed: ${tokenResponse.status} - ${JSON.stringify(errorData)}`);
+  }
+
+  const tokenData = await tokenResponse.json();
+
+  const expiresAt = new Date();
+  expiresAt.setSeconds(expiresAt.getSeconds() + (tokenData.expires_in || 7200));
+
+  await prisma.socialAccount.update({
+    where: { id: account.id },
+    data: {
+      accessToken: encrypt(tokenData.access_token),
+      refreshToken: tokenData.refresh_token ? encrypt(tokenData.refresh_token) : account.refreshToken,
+      tokenExpiresAt: expiresAt,
+    },
+  });
+
+  console.log(`[Social Sender] Token refreshed for ${account.accountHandle}, expires ${expiresAt.toISOString()}`);
+  return tokenData.access_token;
 }
 
 /**
@@ -33,8 +112,13 @@ export async function sendSocialPost(postId: string): Promise<SendResult> {
       data: { status: 'SENDING' },
     });
 
-    // Decrypt access token
-    const accessToken = decrypt(post.socialAccount.accessToken);
+    // Get a valid access token (refreshing if needed for X)
+    let accessToken: string;
+    if (post.socialAccount.platform === 'X') {
+      accessToken = await ensureFreshXToken(post.socialAccount);
+    } else {
+      accessToken = decrypt(post.socialAccount.accessToken);
+    }
 
     let platformPostId: string | null = null;
 
