@@ -156,20 +156,27 @@ export default function QueueCard({
           </p>
         </div>
 
-        {/* Platform icon + timestamp */}
+        {/* Platform icon + handle + timestamp */}
         <div className="flex items-center gap-2 flex-shrink-0">
           <div className={`w-6 h-6 rounded flex items-center justify-center text-white ${
             post.socialAccount.platform === 'FACEBOOK' ? 'bg-blue-600' : 'bg-black'
           }`}>
             {getPlatformIcon(post.socialAccount.platform)}
           </div>
-          <span className={`text-xs whitespace-nowrap ${
-            isPosted ? 'text-ink-400' : 'text-ink-500'
-          }`}>
-            {isPosted && post.sentAt
-              ? formatDateTime(post.sentAt)
-              : formatDateTime(post.scheduledAt)}
-          </span>
+          <div className="flex flex-col items-end">
+            <span className={`text-xs font-medium whitespace-nowrap ${
+              isPosted ? 'text-ink-300' : 'text-ink-700 dark:text-ink-300'
+            }`}>
+              {post.socialAccount.accountHandle}
+            </span>
+            <span className={`text-[11px] whitespace-nowrap ${
+              isPosted ? 'text-ink-500' : 'text-ink-400'
+            }`}>
+              {isPosted && post.sentAt
+                ? formatDateTime(post.sentAt)
+                : formatDateTime(post.scheduledAt)}
+            </span>
+          </div>
         </div>
       </button>
 
