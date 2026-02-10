@@ -9,6 +9,7 @@ import toast from 'react-hot-toast';
 import AppShell from '@/components/layout/AppShell';
 import SocialPostCard from '@/components/social/SocialPostCard';
 import QueueCard from '@/components/social/QueueCard';
+import PersonGroupCard from '@/components/social/PersonGroupCard';
 import type { PostingProfile } from '@/lib/optimal-timing';
 import { useTrack } from '@/hooks/useTrack';
 import { etDatetimeLocalValue } from '@/lib/date-utils';
@@ -77,6 +78,50 @@ interface PostDraft {
   isGenerating: boolean;
 }
 
+interface PersonGroup {
+  accountName: string;
+  platforms: Set<string>;
+  posts: SocialPost[];
+  urgency: 'FAILED' | 'PENDING' | 'APPROVED' | 'SENT';
+}
+
+const urgencyRank: Record<string, number> = { FAILED: 0, PENDING: 1, APPROVED: 2, SENDING: 2, SENT: 3 };
+
+function groupPostsByPerson(posts: SocialPost[]): PersonGroup[] {
+  const map = new Map<string, PersonGroup>();
+
+  for (const post of posts) {
+    const name = post.socialAccount.accountName;
+    let group = map.get(name);
+    if (!group) {
+      group = { accountName: name, platforms: new Set(), posts: [], urgency: 'SENT' };
+      map.set(name, group);
+    }
+    group.platforms.add(post.socialAccount.platform);
+    group.posts.push(post);
+    // Most-urgent status wins
+    if ((urgencyRank[post.status] ?? 3) < (urgencyRank[group.urgency] ?? 3)) {
+      group.urgency = post.status === 'SENDING' ? 'APPROVED' : post.status as PersonGroup['urgency'];
+    }
+  }
+
+  // Sort posts within each group by scheduledAt ascending
+  const groups = Array.from(map.values());
+  for (const group of groups) {
+    group.posts.sort((a, b) => new Date(a.scheduledAt).getTime() - new Date(b.scheduledAt).getTime());
+  }
+
+  // Sort groups: FAILED first, PENDING second, APPROVED/SENT last, alpha within same urgency
+  groups.sort((a, b) => {
+    const ua = urgencyRank[a.urgency] ?? 3;
+    const ub = urgencyRank[b.urgency] ?? 3;
+    if (ua !== ub) return ua - ub;
+    return a.accountName.localeCompare(b.accountName);
+  });
+
+  return groups;
+}
+
 export default function SocialQueuePage() {
   const { data: session } = useSession();
   const router = useRouter();
@@ -87,6 +132,24 @@ export default function SocialQueuePage() {
   const [postedPosts, setPostedPosts] = useState<SocialPost[]>([]);
   const [isLoadingScheduled, setIsLoadingScheduled] = useState(true);
   const [isLoadingPosted, setIsLoadingPosted] = useState(true);
+
+  // Grouping state
+  const [expandedScheduledGroups, setExpandedScheduledGroups] = useState<Set<string>>(new Set());
+  const [expandedPostedGroups, setExpandedPostedGroups] = useState<Set<string>>(new Set());
+
+  const scheduledGroups = useMemo(() => groupPostsByPerson(scheduledPosts), [scheduledPosts]);
+  const postedGroups = useMemo(() => groupPostsByPerson(postedPosts), [postedPosts]);
+
+  // Auto-expand FAILED/PENDING groups, collapse APPROVED
+  useEffect(() => {
+    const expanded = new Set<string>();
+    for (const group of scheduledGroups) {
+      if (group.urgency === 'FAILED' || group.urgency === 'PENDING') {
+        expanded.add(group.accountName);
+      }
+    }
+    setExpandedScheduledGroups(expanded);
+  }, [scheduledGroups]);
 
   // Inline editing state
   const [regeneratingCaption, setRegeneratingCaption] = useState<string | null>(null);
@@ -526,6 +589,7 @@ export default function SocialQueuePage() {
         imageUrl: selectedArticle.featuredImage || undefined,
         articleUrl,
         scheduledAt: new Date(draft.scheduledAt).toISOString(),
+        status: 'PENDING' as const,
       }));
 
       const res = await fetch('/api/social/queue', {
@@ -582,22 +646,42 @@ export default function SocialQueuePage() {
               <div className="bg-white dark:bg-ink-900 rounded-xl border border-ink-100 dark:border-ink-800 p-8 text-center">
                 <p className="text-ink-400 text-sm">Loading posts...</p>
               </div>
-            ) : scheduledPosts.length > 0 ? (
+            ) : scheduledGroups.length > 0 ? (
               <div className="space-y-2">
-                {scheduledPosts.map((post) => (
-                  <QueueCard
-                    key={post.id}
-                    post={post}
+                {scheduledGroups.map((group) => (
+                  <PersonGroupCard
+                    key={group.accountName}
+                    accountName={group.accountName}
+                    platforms={group.platforms}
+                    postCount={group.posts.length}
+                    urgency={group.urgency}
+                    isExpanded={expandedScheduledGroups.has(group.accountName)}
+                    onToggle={() =>
+                      setExpandedScheduledGroups((prev) => {
+                        const next = new Set(prev);
+                        if (next.has(group.accountName)) next.delete(group.accountName);
+                        else next.add(group.accountName);
+                        return next;
+                      })
+                    }
                     variant="scheduled"
-                    onApprove={handleApprove}
-                    onSendNow={handleSendNow}
-                    onRetry={handleRetry}
-                    onDelete={handleDelete}
-                    onSaveCaption={saveCaption}
-                    onSaveSchedule={saveSchedule}
-                    onRegenerate={handleRegenerateQueuedCaption}
-                    isRegenerating={regeneratingCaption === post.id}
-                  />
+                  >
+                    {group.posts.map((post) => (
+                      <QueueCard
+                        key={post.id}
+                        post={post}
+                        variant="scheduled"
+                        onApprove={handleApprove}
+                        onSendNow={handleSendNow}
+                        onRetry={handleRetry}
+                        onDelete={handleDelete}
+                        onSaveCaption={saveCaption}
+                        onSaveSchedule={saveSchedule}
+                        onRegenerate={handleRegenerateQueuedCaption}
+                        isRegenerating={regeneratingCaption === post.id}
+                      />
+                    ))}
+                  </PersonGroupCard>
                 ))}
               </div>
             ) : (
@@ -623,14 +707,34 @@ export default function SocialQueuePage() {
                 <div className="flex items-center justify-center py-8">
                   <p className="text-ink-500 text-sm">Loading...</p>
                 </div>
-              ) : postedPosts.length > 0 ? (
+              ) : postedGroups.length > 0 ? (
                 <div className="space-y-2">
-                  {postedPosts.map((post) => (
-                    <QueueCard
-                      key={post.id}
-                      post={post}
+                  {postedGroups.map((group) => (
+                    <PersonGroupCard
+                      key={group.accountName}
+                      accountName={group.accountName}
+                      platforms={group.platforms}
+                      postCount={group.posts.length}
+                      urgency={group.urgency}
+                      isExpanded={expandedPostedGroups.has(group.accountName)}
+                      onToggle={() =>
+                        setExpandedPostedGroups((prev) => {
+                          const next = new Set(prev);
+                          if (next.has(group.accountName)) next.delete(group.accountName);
+                          else next.add(group.accountName);
+                          return next;
+                        })
+                      }
                       variant="posted"
-                    />
+                    >
+                      {group.posts.map((post) => (
+                        <QueueCard
+                          key={post.id}
+                          post={post}
+                          variant="posted"
+                        />
+                      ))}
+                    </PersonGroupCard>
                   ))}
                 </div>
               ) : (

@@ -928,6 +928,36 @@ export async function publishArticle(
         publishedAt: new Date(),
       },
     });
+
+    // Auto-create social posts for linked accounts
+    try {
+      const linkedAccounts = await prisma.socialAccount.findMany({
+        where: { publishTargetId: targetId, isActive: true },
+      });
+
+      for (const account of linkedAccounts) {
+        const existingPost = await prisma.socialPost.findFirst({
+          where: { articleId, socialAccountId: account.id },
+        });
+
+        if (!existingPost) {
+          await prisma.socialPost.create({
+            data: {
+              articleId,
+              socialAccountId: account.id,
+              caption: article.headline,
+              articleUrl: result.url!,
+              imageUrl: article.featuredImage,
+              scheduledAt: new Date(Date.now() + 5 * 60 * 1000),
+              status: 'APPROVED',
+            },
+          });
+          console.log(`[Publish] Auto-created social post for account ${account.id}`);
+        }
+      }
+    } catch (socialError) {
+      console.error('[Publish] Error auto-creating social posts:', socialError);
+    }
   }
 
   return result;

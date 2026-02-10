@@ -9,6 +9,7 @@ import {
   HiOutlineClock,
   HiOutlineCalendarDays,
   HiOutlineShare,
+  HiOutlineQueueList,
 } from 'react-icons/hi2';
 import toast from 'react-hot-toast';
 import { useTrack } from '@/hooks/useTrack';
@@ -550,6 +551,16 @@ export default function PublishModal({ articleId, onClose, onPublished }: Publis
                   </div>
                 </div>
               ))}
+
+              {/* Auto-post confirmation */}
+              {hasSuccessfulPublish && (
+                <div className="flex items-center gap-2 mt-3 px-1">
+                  <HiOutlineQueueList className="w-4 h-4 text-emerald-600 flex-shrink-0" />
+                  <p className="text-xs text-emerald-600">
+                    Social posts auto-scheduled for linked accounts
+                  </p>
+                </div>
+              )}
             </div>
           ) : (
             <div className="space-y-4">

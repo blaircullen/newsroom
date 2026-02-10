@@ -11,6 +11,7 @@ interface QueuePostPayload {
   imageUrl?: string;
   articleUrl: string;
   scheduledAt: string;
+  status?: 'PENDING' | 'APPROVED';
 }
 
 // GET /api/social/queue - List social posts for the queue (admin/editor)
@@ -164,7 +165,12 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: 'Each post must be an object' }, { status: 400 });
       }
 
-      const { articleId, socialAccountId, caption, imageUrl, articleUrl, scheduledAt } = post;
+      const { articleId, socialAccountId, caption, imageUrl, articleUrl, scheduledAt, status } = post;
+
+      // Validate optional status field
+      if (status !== undefined && status !== 'PENDING' && status !== 'APPROVED') {
+        return NextResponse.json({ error: 'status must be PENDING or APPROVED' }, { status: 400 });
+      }
 
       // Validate required fields
       if (typeof articleId !== 'string' || !articleId.trim()) {
@@ -209,21 +215,32 @@ export async function POST(request: NextRequest) {
         imageUrl: imageUrl && typeof imageUrl === 'string' ? imageUrl.trim() : undefined,
         articleUrl: articleUrl.trim(),
         scheduledAt: scheduledAt.trim(),
+        status: status || 'APPROVED',
       });
     }
 
-    // Create all posts in a transaction
-    const createdPosts = await prisma.$transaction(
-      validatedPosts.map((post) =>
-        prisma.socialPost.create({
+    // Upsert posts — update existing (non-SENT) posts for same article+account, or create new
+    const upsertedPosts = [];
+    for (const post of validatedPosts) {
+      // Check for existing non-SENT post for same article + account
+      const existing = await prisma.socialPost.findFirst({
+        where: {
+          articleId: post.articleId,
+          socialAccountId: post.socialAccountId,
+          status: { not: 'SENT' },
+        },
+      });
+
+      let result;
+      if (existing) {
+        result = await prisma.socialPost.update({
+          where: { id: existing.id },
           data: {
-            articleId: post.articleId,
-            socialAccountId: post.socialAccountId,
             caption: post.caption,
             imageUrl: post.imageUrl,
             articleUrl: post.articleUrl,
             scheduledAt: new Date(post.scheduledAt),
-            status: 'APPROVED',
+            status: post.status || 'APPROVED',
           },
           include: {
             socialAccount: {
@@ -234,14 +251,36 @@ export async function POST(request: NextRequest) {
               },
             },
           },
-        })
-      )
-    );
+        });
+      } else {
+        result = await prisma.socialPost.create({
+          data: {
+            articleId: post.articleId,
+            socialAccountId: post.socialAccountId,
+            caption: post.caption,
+            imageUrl: post.imageUrl,
+            articleUrl: post.articleUrl,
+            scheduledAt: new Date(post.scheduledAt),
+            status: post.status || 'APPROVED',
+          },
+          include: {
+            socialAccount: {
+              select: {
+                platform: true,
+                accountName: true,
+                accountHandle: true,
+              },
+            },
+          },
+        });
+      }
+      upsertedPosts.push(result);
+    }
 
     return NextResponse.json({
       success: true,
-      count: createdPosts.length,
-      posts: createdPosts.map((post) => ({
+      count: upsertedPosts.length,
+      posts: upsertedPosts.map((post) => ({
         id: post.id,
         articleId: post.articleId,
         socialAccountId: post.socialAccountId,
