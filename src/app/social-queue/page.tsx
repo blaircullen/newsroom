@@ -136,6 +136,7 @@ export default function SocialQueuePage() {
   // Grouping state
   const [expandedScheduledGroups, setExpandedScheduledGroups] = useState<Set<string>>(new Set());
   const [expandedPostedGroups, setExpandedPostedGroups] = useState<Set<string>>(new Set());
+  const [showAllPostedPosts, setShowAllPostedPosts] = useState<Set<string>>(new Set());
 
   const scheduledGroups = useMemo(() => groupPostsByPerson(scheduledPosts), [scheduledPosts]);
   const postedGroups = useMemo(() => groupPostsByPerson(postedPosts), [postedPosts]);
@@ -751,17 +752,21 @@ export default function SocialQueuePage() {
                       }
                       variant="posted"
                     >
-                      {group.posts.slice(0, 3).map((post) => (
+                      {(showAllPostedPosts.has(group.accountName) ? group.posts : group.posts.slice(0, 3)).map((post) => (
                         <QueueCard
                           key={post.id}
                           post={post}
                           variant="posted"
                         />
                       ))}
-                      {group.posts.length > 3 && (
-                        <p className="text-xs text-ink-500 text-center py-1">
+                      {group.posts.length > 3 && !showAllPostedPosts.has(group.accountName) && (
+                        <button
+                          type="button"
+                          onClick={() => setShowAllPostedPosts((prev) => new Set(prev).add(group.accountName))}
+                          className="text-xs text-ink-400 hover:text-ink-200 text-center py-1 w-full transition-colors"
+                        >
                           +{group.posts.length - 3} more
-                        </p>
+                        </button>
                       )}
                     </PersonGroupCard>
                   ))}
