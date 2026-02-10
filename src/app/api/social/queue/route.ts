@@ -30,6 +30,8 @@ export async function GET(request: NextRequest) {
     const platform = searchParams.get('platform');
     const publishTargetId = searchParams.get('publishTargetId');
     const dateParam = searchParams.get('date');
+    const filterBy = searchParams.get('filterBy');
+    const since = searchParams.get('since');
 
     // Build where clause
     const where: any = {};
@@ -51,8 +53,15 @@ export async function GET(request: NextRequest) {
       where.socialAccount.publishTargetId = publishTargetId;
     }
 
-    // Date filter (all dates interpreted as Eastern Time)
-    if (dateParam) {
+    // Determine ordering and date filter
+    let orderBy: any = { scheduledAt: 'asc' };
+
+    if (filterBy === 'sentAt' && since) {
+      // Filter by sentAt (for "Posted" column) — uses @@index([status, sentAt])
+      where.sentAt = { gte: new Date(since) };
+      orderBy = { sentAt: 'desc' };
+    } else if (dateParam) {
+      // Date filter (all dates interpreted as Eastern Time)
       const startDate = etMidnightToUTC(dateParam);
       const [yr, mo, dy] = dateParam.split('-').map(Number);
       const nextDayDate = new Date(Date.UTC(yr, mo - 1, dy + 1));
@@ -95,9 +104,7 @@ export async function GET(request: NextRequest) {
             },
           },
         },
-        orderBy: {
-          scheduledAt: 'asc',
-        },
+        orderBy,
         skip: (queuePage - 1) * queueLimit,
         take: queueLimit,
       }),
