@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { nowET } from '@/lib/date-utils';
 
 interface TopArticle {
   id: string;
@@ -20,6 +19,7 @@ interface RecapStats {
 }
 
 interface RecapData {
+  type: 'morning' | 'evening';
   recap: string;
   stats: RecapStats;
   date: string;
@@ -27,13 +27,11 @@ interface RecapData {
 }
 
 interface RecapsResponse {
-  morning: RecapData | null;
-  evening: RecapData | null;
+  recap: RecapData | null;
 }
 
 export default function DailyRecap() {
-  const [recaps, setRecaps] = useState<RecapsResponse | null>(null);
-  const [activeType, setActiveType] = useState<'morning' | 'evening'>('morning');
+  const [recapData, setRecapData] = useState<RecapData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   const fetchRecaps = useCallback(async () => {
@@ -41,18 +39,7 @@ export default function DailyRecap() {
       const res = await fetch('/api/recaps/latest');
       if (!res.ok) return;
       const data: RecapsResponse = await res.json();
-      setRecaps(data);
-
-      // Default to time-appropriate recap (Eastern Time)
-      const hour = nowET().getHours();
-      const isMorning = hour >= 5 && hour < 14;
-      if (isMorning && data.morning) {
-        setActiveType('morning');
-      } else if (data.evening) {
-        setActiveType('evening');
-      } else if (data.morning) {
-        setActiveType('morning');
-      }
+      setRecapData(data.recap);
     } catch {
       // Silently fail
     } finally {
@@ -66,7 +53,7 @@ export default function DailyRecap() {
     return () => clearInterval(interval);
   }, [fetchRecaps]);
 
-  if (!isLoading && (!recaps || (!recaps.morning && !recaps.evening))) {
+  if (!isLoading && !recapData) {
     return null;
   }
 
@@ -91,10 +78,9 @@ export default function DailyRecap() {
     );
   }
 
-  const currentRecap = activeType === 'morning' ? recaps?.morning : recaps?.evening;
-  if (!currentRecap) return null;
+  if (!recapData) return null;
 
-  const hasBothRecaps = recaps?.morning && recaps?.evening;
+  const isMorning = recapData.type === 'morning';
 
   return (
     <div className="mb-8 relative rounded-2xl overflow-hidden group">
@@ -139,54 +125,44 @@ export default function DailyRecap() {
 
       <div className="relative px-6 py-5">
         {/* Header row */}
-        <div className="flex items-center justify-between mb-3">
-          <div className="flex items-center gap-3">
-            {/* Red star */}
-            <svg className="w-5 h-5 text-red-500 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
-              <path d="M10 0l2.5 6.9H20l-6 4.6 2.3 7L10 13.8l-6.3 4.7 2.3-7-6-4.6h7.5z"/>
-            </svg>
-            <span className="font-display text-base font-bold text-white uppercase tracking-[0.2em]">
-              The Recap
-            </span>
-            <span className={`inline-flex items-center px-2.5 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider ${
-              activeType === 'morning'
-                ? 'bg-red-500/15 text-red-300 ring-1 ring-red-500/25'
-                : 'bg-blue-400/15 text-blue-300 ring-1 ring-blue-400/25'
-            }`}>
-              {activeType === 'morning' ? 'Morning Briefing' : 'Evening Briefing'}
-            </span>
-          </div>
-          {hasBothRecaps && (
-            <button
-              onClick={() => setActiveType(prev => prev === 'morning' ? 'evening' : 'morning')}
-              className="px-3 py-1 text-[11px] font-semibold text-white/50 bg-white/5 rounded hover:bg-white/10 hover:text-white/80 transition-all border border-white/5"
-            >
-              {activeType === 'morning' ? 'Evening Briefing' : 'Morning Briefing'}
-            </button>
-          )}
+        <div className="flex items-center gap-3 mb-3">
+          {/* Red star */}
+          <svg className="w-5 h-5 text-red-500 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+            <path d="M10 0l2.5 6.9H20l-6 4.6 2.3 7L10 13.8l-6.3 4.7 2.3-7-6-4.6h7.5z"/>
+          </svg>
+          <span className="font-display text-base font-bold text-white uppercase tracking-[0.2em]">
+            The Recap
+          </span>
+          <span className={`inline-flex items-center px-2.5 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider ${
+            isMorning
+              ? 'bg-red-500/15 text-red-300 ring-1 ring-red-500/25'
+              : 'bg-blue-400/15 text-blue-300 ring-1 ring-blue-400/25'
+          }`}>
+            {isMorning ? 'Morning Briefing' : 'Evening Briefing'}
+          </span>
         </div>
 
         {/* Recap text */}
         <p className="text-[15px] leading-relaxed text-white/85 font-medium">
-          {currentRecap.recap}
+          {recapData.recap}
         </p>
 
         {/* Stats footer */}
-        {currentRecap.stats && currentRecap.stats.totalPageviews > 0 && (
+        {recapData.stats && recapData.stats.totalPageviews > 0 && (
           <div className="flex items-center gap-4 pt-3 mt-3 border-t border-white/[0.06] text-xs text-white/40">
             <span className="flex items-center gap-1.5">
               <svg className="w-3.5 h-3.5 text-red-400/60" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M2.036 12.322a1.012 1.012 0 0 1 0-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178Z" />
                 <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
               </svg>
-              <span className="text-white/60 font-medium">{currentRecap.stats.totalPageviews.toLocaleString()}</span> views
+              <span className="text-white/60 font-medium">{recapData.stats.totalPageviews.toLocaleString()}</span> views
             </span>
-            {currentRecap.stats.topWriter && (
+            {recapData.stats.topWriter && (
               <span className="flex items-center gap-1.5">
                 <svg className="w-3.5 h-3.5 text-red-400/60" fill="currentColor" viewBox="0 0 20 20">
                   <path d="M10 0l2.5 6.9H20l-6 4.6 2.3 7L10 13.8l-6.3 4.7 2.3-7-6-4.6h7.5z"/>
                 </svg>
-                <span className="text-white/60 font-medium">{currentRecap.stats.topWriter.name}</span> leading
+                <span className="text-white/60 font-medium">{recapData.stats.topWriter.name}</span> leading
               </span>
             )}
           </div>

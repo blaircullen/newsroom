@@ -2,9 +2,10 @@ import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import prisma from '@/lib/prisma';
+import { nowET } from '@/lib/date-utils';
 
-// In-memory cache (recaps don't change once generated)
-let cachedResponse: { data: unknown; timestamp: number } | null = null;
+// In-memory cache keyed by recap type (recaps don't change once generated)
+let cachedResponse: { data: unknown; hour: number; timestamp: number } | null = null;
 const CACHE_TTL = 30 * 60 * 1000; // 30 minutes
 
 export async function GET() {
@@ -14,49 +15,48 @@ export async function GET() {
   }
 
   try {
-    // Check cache
-    if (cachedResponse && Date.now() - cachedResponse.timestamp < CACHE_TTL) {
+    // Time-based display rules (Eastern Time):
+    // 5 AM - 12 PM  → morning briefing
+    // 12 PM - 5 PM  → nothing
+    // 5 PM - 12 AM  → evening briefing
+    // 12 AM - 5 AM  → nothing
+    const etHour = nowET().getHours();
+    let recapType: 'morning' | 'evening' | null = null;
+    if (etHour >= 5 && etHour < 12) {
+      recapType = 'morning';
+    } else if (etHour >= 17) {
+      recapType = 'evening';
+    }
+
+    if (!recapType) {
+      return NextResponse.json({ recap: null });
+    }
+
+    // Check cache (invalidate if hour window changed)
+    if (cachedResponse && Date.now() - cachedResponse.timestamp < CACHE_TTL && cachedResponse.hour === etHour) {
       return NextResponse.json(cachedResponse.data);
     }
 
-    // Fetch the most recent morning and evening recaps (within last 36 hours)
-    // Morning recaps are stored with yesterday's date (they cover yesterday's performance),
-    // so we can't filter by today's date — instead fetch the latest by createdAt.
+    // Fetch the most recent recap of this type (within last 36 hours)
     const cutoff = new Date(Date.now() - 36 * 60 * 60 * 1000);
+    const recap = await prisma.dailyRecap.findFirst({
+      where: { type: recapType, createdAt: { gte: cutoff } },
+      orderBy: { createdAt: 'desc' },
+    });
 
-    const [morning, evening] = await Promise.all([
-      prisma.dailyRecap.findFirst({
-        where: { type: 'morning', createdAt: { gte: cutoff } },
-        orderBy: { createdAt: 'desc' },
-      }),
-      prisma.dailyRecap.findFirst({
-        where: { type: 'evening', createdAt: { gte: cutoff } },
-        orderBy: { createdAt: 'desc' },
-      }),
-    ]);
-
-    if (!morning && !evening) {
-      const result = { morning: null, evening: null };
-      cachedResponse = { data: result, timestamp: Date.now() };
-      return NextResponse.json(result);
-    }
-
-    const formatRecap = (recap: typeof morning) =>
-      recap
+    const result = {
+      recap: recap
         ? {
+            type: recapType,
             recap: recap.recap,
             stats: recap.stats,
             date: recap.date.toISOString().slice(0, 10),
             createdAt: recap.createdAt.toISOString(),
           }
-        : null;
-
-    const result = {
-      morning: formatRecap(morning),
-      evening: formatRecap(evening),
+        : null,
     };
 
-    cachedResponse = { data: result, timestamp: Date.now() };
+    cachedResponse = { data: result, hour: etHour, timestamp: Date.now() };
     return NextResponse.json(result);
   } catch (error) {
     console.error('[Recaps] API error:', error);

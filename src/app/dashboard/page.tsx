@@ -70,7 +70,6 @@ export default function DashboardPage() {
   const [creatingFromIdea, setCreatingFromIdea] = useState<string | null>(null);
   const [showAllHot, setShowAllHot] = useState(false);
   const [dismissedIdeas, setDismissedIdeas] = useState<string[]>([]);
-  const [showDailyRecap, setShowDailyRecap] = useState(true);
   const [showTopPerformer, setShowTopPerformer] = useState(true);
 
   // Load dismissed ideas and sections from localStorage on mount
@@ -83,29 +82,14 @@ export default function DashboardPage() {
         // Invalid JSON, ignore
       }
     }
-    
-    const recapDismissed = localStorage.getItem('dailyRecap-dismissed');
+
     const topPerformerDismissed = localStorage.getItem('topPerformer-dismissed');
-    
-    if (recapDismissed === 'true') setShowDailyRecap(false);
     if (topPerformerDismissed === 'true') setShowTopPerformer(false);
   }, []);
-
-  // Dismiss handlers for sections
-  const handleDismissDailyRecap = () => {
-    setShowDailyRecap(false);
-    localStorage.setItem('dailyRecap-dismissed', 'true');
-    track('daily_recap', 'dismiss');
-  };
 
   const handleDismissTopPerformer = () => {
     setShowTopPerformer(false);
     localStorage.setItem('topPerformer-dismissed', 'true');
-  };
-
-  const handleRestoreDailyRecap = () => {
-    setShowDailyRecap(true);
-    localStorage.setItem('dailyRecap-dismissed', 'false');
   };
 
   const handleRestoreTopPerformer = () => {
@@ -469,25 +453,15 @@ export default function DashboardPage() {
                   </button>
                 </div>
 
-                {/* Restore buttons if sections are dismissed */}
-                {(!showDailyRecap || !showTopPerformer) && (
+                {/* Restore button if top performer is dismissed */}
+                {!showTopPerformer && topArticle && (
                   <div className="flex gap-2 mb-3">
-                    {!showDailyRecap && (
-                      <button
-                        onClick={handleRestoreDailyRecap}
-                        className="text-xs text-press-400 hover:text-press-300 underline"
-                      >
-                        Show Recap
-                      </button>
-                    )}
-                    {!showTopPerformer && topArticle && (
-                      <button
-                        onClick={handleRestoreTopPerformer}
-                        className="text-xs text-press-400 hover:text-press-300 underline"
-                      >
-                        Show Top Story
-                      </button>
-                    )}
+                    <button
+                      onClick={handleRestoreTopPerformer}
+                      className="text-xs text-press-400 hover:text-press-300 underline"
+                    >
+                      Show Top Story
+                    </button>
                   </div>
                 )}
 
@@ -497,19 +471,10 @@ export default function DashboardPage() {
 
             {/* Stats Grid - Desktop only (rendered in desktop section) */}
 
-            {/* Daily Recap - Mobile (with dismiss) */}
-            {showDailyRecap && (
-              <div className="px-4 relative">
-                <button
-                  onClick={handleDismissDailyRecap}
-                  className="absolute top-2 right-6 z-10 p-1.5 rounded-full text-white/40 hover:text-white/60 hover:bg-white/10 transition-colors"
-                  title="Dismiss recap"
-                >
-                  <HiOutlineXMark className="w-4 h-4" />
-                </button>
-                <DailyRecap />
-              </div>
-            )}
+            {/* Daily Recap - Mobile */}
+            <div className="px-4">
+              <DailyRecap />
+            </div>
 
             {/* Top Performer - Mobile (with dismiss) */}
             {showTopPerformer && topArticle && (
@@ -629,15 +594,6 @@ export default function DashboardPage() {
               {dateStr}
             </p>
             <div className="flex items-center gap-3 mt-3">
-              {/* Restore buttons if sections are dismissed */}
-              {!showDailyRecap && (
-                <button
-                  onClick={handleRestoreDailyRecap}
-                  className="text-sm text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 underline"
-                >
-                  Show Daily Recap
-                </button>
-              )}
               {!showTopPerformer && topArticle && (
                 <button
                   onClick={handleRestoreTopPerformer}
@@ -720,19 +676,8 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        {/* Daily Recap - Desktop (with dismiss) */}
-        {showDailyRecap && (
-          <div className="relative mb-8">
-            <button
-              onClick={handleDismissDailyRecap}
-              className="absolute top-4 right-4 z-10 p-1.5 rounded-full text-white/40 hover:text-white/60 hover:bg-white/10 transition-colors"
-              title="Dismiss recap"
-            >
-              <HiOutlineXMark className="w-5 h-5" />
-            </button>
-            <DailyRecap />
-          </div>
-        )}
+        {/* Daily Recap - Desktop */}
+        <DailyRecap />
 
         {/* Top Performer - Desktop (with dismiss) */}
         {showTopPerformer && topArticle && (
