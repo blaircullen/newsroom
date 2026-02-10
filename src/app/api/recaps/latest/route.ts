@@ -19,12 +19,12 @@ export async function GET() {
       return NextResponse.json(cachedResponse.data);
     }
 
-    // Only show today's recaps — never stale ones from yesterday
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
+    // Show today's recaps in US Eastern time (where users are)
+    const eastern = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/New_York' }));
+    eastern.setHours(0, 0, 0, 0);
 
     const recaps = await prisma.dailyRecap.findMany({
-      where: { date: today },
+      where: { date: eastern },
       orderBy: { createdAt: 'desc' },
     });
 
