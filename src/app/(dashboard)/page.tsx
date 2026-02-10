@@ -514,8 +514,8 @@ export default function DashboardPage() {
               <StatsGrid stats={stats} isAdmin={isAdmin} isUpdating={isAutoRefreshing} />
             </div>
 
-            {/* Daily Recap - Mobile (with dismiss) */}
-            {showDailyRecap && (
+            {/* Daily Recap - Mobile (temporarily disabled) */}
+            {false && showDailyRecap && (
               <div className="px-4 mb-4">
                 <div className="relative group/recap">
                   {/* Clear Dismiss button with text */}
@@ -743,8 +743,8 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        {/* Daily Recap - Desktop (with dismiss) */}
-        {showDailyRecap && (
+        {/* Daily Recap - Desktop (temporarily disabled) */}
+        {false && showDailyRecap && (
           <div className="relative mb-8 group/recap">
             {/* Clear Dismiss button with text */}
             <button

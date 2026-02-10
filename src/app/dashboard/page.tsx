@@ -471,10 +471,10 @@ export default function DashboardPage() {
 
             {/* Stats Grid - Desktop only (rendered in desktop section) */}
 
-            {/* Daily Recap - Mobile */}
-            <div className="px-4">
+            {/* Daily Recap - Mobile (temporarily disabled) */}
+            {/* <div className="px-4">
               <DailyRecap />
-            </div>
+            </div> */}
 
             {/* Top Performer - Mobile (with dismiss) */}
             {showTopPerformer && topArticle && (
@@ -676,8 +676,8 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        {/* Daily Recap - Desktop */}
-        <DailyRecap />
+        {/* Daily Recap - Desktop (temporarily disabled) */}
+        {/* <DailyRecap /> */}
 
         {/* Top Performer - Desktop (with dismiss) */}
         {showTopPerformer && topArticle && (
