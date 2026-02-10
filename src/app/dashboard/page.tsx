@@ -799,7 +799,7 @@ export default function DashboardPage() {
 
             <div className="px-5 pb-5">
               <div className="grid grid-cols-3 gap-3">
-                {storyIdeas.slice(0, showStoryIdeas ? storyIdeas.length : 3).map((idea, index) => (
+                {storyIdeas.map((idea, index) => (
                     <div
                       key={index}
                       className={`rounded-lg p-4 hover:shadow-md transition-all group relative overflow-hidden ${
@@ -874,24 +874,6 @@ export default function DashboardPage() {
                     </div>
                   ))}
                 </div>
-                {storyIdeas.length > 3 && (
-                  <button
-                    onClick={() => setShowStoryIdeas(!showStoryIdeas)}
-                    className="w-full mt-3 py-2 text-sm font-medium text-amber-700 dark:text-amber-400 hover:text-amber-800 dark:hover:text-amber-300 flex items-center justify-center gap-1 transition-colors"
-                  >
-                    {showStoryIdeas ? (
-                      <>
-                        <HiOutlineChevronUp className="w-4 h-4" />
-                        Show Less
-                      </>
-                    ) : (
-                      <>
-                        <HiOutlineChevronDown className="w-4 h-4" />
-                        Show {storyIdeas.length - 3} More
-                      </>
-                    )}
-                  </button>
-                )}
               </div>
           </div>
         )}

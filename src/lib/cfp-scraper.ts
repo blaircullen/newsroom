@@ -256,7 +256,7 @@ export async function scrapeStoryIdeas(): Promise<StoryIdea[]> {
         if (!a.trending && b.trending) return 1;
         return 0;
       })
-      .slice(0, 20);
+      .slice(0, 6);
 
     // Update cache
     cachedIdeas = uniqueIdeas;
