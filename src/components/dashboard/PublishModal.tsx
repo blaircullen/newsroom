@@ -133,6 +133,7 @@ export default function PublishModal({ articleId, onClose, onPublished }: Publis
         if (!res.ok) throw new Error('Failed to schedule article');
         const targetName = targets.find(t => t.id === targetId)?.name || 'selected site';
         toast.success(`Scheduled for ${scheduledAt.toLocaleString()} on ${targetName}`);
+        onClose();
       } else {
         // Publish now
         const res = await fetch('/api/articles/' + articleId + '/publish', {

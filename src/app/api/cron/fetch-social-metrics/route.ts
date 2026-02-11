@@ -25,8 +25,9 @@ async function fetchTweetMetricsViaAPI(tweetId: string, accessToken: string): Pr
     return { status: 'rate_limited' };
   }
 
-  // 401/403 = token lacks read scope (X free tier only supports posting, not reading metrics)
-  if (response.status === 401 || response.status === 403) {
+  // Any 4xx error = treat as unauthorized (X free tier cannot read metrics at all,
+  // and may return various 4xx codes beyond just 401/403)
+  if (response.status >= 400 && response.status < 500) {
     return { status: 'unauthorized' };
   }
 
