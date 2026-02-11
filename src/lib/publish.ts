@@ -70,6 +70,27 @@ const FEATURED_IMAGE_MAX_WIDTH = 2000;
 const INLINE_IMAGE_MAX_WIDTH = 1600;
 const IMAGE_QUALITY = 85;
 
+// Transform HTML embed nodes into their raw HTML content for publishing
+// In the editor, embeds are stored as: <div data-html-embed="true" data-content="...encoded html..."></div>
+// This decodes the data-content attribute and replaces the div with the actual HTML
+function transformHtmlEmbeds(html: string): string {
+  if (!html) return html;
+
+  return html.replace(
+    /<div[^>]*data-html-embed="true"[^>]*data-content="([^"]*)"[^>]*>(?:<\/div>)?/gi,
+    (_match, encodedContent: string) => {
+      // Decode HTML entities in the attribute value
+      const decoded = encodedContent
+        .replace(/&amp;/g, '&')
+        .replace(/&lt;/g, '<')
+        .replace(/&gt;/g, '>')
+        .replace(/&quot;/g, '"')
+        .replace(/&#39;/g, "'");
+      return decoded;
+    }
+  );
+}
+
 // Transform tweet embed placeholders into standard Twitter blockquote format
 function transformTweetEmbeds(html: string): string {
   if (!html) return html;
@@ -480,6 +501,7 @@ function prepareGhostHtml(
   imageCredit: string | null | undefined
 ): string {
   let html = bodyHtml || body;
+  html = transformHtmlEmbeds(html);
   html = transformTweetEmbeds(html);
   return html;
 }
@@ -493,6 +515,7 @@ function prepareWordPressHtml(
   imageCredit: string | null | undefined
 ): string {
   let html = bodyHtml || body;
+  html = transformHtmlEmbeds(html);
   html = transformTweetEmbeds(html);
   return html;
 }
@@ -787,6 +810,7 @@ async function publishToShopify(
 
     // Prepare HTML content
     let processedHtml = article.bodyHtml || article.body;
+    processedHtml = transformHtmlEmbeds(processedHtml);
     processedHtml = transformTweetEmbeds(processedHtml);
 
     // Prepare tags as comma-separated string

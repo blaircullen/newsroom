@@ -6,8 +6,10 @@ import Link from '@tiptap/extension-link';
 import Image from '@tiptap/extension-image';
 import Underline from '@tiptap/extension-underline';
 import Placeholder from '@tiptap/extension-placeholder';
-import { MediaEmbed, parseMediaUrl, SUPPORTED_PLATFORMS, PlatformType } from './extensions/MediaEmbed';
-import { useCallback, useState } from 'react';
+import { MediaEmbed, parseMediaUrl, SUPPORTED_PLATFORMS } from './extensions/MediaEmbed';
+import { HtmlEmbed } from './extensions/HtmlEmbed';
+import { SlashCommand, SlashMenuState } from './extensions/SlashCommand';
+import { useCallback, useState, useMemo } from 'react';
 import {
   HiOutlineBold,
   HiOutlineItalic,
@@ -18,7 +20,7 @@ import {
   HiOutlineMinus,
   HiOutlinePlayCircle,
 } from 'react-icons/hi2';
-import { RiDoubleQuotesL, RiUnderline, RiListOrdered2 } from 'react-icons/ri';
+import { RiDoubleQuotesL, RiUnderline, RiListOrdered2, RiCodeBoxLine, RiCodeLine } from 'react-icons/ri';
 
 interface RichEditorProps {
   content: string;
@@ -32,6 +34,23 @@ export default function RichEditor({ content, onChange, placeholder }: RichEdito
   const [showEmbedInput, setShowEmbedInput] = useState(false);
   const [embedUrl, setEmbedUrl] = useState('');
   const [embedError, setEmbedError] = useState('');
+  const [slashMenu, setSlashMenu] = useState<SlashMenuState | null>(null);
+
+  const slashItems = useMemo(() => [
+    {
+      id: 'embed',
+      label: 'HTML Embed',
+      description: 'Paste raw HTML/JS embed code',
+      command: (editor: any, from: number, to: number) => {
+        editor.chain().focus()
+          .insertContentAt({ from, to }, [
+            { type: 'htmlEmbed' },
+            { type: 'paragraph' },
+          ])
+          .run();
+      },
+    },
+  ], []);
 
   const editor = useEditor({
     extensions: [
@@ -56,6 +75,11 @@ export default function RichEditor({ content, onChange, placeholder }: RichEdito
         placeholder: placeholder || 'Start writing your story...',
       }),
       MediaEmbed,
+      HtmlEmbed,
+      SlashCommand.configure({
+        items: slashItems,
+        onMenuChange: setSlashMenu,
+      }),
     ],
     content,
     onUpdate: ({ editor }) => {
@@ -110,6 +134,15 @@ export default function RichEditor({ content, onChange, placeholder }: RichEdito
     setEmbedUrl('');
     setShowEmbedInput(false);
   }, [editor, embedUrl]);
+
+  const handleSlashItemClick = useCallback((item: typeof slashItems[0]) => {
+    if (!editor) return;
+    const { $from } = editor.state.selection;
+    const from = $from.before($from.depth);
+    const to = $from.after($from.depth);
+    item.command(editor, from, to);
+    setSlashMenu(null);
+  }, [editor]);
 
   if (!editor) return null;
 
@@ -267,6 +300,18 @@ export default function RichEditor({ content, onChange, placeholder }: RichEdito
           >
             <HiOutlinePlayCircle className="w-4 h-4" />
           </ToolbarButton>
+
+          {/* HTML embed */}
+          <ToolbarButton
+            onClick={() => {
+              (editor.commands as any).insertHtmlEmbed();
+              setShowLinkInput(false);
+              setShowEmbedInput(false);
+            }}
+            title="HTML Embed (or type /embed)"
+          >
+            <RiCodeBoxLine className="w-4 h-4" />
+          </ToolbarButton>
         </div>
 
         {/* Link input bar */}
@@ -395,6 +440,59 @@ export default function RichEditor({ content, onChange, placeholder }: RichEdito
 
       {/* Editor content */}
       <EditorContent editor={editor} />
+
+      {/* Slash command menu */}
+      {slashMenu?.active && (
+        <div
+          className="fixed z-50 bg-white dark:bg-ink-800 rounded-xl shadow-lg border border-ink-200 dark:border-ink-700 py-1.5 min-w-[220px] overflow-hidden"
+          style={{ left: slashMenu.x, top: slashMenu.y }}
+        >
+          <div className="px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-ink-400 dark:text-ink-500">
+            Blocks
+          </div>
+          {slashMenu.items.map((item, i) => (
+            <button
+              key={item.id}
+              className={`w-full text-left px-3 py-2 flex items-center gap-3 transition-colors ${
+                i === slashMenu.selectedIndex
+                  ? 'bg-press-50 dark:bg-press-900/30'
+                  : 'hover:bg-ink-50 dark:hover:bg-ink-700/50'
+              }`}
+              onMouseDown={(e) => {
+                e.preventDefault();
+                handleSlashItemClick(item);
+              }}
+              onMouseEnter={() => {
+                setSlashMenu((prev) => prev ? { ...prev, selectedIndex: i } : null);
+              }}
+            >
+              <div className={`p-1.5 rounded-lg ${
+                i === slashMenu.selectedIndex
+                  ? 'bg-press-100 dark:bg-press-900/50'
+                  : 'bg-ink-100 dark:bg-ink-700'
+              }`}>
+                <RiCodeLine className={`w-4 h-4 ${
+                  i === slashMenu.selectedIndex
+                    ? 'text-press-600 dark:text-press-400'
+                    : 'text-ink-500 dark:text-ink-400'
+                }`} />
+              </div>
+              <div>
+                <div className={`text-sm font-medium ${
+                  i === slashMenu.selectedIndex
+                    ? 'text-press-700 dark:text-press-300'
+                    : 'text-ink-700 dark:text-ink-300'
+                }`}>
+                  {item.label}
+                </div>
+                <div className="text-xs text-ink-400 dark:text-ink-500">
+                  {item.description}
+                </div>
+              </div>
+            </button>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
