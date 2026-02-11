@@ -7,12 +7,14 @@ import {
   HiOutlineMegaphone,
 } from 'react-icons/hi2';
 
-type TabId = 'home' | 'hot' | 'analytics' | 'social-queue';
+export type BottomNavTabId = 'home' | 'hot' | 'analytics' | 'social-queue';
 
 interface BottomNavProps {
-  activeTab: string;
-  onTabChange: (tab: TabId) => void;
+  activeTab: BottomNavTabId | (string & {});
+  onTabChange: (tab: BottomNavTabId) => void;
 }
+
+type TabId = BottomNavTabId;
 
 const tabs: { id: TabId; label: string; icon: typeof HiOutlineHome }[] = [
   { id: 'home', label: 'Home', icon: HiOutlineHome },
