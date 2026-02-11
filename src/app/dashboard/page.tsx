@@ -65,6 +65,7 @@ export default function DashboardPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [deleteConfirm, setDeleteConfirm] = useState<{ id: string; headline: string } | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [deleteReason, setDeleteReason] = useState('');
   const [isRefreshingAnalytics, setIsRefreshingAnalytics] = useState(false);
   const [showStoryIdeas, setShowStoryIdeas] = useState(false);
   const [creatingFromIdea, setCreatingFromIdea] = useState<string | null>(null);
@@ -279,13 +280,18 @@ export default function DashboardPage() {
   const handleDelete = async (id: string) => {
     setIsDeleting(true);
     try {
-      const res = await fetch(`/api/articles/${id}`, { method: 'DELETE' });
+      const res = await fetch(`/api/articles/${id}`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ reason: deleteReason || undefined }),
+      });
       if (!res.ok) {
         const data = await res.json();
         throw new Error(data.error || 'Failed to delete');
       }
       toast.success('Story deleted');
       setDeleteConfirm(null);
+      setDeleteReason('');
       fetchArticles();
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Failed to delete';
@@ -970,12 +976,21 @@ export default function DashboardPage() {
             <p className="text-ink-900 dark:text-ink-100 font-medium text-sm mb-4 bg-ink-50 dark:bg-ink-800 rounded-lg p-3">
               &ldquo;{deleteConfirm.headline}&rdquo;
             </p>
+            {isAdmin && (
+              <textarea
+                value={deleteReason}
+                onChange={(e) => setDeleteReason(e.target.value)}
+                placeholder="Optional: Tell the writer why this story is being removed..."
+                rows={3}
+                className="w-full px-3 py-2 mb-4 text-sm text-ink-800 dark:text-ink-200 bg-ink-50 dark:bg-ink-800 border border-ink-200 dark:border-ink-700 rounded-lg resize-none placeholder:text-ink-400 dark:placeholder:text-ink-500 focus:outline-none focus:ring-2 focus:ring-red-300 dark:focus:ring-red-800"
+              />
+            )}
             <p className="text-ink-400 text-xs mb-6">
               This action cannot be undone. The article and all associated reviews and comments will be permanently removed.
             </p>
             <div className="flex items-center gap-3 justify-end">
               <button
-                onClick={() => setDeleteConfirm(null)}
+                onClick={() => { setDeleteConfirm(null); setDeleteReason(''); }}
                 disabled={isDeleting}
                 className="px-4 py-2.5 text-sm font-medium text-ink-700 dark:text-ink-200 bg-white dark:bg-ink-800 border border-ink-200 dark:border-ink-700 rounded-lg hover:bg-ink-50 dark:hover:bg-ink-700 disabled:opacity-50 transition-all"
               >

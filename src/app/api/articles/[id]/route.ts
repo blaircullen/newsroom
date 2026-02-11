@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import prisma from '@/lib/prisma';
 import slugify from 'slugify';
+import { sendDeletionNotification } from '@/lib/email';
 
 // Input validation constants (same as POST endpoint)
 const MAX_HEADLINE_LENGTH = 500;
@@ -229,8 +230,17 @@ export async function DELETE(
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
+  let reason: string | undefined;
+  try {
+    const body = await request.json();
+    reason = typeof body.reason === 'string' ? body.reason.trim() : undefined;
+  } catch {
+    // No body or invalid JSON — reason stays undefined
+  }
+
   const article = await prisma.article.findUnique({
     where: { id: params.id },
+    include: { author: { select: { id: true, name: true, email: true } } },
   });
 
   if (!article) {
@@ -250,6 +260,16 @@ export async function DELETE(
         { status: 400 }
       );
     }
+  }
+
+  // Notify the writer when an admin/editor deletes someone else's article
+  if (isAdmin && article.authorId !== session.user.id && article.author?.email) {
+    sendDeletionNotification(
+      article.author.email,
+      article.author.name || 'Writer',
+      article.headline,
+      reason || undefined
+    ).catch((err) => console.error('Failed to send deletion email:', err));
   }
 
   await prisma.article.delete({ where: { id: params.id } });

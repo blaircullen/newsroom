@@ -218,6 +218,39 @@ export async function sendReviewDecision(
   });
 }
 
+export async function sendDeletionNotification(
+  writerEmail: string,
+  writerName: string,
+  headline: string,
+  reason?: string
+) {
+  const safeWriterName = escapeHtml(writerName);
+  const safeHeadline = escapeHtml(headline);
+  const safeReason = reason ? escapeHtml(reason) : '';
+
+  return sendEmail({
+    to: writerEmail,
+    subject: `Story Removed: "${headline}"`,
+    html: `
+      <p style="color:#192842;font-size:15px;line-height:1.6;">
+        Hi ${safeWriterName},
+      </p>
+      <p style="color:#192842;font-size:15px;line-height:1.6;">
+        Your story <strong>"${safeHeadline}"</strong> has been removed by an editor.
+      </p>
+      ${safeReason ? `
+        <div style="margin:20px 0;padding:16px;background:#f0f3f8;border-radius:6px;">
+          <p style="margin:0 0 8px;color:#465f94;font-size:13px;text-transform:uppercase;letter-spacing:0.5px;">Reason</p>
+          <p style="margin:0;color:#192842;font-size:14px;line-height:1.6;">${safeReason}</p>
+        </div>
+      ` : ''}
+      <p style="color:#6580b0;font-size:13px;line-height:1.6;">
+        If you have questions, please reach out to your editor.
+      </p>
+    `,
+  });
+}
+
 export async function sendPasswordResetEmail(
   email: string,
   name: string,
