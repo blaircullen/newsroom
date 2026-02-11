@@ -85,6 +85,16 @@ export default function EditArticlePage() {
         setFeaturedImage(data.featuredImage);
         setFeaturedImageId(data.featuredImageId);
         setImageCredit(data.imageCredit || '');
+        // Backfill: if image exists but no credit, look up stored credit
+        if (data.featuredImageId && !data.imageCredit) {
+          try {
+            const creditRes = await fetch(`/api/image-credits/${data.featuredImageId}`);
+            if (creditRes.ok) {
+              const creditData = await creditRes.json();
+              if (creditData.credit) setImageCredit(creditData.credit);
+            }
+          } catch {}
+        }
       } catch (error) {
         toast.error('Article not found');
         router.push('/dashboard');
@@ -394,7 +404,19 @@ export default function EditArticlePage() {
       </div>
 
       <ImagePicker isOpen={showImagePicker} onClose={() => setShowImagePicker(false)}
-        onSelect={(image) => { setFeaturedImage(image.directUrl); setFeaturedImageId(image.id); setShowImagePicker(false); }}
+        onSelect={async (image) => {
+          setFeaturedImage(image.directUrl);
+          setFeaturedImageId(image.id);
+          setShowImagePicker(false);
+          // Fetch stored credit for the newly selected image
+          try {
+            const res = await fetch(`/api/image-credits/${image.id}`);
+            if (res.ok) {
+              const data = await res.json();
+              setImageCredit(data.credit || '');
+            }
+          } catch {}
+        }}
         selectedImageId={featuredImageId} />
 
       {showPublishModal && (

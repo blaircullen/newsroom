@@ -331,3 +331,13 @@ model FeatureEvent {
   @@index([createdAt])
   @@map("feature_events")
 }
+
+model ImageCredit {
+  id          String   @id @default(cuid())
+  driveFileId String   @unique @map("drive_file_id")
+  credit      String
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  @@map("image_credits")
+}

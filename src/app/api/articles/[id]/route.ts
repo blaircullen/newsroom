@@ -205,6 +205,17 @@ export async function PUT(
     },
   });
 
+  // Persist image credit tied to the Drive file for reuse
+  if (updated.featuredImageId && updated.imageCredit) {
+    try {
+      await prisma.imageCredit.upsert({
+        where: { driveFileId: updated.featuredImageId },
+        update: { credit: updated.imageCredit },
+        create: { driveFileId: updated.featuredImageId, credit: updated.imageCredit },
+      });
+    } catch {}
+  }
+
   return NextResponse.json(updated);
 }
 

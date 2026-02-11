@@ -470,11 +470,21 @@ export default function NewEditorPage() {
       <ImagePicker
         isOpen={showImagePicker}
         onClose={() => setShowImagePicker(false)}
-        onSelect={(image) => {
+        onSelect={async (image) => {
           setFeaturedImage(image.directUrl);
           setFeaturedImageId(image.id);
           setFeaturedImageName(image.name);
           setShowImagePicker(false);
+          // Auto-fill credit from stored image credit if field is empty
+          if (!imageCredit.trim()) {
+            try {
+              const res = await fetch(`/api/image-credits/${image.id}`);
+              if (res.ok) {
+                const data = await res.json();
+                if (data.credit) setImageCredit(data.credit);
+              }
+            } catch {}
+          }
         }}
         selectedImageId={featuredImageId}
       />
