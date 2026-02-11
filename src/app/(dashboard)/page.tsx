@@ -867,19 +867,35 @@ export default function DashboardPage() {
                         {idea.headline}
                       </h4>
                       <div className="flex items-center justify-between">
-                        <a
-                          href={idea.sourceUrl}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className={`flex items-center gap-1 text-xs hover:underline ${
-                            idea.trending
-                              ? 'text-press-600 dark:text-press-400'
-                              : 'text-amber-600 dark:text-amber-400'
-                          }`}
-                        >
-                          <span className="uppercase tracking-wider font-medium">{idea.source}</span>
-                          <HiOutlineArrowTopRightOnSquare className="w-3 h-3" />
-                        </a>
+                        {idea.trending && idea.sources && idea.sources.length > 1 ? (
+                          <div className="flex items-center gap-2 flex-wrap">
+                            {idea.sources.map((src, i) => (
+                              <a
+                                key={i}
+                                href={src.url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="flex items-center gap-1 text-xs text-press-600 dark:text-press-400 hover:text-press-700 dark:hover:text-press-300 underline underline-offset-2 decoration-press-300/50 dark:decoration-press-600/50"
+                              >
+                                <span className="uppercase tracking-wider font-medium">{src.name}</span>
+                              </a>
+                            ))}
+                          </div>
+                        ) : (
+                          <a
+                            href={idea.sourceUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className={`flex items-center gap-1 text-xs hover:underline ${
+                              idea.trending
+                                ? 'text-press-600 dark:text-press-400'
+                                : 'text-amber-600 dark:text-amber-400'
+                            }`}
+                          >
+                            <span className="uppercase tracking-wider font-medium">{idea.source}</span>
+                            <HiOutlineArrowTopRightOnSquare className="w-3 h-3" />
+                          </a>
+                        )}
                         <button
                           onClick={() => handleCreateFromIdea(idea)}
                           disabled={creatingFromIdea === idea.headline}

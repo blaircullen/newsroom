@@ -11,11 +11,17 @@ import {
 } from 'react-icons/hi2';
 import type { Article } from './ArticleCard';
 
+export interface StoryIdeaSource {
+  name: string;
+  url: string;
+}
+
 export interface StoryIdea {
   headline: string;
   sourceUrl: string;
   source: string;
   trending?: boolean;
+  sources?: StoryIdeaSource[];
 }
 
 interface HotSectionProps {
@@ -167,19 +173,36 @@ export default function HotSection({
                         }`}>
                           {idea.headline}
                         </h4>
-                        <div className="flex items-center gap-2 mt-1.5">
+                        <div className="flex items-center gap-2 mt-1.5 flex-wrap">
                           {idea.trending && (
                             <span className="flex items-center gap-1 text-[10px] text-orange-300 md:text-red-600 font-semibold">
                               <HiOutlineArrowTrendingUp className="w-3 h-3" />
                               HOT
                             </span>
                           )}
-                          <span className={`text-[10px] uppercase tracking-wider font-medium ${
-                            idea.trending ? 'text-orange-300/80 md:text-red-600/80' : 'text-yellow-400/80 md:text-amber-600'
-                          }`}>
-                            {idea.source}
-                          </span>
-                          <HiOutlineArrowTopRightOnSquare className="w-3 h-3 text-white/40 md:text-ink-400" />
+                          {idea.trending && idea.sources && idea.sources.length > 1 ? (
+                            idea.sources.map((src, i) => (
+                              <a
+                                key={i}
+                                href={src.url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                onClick={(e) => e.stopPropagation()}
+                                className="text-[10px] uppercase tracking-wider font-medium text-orange-300/80 md:text-red-600/80 hover:text-orange-200 md:hover:text-red-700 underline underline-offset-2 decoration-orange-300/30 md:decoration-red-300/50"
+                              >
+                                {src.name}
+                              </a>
+                            ))
+                          ) : (
+                            <>
+                              <span className={`text-[10px] uppercase tracking-wider font-medium ${
+                                idea.trending ? 'text-orange-300/80 md:text-red-600/80' : 'text-yellow-400/80 md:text-amber-600'
+                              }`}>
+                                {idea.source}
+                              </span>
+                              <HiOutlineArrowTopRightOnSquare className="w-3 h-3 text-white/40 md:text-ink-400" />
+                            </>
+                          )}
                         </div>
                       </div>
                     </div>

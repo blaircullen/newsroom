@@ -1,10 +1,16 @@
 import * as cheerio from 'cheerio';
 
+export interface StoryIdeaSource {
+  name: string;
+  url: string;
+}
+
 export interface StoryIdea {
   headline: string;
   sourceUrl: string;
   source: string;
   trending?: boolean; // Appears in multiple sources
+  sources?: StoryIdeaSource[]; // All sources when trending
 }
 
 // In-memory cache
@@ -212,14 +218,24 @@ export async function scrapeStoryIdeas(): Promise<StoryIdea[]> {
           // Keep as Web
         }
 
-        // Check if this story appears in any RSS source (trending)
-        const isTrending = allRssHeadlines.some(refHeadline => areRelated(text, refHeadline));
+        // Check which RSS sources carry this story
+        const matchingSources: StoryIdeaSource[] = [];
+        for (const rssSource of rssResults) {
+          const match = rssSource.items.find(item => areRelated(text, item.title));
+          if (match) {
+            matchingSources.push({ name: rssSource.name, url: match.link });
+          }
+        }
+        const isTrending = matchingSources.length > 0;
 
         ideas.push({
           headline: text,
           sourceUrl: href,
           source,
           trending: isTrending,
+          sources: isTrending
+            ? [{ name: source, url: href }, ...matchingSources.filter(s => s.name !== source)]
+            : undefined,
         });
       }
     });
@@ -241,18 +257,33 @@ export async function scrapeStoryIdeas(): Promise<StoryIdea[]> {
           item.link.includes('reddit.com/')
         ) continue;
 
-        // Check if trending: appears in CFP or another RSS source
-        const otherRssHeadlines = rssResults
-          .filter(r => r.name !== rssSource.name)
-          .flatMap(r => r.items.map(i => i.title));
-        const allOtherHeadlines = [...cfpHeadlines, ...otherRssHeadlines];
-        const isTrending = allOtherHeadlines.some(h => areRelated(item.title, h));
+        // Check which other sources carry this story
+        const matchingSources: StoryIdeaSource[] = [];
+        // Check CFP ideas
+        for (const cfpIdea of ideas) {
+          if (areRelated(item.title, cfpIdea.headline)) {
+            matchingSources.push({ name: cfpIdea.source, url: cfpIdea.sourceUrl });
+            break; // One CFP match is enough
+          }
+        }
+        // Check other RSS sources
+        for (const otherRss of rssResults) {
+          if (otherRss.name === rssSource.name) continue;
+          const match = otherRss.items.find(i => areRelated(item.title, i.title));
+          if (match) {
+            matchingSources.push({ name: otherRss.name, url: match.link });
+          }
+        }
+        const isTrending = matchingSources.length > 0;
 
         ideas.push({
           headline: item.title,
           sourceUrl: item.link,
           source: rssSource.name,
           trending: isTrending,
+          sources: isTrending
+            ? [{ name: rssSource.name, url: item.link }, ...matchingSources.filter(s => s.name !== rssSource.name)]
+            : undefined,
         });
       }
     }
