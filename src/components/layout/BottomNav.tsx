@@ -4,13 +4,13 @@ import {
   HiOutlineHome,
   HiOutlineFire,
   HiOutlineChartBarSquare,
-  HiOutlineUser,
+  HiOutlineMegaphone,
 } from 'react-icons/hi2';
 
-type TabId = 'home' | 'hot' | 'analytics' | 'profile';
+type TabId = 'home' | 'hot' | 'analytics' | 'social-queue';
 
 interface BottomNavProps {
-  activeTab: TabId;
+  activeTab: string;
   onTabChange: (tab: TabId) => void;
 }
 
@@ -18,7 +18,7 @@ const tabs: { id: TabId; label: string; icon: typeof HiOutlineHome }[] = [
   { id: 'home', label: 'Home', icon: HiOutlineHome },
   { id: 'hot', label: 'Hot', icon: HiOutlineFire },
   { id: 'analytics', label: 'Analytics', icon: HiOutlineChartBarSquare },
-  { id: 'profile', label: 'Profile', icon: HiOutlineUser },
+  { id: 'social-queue', label: 'Social', icon: HiOutlineMegaphone },
 ];
 
 export default function BottomNav({ activeTab, onTabChange }: BottomNavProps) {

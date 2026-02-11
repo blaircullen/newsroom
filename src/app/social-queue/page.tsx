@@ -7,6 +7,7 @@ import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import toast from 'react-hot-toast';
 import AppShell from '@/components/layout/AppShell';
+import BottomNav from '@/components/layout/BottomNav';
 import SocialPostCard from '@/components/social/SocialPostCard';
 import QueueCard from '@/components/social/QueueCard';
 import PersonGroupCard from '@/components/social/PersonGroupCard';
@@ -638,7 +639,7 @@ export default function SocialQueuePage() {
 
   return (
     <AppShell>
-      <div className="max-w-7xl mx-auto">
+      <div className="max-w-7xl mx-auto pb-24 md:pb-0">
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-3">
@@ -1082,6 +1083,13 @@ export default function SocialQueuePage() {
           </div>
         </div>
       )}
+      <BottomNav
+        activeTab="social-queue"
+        onTabChange={(tab) => {
+          if (tab === 'social-queue') return;
+          router.push('/dashboard');
+        }}
+      />
     </AppShell>
   );
 }
