@@ -8,6 +8,7 @@ const WEBSITE_IDS: Record<string, string> = {
   'lizpeek.com': '1725d12a-4f34-421d-aac2-c6b1fe48d41e',
   'joepags.com': '73861735-15e3-4d12-b4c3-d905b6887267',
   'roguerecap.com': '66e1e218-d077-4c0e-aed6-6906eb91d025',
+  'americaisgoodus.com': 'd49e1fbe-49aa-4081-b5b5-968ca484af4d',
 };
 
 // Social referrer domains to filter Umami traffic

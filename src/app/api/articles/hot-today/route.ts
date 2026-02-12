@@ -44,6 +44,7 @@ function getWebsiteConfigs(): Record<string, string> {
     'lizpeek.com': process.env.UMAMI_LIZPEEK_WEBSITE_ID || '',
     'joepags.com': process.env.UMAMI_JOEPAGS_WEBSITE_ID || '',
     'roguerecap.com': process.env.UMAMI_ROGUERECAP_WEBSITE_ID || '',
+    'americaisgoodus.com': process.env.UMAMI_AMERICAISGOODUS_WEBSITE_ID || '',
   };
 }
 

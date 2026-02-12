@@ -30,6 +30,11 @@ function getWebsiteConfigs(): Record<string, WebsiteConfig> {
       username: process.env.UMAMI_USERNAME || '',
       password: process.env.UMAMI_PASSWORD || '',
     },
+    'americaisgoodus.com': {
+      websiteId: process.env.UMAMI_AMERICAISGOODUS_WEBSITE_ID || '',
+      username: process.env.UMAMI_USERNAME || '',
+      password: process.env.UMAMI_PASSWORD || '',
+    },
   };
 }
 
