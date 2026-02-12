@@ -150,7 +150,7 @@ export async function sendSocialPost(postId: string): Promise<SendResult> {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            message: post.caption,
+            message: `${post.caption}\n\n${post.articleUrl}`,
             link: post.articleUrl,
             access_token: accessToken,
           }),
