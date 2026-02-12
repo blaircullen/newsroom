@@ -131,6 +131,10 @@ export async function GET(request: NextRequest) {
               },
             });
             updatedCount++;
+          } else if (response.status >= 400 && response.status < 500) {
+            // 4xx = permission or auth issue (e.g. missing pages_read_engagement)
+            // Treat like X free tier — known limitation, not an alertable error
+            unauthorizedCount++;
           } else {
             const errText = await response.text().catch(() => '');
             console.error(`[Facebook API] Failed to fetch metrics for post ${post.platformPostId}: ${response.status} ${errText}`);
@@ -152,7 +156,7 @@ export async function GET(request: NextRequest) {
 
     const summary = `Updated ${updatedCount} of ${posts.length} post(s)` +
       (rateLimitedCount > 0 ? `, ${rateLimitedCount} rate-limited` : '') +
-      (unauthorizedCount > 0 ? `, ${unauthorizedCount} skipped (X free tier)` : '') +
+      (unauthorizedCount > 0 ? `, ${unauthorizedCount} skipped (missing permissions)` : '') +
       (errorCount > 0 ? `, ${errorCount} failed` : '');
     console.log(`[Social Metrics] ${summary}`);
 
