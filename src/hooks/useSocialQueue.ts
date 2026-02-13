@@ -42,7 +42,7 @@ function groupPostsByAccount(posts: SocialPostData[]): AccountGroup[] {
 
   const groups = Array.from(map.values());
   for (const g of groups) {
-    g.posts.sort((a, b) => new Date(a.scheduledAt).getTime() - new Date(b.scheduledAt).getTime());
+    g.posts.sort((a, b) => new Date(b.scheduledAt).getTime() - new Date(a.scheduledAt).getTime());
   }
   groups.sort((a, b) => {
     const ua = urgencyRank[a.urgency] ?? 3;

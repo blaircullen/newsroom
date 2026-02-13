@@ -94,8 +94,6 @@ export default function SocialQueuePage() {
         <div className="hidden lg:block flex-shrink-0">
           <QueueSidebar
             stats={queue.stats}
-            siteFilter={queue.siteFilter}
-            onSiteFilter={queue.setSiteFilter}
             platformFilter={queue.platformFilter}
             onPlatformFilter={queue.setPlatformFilter}
             statusFilter={queue.statusFilter}

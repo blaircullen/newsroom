@@ -1,9 +1,12 @@
 'use client';
 
-import { HiOutlineMagnifyingGlass, HiOutlineMegaphone } from 'react-icons/hi2';
+import { useState, useCallback } from 'react';
+import { HiOutlineMagnifyingGlass, HiOutlineMegaphone, HiOutlineChevronDown } from 'react-icons/hi2';
 import type { DateFilter, AccountGroup, SocialPostData } from '@/types/social';
 import AccountGroupCard from './AccountGroupCard';
 import QueuePostRow from './QueuePostRow';
+
+const POSTS_PER_PAGE = 3;
 
 interface QueueViewProps {
   accountGroups: AccountGroup[];
@@ -67,6 +70,17 @@ export default function QueueView({
   regeneratingCaption,
 }: QueueViewProps) {
   const hasBatchSelection = selectedPostIds.size > 0;
+
+  // Track which groups have been expanded to show all posts
+  const [showAllPosts, setShowAllPosts] = useState<Set<string>>(new Set());
+  const toggleShowAll = useCallback((groupId: string) => {
+    setShowAllPosts((prev) => {
+      const next = new Set(prev);
+      if (next.has(groupId)) next.delete(groupId);
+      else next.add(groupId);
+      return next;
+    });
+  }, []);
 
   return (
     <div className="flex flex-col h-full">
@@ -158,24 +172,40 @@ export default function QueueView({
                 onSelectAll={() => onSelectAllInGroup(group.socialAccountId)}
               >
                 {/* Render posts in the group */}
-                <div className="flex flex-col gap-1">
-                  {group.posts.map((post) => (
-                    <QueuePostRow
-                      key={post.id}
-                      post={post}
-                      isSelected={selectedPostIds.has(post.id)}
-                      onToggleSelect={() => onTogglePostSelection(post.id)}
-                      onApprove={() => onApprove(post.id)}
-                      onSendNow={() => onSendNow(post.id)}
-                      onRetry={() => onRetry(post.id)}
-                      onDelete={() => onDelete(post.id)}
-                      onSaveCaption={(caption) => onSaveCaption(post.id, caption)}
-                      onSaveSchedule={(schedule) => onSaveSchedule(post.id, schedule)}
-                      onRegenerate={() => onRegenerate(post)}
-                      isRegenerating={regeneratingCaption === post.id}
-                    />
-                  ))}
-                </div>
+                {(() => {
+                  const isShowingAll = showAllPosts.has(group.socialAccountId);
+                  const visiblePosts = isShowingAll ? group.posts : group.posts.slice(0, POSTS_PER_PAGE);
+                  const hiddenCount = group.posts.length - POSTS_PER_PAGE;
+                  return (
+                    <div className="flex flex-col gap-1">
+                      {visiblePosts.map((post) => (
+                        <QueuePostRow
+                          key={post.id}
+                          post={post}
+                          isSelected={selectedPostIds.has(post.id)}
+                          onToggleSelect={() => onTogglePostSelection(post.id)}
+                          onApprove={() => onApprove(post.id)}
+                          onSendNow={() => onSendNow(post.id)}
+                          onRetry={() => onRetry(post.id)}
+                          onDelete={() => onDelete(post.id)}
+                          onSaveCaption={(caption) => onSaveCaption(post.id, caption)}
+                          onSaveSchedule={(schedule) => onSaveSchedule(post.id, schedule)}
+                          onRegenerate={() => onRegenerate(post)}
+                          isRegenerating={regeneratingCaption === post.id}
+                        />
+                      ))}
+                      {hiddenCount > 0 && (
+                        <button
+                          onClick={() => toggleShowAll(group.socialAccountId)}
+                          className="flex items-center justify-center gap-1.5 py-2 text-xs font-medium text-ink-500 hover:text-red-600 dark:text-ink-400 dark:hover:text-red-400 transition-colors"
+                        >
+                          <HiOutlineChevronDown className={`w-3.5 h-3.5 transition-transform ${isShowingAll ? 'rotate-180' : ''}`} />
+                          {isShowingAll ? 'Show less' : `Show ${hiddenCount} more`}
+                        </button>
+                      )}
+                    </div>
+                  );
+                })()}
               </AccountGroupCard>
             ))}
           </div>

@@ -1,6 +1,6 @@
 'use client';
 
-import { HiOutlineGlobeAlt, HiOutlinePlusCircle } from 'react-icons/hi2';
+import { HiOutlinePlusCircle } from 'react-icons/hi2';
 import type { SocialPlatform, PostStatus } from '@/types/social';
 
 interface QueueSidebarProps {
@@ -9,10 +9,7 @@ interface QueueSidebarProps {
     pending: number;
     approved: number;
     sentLast24h: number;
-    sites: Array<{ id: string; name: string; faviconColor: string | null; postCount: number }>;
   };
-  siteFilter: string | null;
-  onSiteFilter: (siteId: string | null) => void;
   platformFilter: SocialPlatform | null;
   onPlatformFilter: (platform: SocialPlatform | null) => void;
   statusFilter: PostStatus | null;
@@ -35,16 +32,8 @@ const statuses: { id: PostStatus | null; name: string; dotClass: string }[] = [
   { id: 'SENT', name: 'Sent', dotClass: 'bg-emerald-500' },
 ];
 
-function getInitials(name: string): string {
-  const words = name.trim().split(/\s+/);
-  if (words.length === 1) return name.substring(0, 2).toUpperCase();
-  return words.slice(0, 2).map(word => word[0]).join('').toUpperCase();
-}
-
 export default function QueueSidebar({
   stats,
-  siteFilter,
-  onSiteFilter,
   platformFilter,
   onPlatformFilter,
   statusFilter,
@@ -84,52 +73,6 @@ export default function QueueSidebar({
               </div>
               <div className="text-[11px] text-ink-500 mt-0.5">Sent 24h</div>
             </div>
-          </div>
-        </div>
-
-        {/* Sites Filter */}
-        <div>
-          <h2 className="font-mono uppercase text-[10px] text-ink-400 tracking-wider mb-2.5">
-            Sites
-          </h2>
-          <div className="space-y-0.5">
-            <button
-              onClick={() => onSiteFilter(null)}
-              className={`w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg transition-colors text-sm ${
-                siteFilter === null
-                  ? 'bg-red-50 dark:bg-red-950/20 text-red-600 dark:text-red-400 font-medium'
-                  : 'text-ink-600 dark:text-ink-400 hover:bg-ink-50 dark:hover:bg-ink-800'
-              }`}
-            >
-              <div className="w-5 h-5 rounded bg-ink-100 dark:bg-ink-800 flex items-center justify-center flex-shrink-0">
-                <HiOutlineGlobeAlt className="w-3 h-3 text-ink-500" />
-              </div>
-              <span className="flex-1 text-left">All Sites</span>
-              <span className="font-mono text-[11px] text-ink-400">
-                {stats.sites.reduce((sum, site) => sum + site.postCount, 0)}
-              </span>
-            </button>
-
-            {stats.sites.map((site) => (
-              <button
-                key={site.id}
-                onClick={() => onSiteFilter(site.id)}
-                className={`w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg transition-colors text-sm ${
-                  siteFilter === site.id
-                    ? 'bg-red-50 dark:bg-red-950/20 text-red-600 dark:text-red-400 font-medium'
-                    : 'text-ink-600 dark:text-ink-400 hover:bg-ink-50 dark:hover:bg-ink-800'
-                }`}
-              >
-                <div
-                  className="w-5 h-5 rounded flex items-center justify-center flex-shrink-0 text-white text-[9px] font-bold"
-                  style={{ backgroundColor: site.faviconColor || '#6b7280' }}
-                >
-                  {getInitials(site.name)}
-                </div>
-                <span className="flex-1 text-left truncate">{site.name}</span>
-                <span className="font-mono text-[11px] text-ink-400">{site.postCount}</span>
-              </button>
-            ))}
           </div>
         </div>
 

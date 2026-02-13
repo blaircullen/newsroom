@@ -1,5 +1,32 @@
 # Project Context for Claude
 
+## Quick Start
+
+```bash
+npm install
+npm run dev          # Dev server on localhost:3000
+npm run build        # Production build
+npm run lint         # ESLint
+npx prisma studio    # Visual DB browser
+npx prisma generate  # Regenerate Prisma client after schema changes
+```
+
+## Architecture
+
+**App:** Next.js 14, TypeScript, Tailwind CSS, Prisma ORM
+**Editor:** TipTap (rich text with tweet/media embeds)
+**Auth:** NextAuth credentials provider (bcrypt, cost factor 12)
+**Analytics:** Umami (self-hosted) via API
+
+**Pages:** `/dashboard`, `/editor/[id]`, `/analytics`, `/calendar`, `/social-queue`, `/login`
+**API routes:** `/api/articles/*`, `/api/analytics/*`, `/api/social/*`, `/api/cron/*`, `/api/sites/*`, `/api/trending/*`
+**Key libs:** `src/lib/auth.ts`, `src/lib/prisma.ts`, `src/lib/email.ts`, `src/lib/social-caption.ts`, `src/lib/x-oauth.ts`
+
+**Patterns:**
+- All pages use `'use client'` (heavy interactivity) — use `layout.tsx` for metadata, `loading.tsx` for loading states
+- Article search: PostgreSQL full-text search (tsvector/tsquery) with GIN index for 3+ chars, ILIKE fallback for shorter
+- Prisma migrations dir is gitignored — run migration SQL manually on production
+
 ## Database Architecture
 
 **IMPORTANT: This project uses TWO separate databases:**
@@ -15,7 +42,7 @@
 
 **To access production database:**
 ```bash
-ssh root@<HETZNER_IP>
+ssh root@178.156.143.87
 docker exec newsroom-db-1 psql -U newsroom -d m3newsroom -c "YOUR_QUERY"
 ```
 
@@ -33,14 +60,16 @@ docker exec newsroom-db-1 pg_dump -U newsroom -d m3newsroom --no-owner --no-acl 
 
 **To sync production data to local Neon:**
 1. SSH to Hetzner and export: `docker exec newsroom-db-1 pg_dump -U newsroom -d m3newsroom --no-owner --no-acl > /tmp/backup.sql`
-2. Download: `scp root@<HETZNER_IP>:/tmp/backup.sql ~/Downloads/`
+2. Download: `scp root@178.156.143.87:/tmp/backup.sql ~/Downloads/`
 3. Clear Neon: `psql '<NEON_CONNECTION_STRING>' -c "DROP SCHEMA public CASCADE; CREATE SCHEMA public;"`
 4. Import: `psql '<NEON_CONNECTION_STRING>' < ~/Downloads/backup.sql`
 
 ## Deployment
 
+> **AUTO-DEPLOY:** Pushing to `main` automatically deploys to production. No manual SSH/docker commands needed after push.
+
 - **Production URL:** https://newsroom.m3media.com
-- **Hosting:** Hetzner VPS
+- **Hosting:** Hetzner VPS (178.156.143.87)
 - **Reverse Proxy:** Caddy (container: `caddy`)
 - **App Directory:** `/opt/newsroom/`
 - **Docker Compose:** `/opt/newsroom/docker-compose.yml`
@@ -48,12 +77,19 @@ docker exec newsroom-db-1 pg_dump -U newsroom -d m3newsroom --no-owner --no-acl 
 
 ## Schema Changes
 
-**NEVER run `prisma db push` against production without a backup!**
+**CRITICAL: Always run migration SQL on production BEFORE pushing to main.** Auto-deploy starts new code immediately — if the schema doesn't exist yet, the app crashes.
 
-For schema changes:
-1. Test locally against Neon first
-2. Backup production: `docker exec newsroom-db-1 pg_dump ...`
-3. Apply changes with proper migrations
+**Workflow:**
+1. Make schema changes in `prisma/schema.prisma`
+2. Test locally against Neon: `npx prisma db push`
+3. Generate migration SQL: `npx prisma migrate dev --name <description>`
+4. SSH to Hetzner and run the SQL:
+   ```bash
+   ssh root@178.156.143.87
+   docker exec newsroom-db-1 psql -U newsroom -d m3newsroom -c "ALTER TABLE ..."
+   ```
+5. Verify success
+6. **Then** `git push origin main`
 
 ## Backups
 
@@ -100,5 +136,5 @@ docker restart newsroom-app
 - `/opt/newsroom/docker-compose.yml` - Docker configuration (on Hetzner)
 - `/opt/newsroom/backup.sh` - Backup script (on Hetzner)
 - `/opt/newsroom/backups/` - Database backups (on Hetzner)
-- `/Users/sunygxc/newsroom-temp/.env` - Local development environment
-- `/Users/sunygxc/newsroom-temp/prisma/schema.prisma` - Database schema
+- `/Users/sunygxc/newsroom/.env` - Local development environment
+- `/Users/sunygxc/newsroom/prisma/schema.prisma` - Database schema
