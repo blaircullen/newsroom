@@ -48,6 +48,9 @@ export async function GET(request: NextRequest) {
     const codeChallenge = sha256Base64Url(codeVerifier);
     const state = generateRandomString(32);
 
+    // Check if this is a popup flow
+    const popup = searchParams.get('popup') === '1';
+
     // Store PKCE parameters and app identifier in cookie
     // Note: clientId/clientSecret are looked up server-side via appIdentifier — never stored in cookies
     const cookieStore = await cookies();
@@ -55,6 +58,7 @@ export async function GET(request: NextRequest) {
       codeVerifier,
       state,
       appIdentifier,
+      popup,
     });
 
     cookieStore.set('x_oauth_state', oauthState, {

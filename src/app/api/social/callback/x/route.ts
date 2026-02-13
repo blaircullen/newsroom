@@ -41,59 +41,68 @@ export async function GET(request: NextRequest) {
     const state = searchParams.get('state');
     const error = searchParams.get('error');
 
+    // Read cookie once and determine if this is a popup flow
+    const cookieStore = await cookies();
+    const isPopup = (() => {
+      try {
+        const raw = cookieStore.get('x_oauth_state')?.value;
+        return raw ? JSON.parse(raw).popup === true : false;
+      } catch { return false; }
+    })();
+
+    // Helper: redirect to completion page (popup) or social-accounts page (non-popup)
+    const redirectResult = (params: Record<string, string>) => {
+      if (isPopup) {
+        const url = new URL('/api/social/auth/complete', process.env.NEXTAUTH_URL!);
+        if (!params.platform) url.searchParams.set('platform', 'x');
+        for (const [k, v] of Object.entries(params)) url.searchParams.set(k, v);
+        return NextResponse.redirect(url);
+      }
+      const url = new URL('/admin/social-accounts', process.env.NEXTAUTH_URL!);
+      for (const [k, v] of Object.entries(params)) url.searchParams.set(k, v);
+      return NextResponse.redirect(url);
+    };
+
     // Handle user denial
     if (error) {
-      const cookieStore = await cookies();
       cookieStore.delete('x_oauth_state');
-      return NextResponse.redirect(
-        new URL(`/admin/social-accounts?error=oauth_denied&platform=x`, process.env.NEXTAUTH_URL!)
-      );
+      return redirectResult({ error: 'oauth_denied', platform: 'x' });
     }
 
     if (!code || !state) {
-      return NextResponse.redirect(
-        new URL('/admin/social-accounts?error=missing_code', process.env.NEXTAUTH_URL!)
-      );
+      return redirectResult({ error: 'missing_code' });
     }
 
     // Retrieve and verify OAuth state from cookie
-    const cookieStore = await cookies();
     const stateCookie = cookieStore.get('x_oauth_state')?.value;
     if (!stateCookie) {
-      return NextResponse.redirect(
-        new URL('/admin/social-accounts?error=missing_state', process.env.NEXTAUTH_URL!)
-      );
+      return redirectResult({ error: 'missing_state' });
     }
 
     let oauthState: {
       codeVerifier: string;
       state: string;
       appIdentifier: string;
+      popup?: boolean;
     };
     try {
       oauthState = JSON.parse(stateCookie);
     } catch {
       cookieStore.delete('x_oauth_state');
-      return NextResponse.redirect(
-        new URL('/admin/social-accounts?error=invalid_state', process.env.NEXTAUTH_URL!)
-      );
+      return redirectResult({ error: 'invalid_state' });
     }
 
     // Verify state parameter
     if (state !== oauthState.state) {
       cookieStore.delete('x_oauth_state');
-      return NextResponse.redirect(
-        new URL('/admin/social-accounts?error=state_mismatch', process.env.NEXTAUTH_URL!)
-      );
+      return redirectResult({ error: 'state_mismatch' });
     }
 
     // Look up credentials server-side using the app identifier
     const credentials = getXAppCredentials(oauthState.appIdentifier);
     if (!credentials) {
       cookieStore.delete('x_oauth_state');
-      return NextResponse.redirect(
-        new URL('/admin/social-accounts?error=credentials_not_configured', process.env.NEXTAUTH_URL!)
-      );
+      return redirectResult({ error: 'credentials_not_configured' });
     }
 
     // Exchange code for tokens
@@ -119,12 +128,9 @@ export async function GET(request: NextRequest) {
     });
 
     if (!tokenResponse.ok) {
-      const errorText = await tokenResponse.text();
-      console.error('[OAuth] X token exchange failed:', errorText);
+      console.error('[OAuth] X token exchange failed:', tokenResponse.status, tokenResponse.statusText);
       cookieStore.delete('x_oauth_state');
-      return NextResponse.redirect(
-        new URL('/admin/social-accounts?error=token_exchange_failed', process.env.NEXTAUTH_URL!)
-      );
+      return redirectResult({ error: 'token_exchange_failed' });
     }
 
     const tokenData: XTokenResponse = await tokenResponse.json();
@@ -137,12 +143,9 @@ export async function GET(request: NextRequest) {
     });
 
     if (!userResponse.ok) {
-      const errorText = await userResponse.text();
-      console.error('[OAuth] X user fetch failed:', errorText);
+      console.error('[OAuth] X user fetch failed:', userResponse.status, userResponse.statusText);
       cookieStore.delete('x_oauth_state');
-      return NextResponse.redirect(
-        new URL('/admin/social-accounts?error=user_fetch_failed', process.env.NEXTAUTH_URL!)
-      );
+      return redirectResult({ error: 'user_fetch_failed' });
     }
 
     const userData: XUserResponse = await userResponse.json();
@@ -183,14 +186,15 @@ export async function GET(request: NextRequest) {
     // Clear cookie
     cookieStore.delete('x_oauth_state');
 
-    // Redirect to social accounts page with success
-    return NextResponse.redirect(
-      new URL(`/admin/social-accounts?connected=x&handle=${userData.data.username}`, process.env.NEXTAUTH_URL!)
-    );
+    // Redirect with success
+    return redirectResult({ connected: 'x', handle: userData.data.username });
   } catch (error) {
     console.error('[OAuth] Error handling X callback:', error);
-    const cookieStore = await cookies();
-    cookieStore.delete('x_oauth_state');
+    try {
+      const cookieStore = await cookies();
+      cookieStore.delete('x_oauth_state');
+    } catch { /* ignore cookie cleanup errors */ }
+    // Catch block can't access isPopup, fall back to non-popup redirect
     return NextResponse.redirect(
       new URL('/admin/social-accounts?error=callback_failed', process.env.NEXTAUTH_URL!)
     );

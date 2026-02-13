@@ -79,10 +79,22 @@ export async function generateCaption(params: {
   const bodyExcerpt = bodyText.substring(0, 2000);
 
   // Build platform-specific instructions
-  const platformInstructions =
+  let platformInstructions =
     socialAccount.platform === 'X'
       ? 'Maximum 280 characters including the URL. Be concise. The URL will be appended to your caption, so leave room for it (about 25 characters for a t.co link).'
       : 'Can be longer and more conversational (1-3 sentences). The URL will be added as a separate link that generates a preview card, so don\'t include it in the caption text itself.';
+
+  // X-specific algorithm optimization hints
+  if (socialAccount.platform === 'X') {
+    platformInstructions += `
+ALGORITHM OPTIMIZATION:
+- Trigger replies: use a question or a strong specific claim people want to respond to
+- Be specific and opinionated, not generic — "73% of X" beats "most people"
+- Front-load the hook: first 40 characters determine if people stop scrolling
+- Lead with the insight or implication, not just the headline
+- 200-260 characters tends to perform best
+- Avoid engagement bait that damages credibility`;
+  }
 
   // Build the user message
   const userMessage = `Write a social media caption for this article.

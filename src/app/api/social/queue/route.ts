@@ -33,12 +33,17 @@ export async function GET(request: NextRequest) {
     const dateParam = searchParams.get('date');
     const filterBy = searchParams.get('filterBy');
     const since = searchParams.get('since');
+    const search = searchParams.get('search');
 
     // Build where clause
     const where: any = {};
 
     if (status) {
       where.status = status;
+    }
+
+    if (search && search.trim()) {
+      where.caption = { contains: search.trim(), mode: 'insensitive' };
     }
 
     if (platform) {
@@ -98,10 +103,19 @@ export async function GET(request: NextRequest) {
           },
           socialAccount: {
             select: {
+              id: true,
               platform: true,
               accountName: true,
               accountHandle: true,
+              avatarUrl: true,
               publishTargetId: true,
+              publishTarget: {
+                select: {
+                  name: true,
+                  url: true,
+                  faviconColor: true,
+                },
+              },
             },
           },
         },

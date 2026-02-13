@@ -157,6 +157,8 @@ model PublishTarget {
   clientSecret    String?  @map("client_secret")
   myshopifyDomain String?  @map("myshopify_domain")
   blogId          String?  @map("blog_id")
+  avatarUrl       String?  @map("avatar_url")
+  faviconColor    String?  @map("favicon_color")
   socialAccounts  SocialAccount[]
   voiceProfile    SiteVoiceProfile?
 
@@ -204,6 +206,7 @@ model SocialAccount {
   isActive              Boolean         @default(true) @map("is_active")
   optimalHours          Json?           @map("optimal_hours")
   optimalHoursUpdatedAt DateTime?       @map("optimal_hours_updated_at")
+  avatarUrl             String?         @map("avatar_url")
   createdAt             DateTime        @default(now()) @map("created_at")
   updatedAt             DateTime        @updatedAt @map("updated_at")
   publishTarget         PublishTarget?  @relation(fields: [publishTargetId], references: [id])

@@ -41,46 +41,56 @@ export async function GET(request: NextRequest) {
     const state = searchParams.get('state');
     const error = searchParams.get('error');
 
+    // Read cookie once and determine if this is a popup flow
+    const cookieStore = await cookies();
+    const isPopup = (() => {
+      try {
+        const raw = cookieStore.get('fb_oauth_state')?.value;
+        return raw ? JSON.parse(raw).popup === true : false;
+      } catch { return false; }
+    })();
+
+    // Helper: redirect to completion page (popup) or social-accounts page (non-popup)
+    const redirectResult = (params: Record<string, string>) => {
+      if (isPopup) {
+        const url = new URL('/api/social/auth/complete', process.env.NEXTAUTH_URL!);
+        if (!params.platform) url.searchParams.set('platform', 'facebook');
+        for (const [k, v] of Object.entries(params)) url.searchParams.set(k, v);
+        return NextResponse.redirect(url);
+      }
+      const url = new URL('/admin/social-accounts', process.env.NEXTAUTH_URL!);
+      for (const [k, v] of Object.entries(params)) url.searchParams.set(k, v);
+      return NextResponse.redirect(url);
+    };
+
     // Handle user denial
     if (error) {
-      const cookieStore = await cookies();
       cookieStore.delete('fb_oauth_state');
-      return NextResponse.redirect(
-        new URL(`/admin/social-accounts?error=oauth_denied&platform=facebook`, process.env.NEXTAUTH_URL!)
-      );
+      return redirectResult({ error: 'oauth_denied', platform: 'facebook' });
     }
 
     if (!code || !state) {
-      return NextResponse.redirect(
-        new URL('/admin/social-accounts?error=missing_code', process.env.NEXTAUTH_URL!)
-      );
+      return redirectResult({ error: 'missing_code' });
     }
 
     // Retrieve and verify OAuth state from cookie
-    const cookieStore = await cookies();
     const stateCookie = cookieStore.get('fb_oauth_state')?.value;
     if (!stateCookie) {
-      return NextResponse.redirect(
-        new URL('/admin/social-accounts?error=missing_state', process.env.NEXTAUTH_URL!)
-      );
+      return redirectResult({ error: 'missing_state' });
     }
 
-    let oauthState: { state: string };
+    let oauthState: { state: string; popup?: boolean };
     try {
       oauthState = JSON.parse(stateCookie);
     } catch {
       cookieStore.delete('fb_oauth_state');
-      return NextResponse.redirect(
-        new URL('/admin/social-accounts?error=invalid_state', process.env.NEXTAUTH_URL!)
-      );
+      return redirectResult({ error: 'invalid_state' });
     }
 
     // Verify state parameter
     if (state !== oauthState.state) {
       cookieStore.delete('fb_oauth_state');
-      return NextResponse.redirect(
-        new URL('/admin/social-accounts?error=state_mismatch', process.env.NEXTAUTH_URL!)
-      );
+      return redirectResult({ error: 'state_mismatch' });
     }
 
     const facebookAppId = process.env.FACEBOOK_APP_ID;
@@ -88,9 +98,7 @@ export async function GET(request: NextRequest) {
 
     if (!facebookAppId || !facebookAppSecret) {
       cookieStore.delete('fb_oauth_state');
-      return NextResponse.redirect(
-        new URL('/admin/social-accounts?error=missing_credentials', process.env.NEXTAUTH_URL!)
-      );
+      return redirectResult({ error: 'missing_credentials' });
     }
 
     const redirectUri = `${process.env.NEXTAUTH_URL}/api/social/callback/facebook`;
@@ -104,12 +112,9 @@ export async function GET(request: NextRequest) {
 
     const shortTokenResponse = await fetch(shortTokenUrl.toString());
     if (!shortTokenResponse.ok) {
-      const errorText = await shortTokenResponse.text();
-      console.error('[OAuth] Facebook short token exchange failed:', errorText);
+      console.error('[OAuth] Facebook short token exchange failed:', shortTokenResponse.status, shortTokenResponse.statusText);
       cookieStore.delete('fb_oauth_state');
-      return NextResponse.redirect(
-        new URL('/admin/social-accounts?error=token_exchange_failed', process.env.NEXTAUTH_URL!)
-      );
+      return redirectResult({ error: 'token_exchange_failed' });
     }
 
     const shortTokenData: FacebookTokenResponse = await shortTokenResponse.json();
@@ -123,12 +128,9 @@ export async function GET(request: NextRequest) {
 
     const longTokenResponse = await fetch(longTokenUrl.toString());
     if (!longTokenResponse.ok) {
-      const errorText = await longTokenResponse.text();
-      console.error('[OAuth] Facebook long token exchange failed:', errorText);
+      console.error('[OAuth] Facebook long token exchange failed:', longTokenResponse.status, longTokenResponse.statusText);
       cookieStore.delete('fb_oauth_state');
-      return NextResponse.redirect(
-        new URL('/admin/social-accounts?error=long_token_exchange_failed', process.env.NEXTAUTH_URL!)
-      );
+      return redirectResult({ error: 'long_token_exchange_failed' });
     }
 
     const longTokenData: FacebookTokenResponse = await longTokenResponse.json();
@@ -139,24 +141,21 @@ export async function GET(request: NextRequest) {
 
     const pagesResponse = await fetch(pagesUrl.toString());
     if (!pagesResponse.ok) {
-      const errorText = await pagesResponse.text();
-      console.error('[OAuth] Facebook pages fetch failed:', errorText);
+      console.error('[OAuth] Facebook pages fetch failed:', pagesResponse.status, pagesResponse.statusText);
       cookieStore.delete('fb_oauth_state');
-      return NextResponse.redirect(
-        new URL('/admin/social-accounts?error=pages_fetch_failed', process.env.NEXTAUTH_URL!)
-      );
+      return redirectResult({ error: 'pages_fetch_failed' });
     }
 
     const pagesData: FacebookPagesResponse = await pagesResponse.json();
 
     if (!pagesData.data || pagesData.data.length === 0) {
       cookieStore.delete('fb_oauth_state');
-      return NextResponse.redirect(
-        new URL('/admin/social-accounts?error=no_pages_found', process.env.NEXTAUTH_URL!)
-      );
+      return redirectResult({ error: 'no_pages_found' });
     }
 
     // Step 4: Store each page as a social account
+    const SIXTY_DAYS_MS = 60 * 24 * 60 * 60 * 1000;
+    const now = Date.now();
     const createdAccounts: string[] = [];
     for (const page of pagesData.data) {
       if (!page.access_token) continue;
@@ -165,7 +164,7 @@ export async function GET(request: NextRequest) {
       const encryptedAccessToken = encrypt(page.access_token);
 
       // Page tokens from long-lived user tokens don't expire, but we track 60 days
-      const tokenExpiresAt = new Date(Date.now() + 60 * 24 * 60 * 60 * 1000);
+      const tokenExpiresAt = new Date(now + SIXTY_DAYS_MS);
 
       // Upsert social account
       await prisma.socialAccount.upsert({
@@ -197,15 +196,17 @@ export async function GET(request: NextRequest) {
     // Clear cookie
     cookieStore.delete('fb_oauth_state');
 
-    // Redirect to social accounts page with success
-    const accountsParam = createdAccounts.length > 0 ? `&accounts=${createdAccounts.length}` : '';
-    return NextResponse.redirect(
-      new URL(`/admin/social-accounts?connected=facebook${accountsParam}`, process.env.NEXTAUTH_URL!)
-    );
+    // Redirect with success
+    return redirectResult({
+      connected: 'facebook',
+      count: String(createdAccounts.length),
+    });
   } catch (error) {
     console.error('[OAuth] Error handling Facebook callback:', error);
-    const cookieStore = await cookies();
-    cookieStore.delete('fb_oauth_state');
+    try {
+      const cookieStore = await cookies();
+      cookieStore.delete('fb_oauth_state');
+    } catch { /* ignore cookie cleanup errors */ }
     return NextResponse.redirect(
       new URL('/admin/social-accounts?error=callback_failed', process.env.NEXTAUTH_URL!)
     );

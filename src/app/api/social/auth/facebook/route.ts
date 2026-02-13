@@ -29,12 +29,16 @@ export async function GET(request: NextRequest) {
       );
     }
 
+    // Check if this is a popup flow
+    const { searchParams } = new URL(request.url);
+    const popup = searchParams.get('popup') === '1';
+
     // Generate state parameter
     const state = generateRandomString(32);
 
     // Store state in cookie
     const cookieStore = await cookies();
-    const oauthState = JSON.stringify({ state });
+    const oauthState = JSON.stringify({ state, popup });
 
     cookieStore.set('fb_oauth_state', oauthState, {
       httpOnly: true,
