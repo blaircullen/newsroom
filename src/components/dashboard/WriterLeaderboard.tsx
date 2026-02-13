@@ -135,12 +135,12 @@ export default function WriterLeaderboard() {
                     NEW
                   </span>
                 )}
-                {entry.rankChange && entry.rankChange > 0 && (
+                {entry.rankChange != null && entry.rankChange > 0 && (
                   <svg className="w-3 h-3 text-emerald-500" viewBox="0 0 8 8">
                     <path d="M4 1L7 5H1L4 1Z" fill="currentColor" />
                   </svg>
                 )}
-                {entry.rankChange && entry.rankChange < 0 && (
+                {entry.rankChange != null && entry.rankChange < 0 && (
                   <svg className="w-3 h-3 text-red-400" viewBox="0 0 8 8">
                     <path d="M4 7L7 3H1L4 7Z" fill="currentColor" />
                   </svg>
