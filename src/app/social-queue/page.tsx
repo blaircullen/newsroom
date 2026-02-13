@@ -42,8 +42,8 @@ export default function SocialQueuePage() {
   }
 
   return (
-    <AppShell>
-      <div className="-mx-4 sm:-mx-6 lg:-mx-8 -my-4 sm:-my-6 lg:-my-8 flex h-[calc(100vh-64px)]">
+    <AppShell flush>
+      <div className="flex h-screen">
         {/* Sidebar — hidden on mobile */}
         <div className="hidden lg:block flex-shrink-0">
           <QueueSidebar

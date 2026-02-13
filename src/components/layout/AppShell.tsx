@@ -19,9 +19,11 @@ interface AppShellProps {
   children: React.ReactNode;
   // When true, hide mobile header and slide-out menu (for pages with their own mobile nav)
   hideOnMobile?: boolean;
+  // When true, skip the content wrapper padding/max-width (for pages with their own layout)
+  flush?: boolean;
 }
 
-export default function AppShell({ children, hideOnMobile = false }: AppShellProps) {
+export default function AppShell({ children, hideOnMobile = false, flush = false }: AppShellProps) {
   const { data: session, status } = useSession();
   const router = useRouter();
   const pathname = usePathname();
@@ -218,9 +220,13 @@ export default function AppShell({ children, hideOnMobile = false }: AppShellPro
               ))}
           </div>
         )}
-        <div className={`mx-auto ${hideOnMobile ? 'px-0 md:px-4 lg:px-8 py-0 md:py-6 lg:py-8 max-w-none md:max-w-7xl' : 'max-w-7xl px-4 sm:px-6 lg:px-8 py-4 sm:py-6 lg:py-8'}`}>
-          {children}
-        </div>
+        {flush ? (
+          children
+        ) : (
+          <div className={`mx-auto ${hideOnMobile ? 'px-0 md:px-4 lg:px-8 py-0 md:py-6 lg:py-8 max-w-none md:max-w-7xl' : 'max-w-7xl px-4 sm:px-6 lg:px-8 py-4 sm:py-6 lg:py-8'}`}>
+            {children}
+          </div>
+        )}
       </main>
     </div>
   );
