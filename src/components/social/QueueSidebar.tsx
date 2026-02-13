@@ -52,7 +52,7 @@ export default function QueueSidebar({
   onConnectClick,
 }: QueueSidebarProps) {
   return (
-    <aside className="w-[260px] h-full overflow-y-auto border-r border-ink-200 dark:border-ink-800 bg-white dark:bg-ink-900">
+    <aside className="w-[260px] h-full overflow-y-auto border-l border-ink-200 dark:border-ink-800 bg-white dark:bg-ink-900">
       <div className="p-5 space-y-6">
         {/* Overview Stats */}
         <div>

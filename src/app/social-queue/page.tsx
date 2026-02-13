@@ -44,20 +44,6 @@ export default function SocialQueuePage() {
   return (
     <AppShell flush>
       <div className="flex h-screen">
-        {/* Sidebar — hidden on mobile */}
-        <div className="hidden lg:block flex-shrink-0">
-          <QueueSidebar
-            stats={queue.stats}
-            siteFilter={queue.siteFilter}
-            onSiteFilter={queue.setSiteFilter}
-            platformFilter={queue.platformFilter}
-            onPlatformFilter={queue.setPlatformFilter}
-            statusFilter={queue.statusFilter}
-            onStatusFilter={queue.setStatusFilter}
-            onConnectClick={() => setShowConnectModal(true)}
-          />
-        </div>
-
         {/* Main content */}
         <div className="flex-1 flex flex-col min-w-0">
           <QueueHeader
@@ -102,6 +88,20 @@ export default function SocialQueuePage() {
               <ActivityView posts={queue.posts} />
             )}
           </div>
+        </div>
+
+        {/* Right sidebar — hidden on mobile */}
+        <div className="hidden lg:block flex-shrink-0">
+          <QueueSidebar
+            stats={queue.stats}
+            siteFilter={queue.siteFilter}
+            onSiteFilter={queue.setSiteFilter}
+            platformFilter={queue.platformFilter}
+            onPlatformFilter={queue.setPlatformFilter}
+            statusFilter={queue.statusFilter}
+            onStatusFilter={queue.setStatusFilter}
+            onConnectClick={() => setShowConnectModal(true)}
+          />
         </div>
       </div>
 
