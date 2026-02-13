@@ -4,7 +4,7 @@ export const dynamic = 'force-dynamic';
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useSession } from 'next-auth/react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import toast from 'react-hot-toast';
 import AppShell from '@/components/layout/AppShell';
@@ -51,6 +51,7 @@ const FILTERS = [
 export default function DashboardPage() {
   const { data: session, status } = useSession();
   const router = useRouter();
+  const searchParams = useSearchParams();
 
   const [activeTab, setActiveTab] = useState<TabId>('home');
   const [articles, setArticles] = useState<Article[]>([]);
@@ -61,7 +62,10 @@ export default function DashboardPage() {
   const [totalPages, setTotalPages] = useState(1);
   const [sortBy, setSortBy] = useState('createdAt');
   const [isAutoRefreshing, setIsAutoRefreshing] = useState(false);
-  const [activeFilter, setActiveFilter] = useState('');
+  const [activeFilter, setActiveFilter] = useState(() => {
+    const f = searchParams.get('filter')?.toUpperCase() || '';
+    return FILTERS.some(opt => opt.value === f) ? f : '';
+  });
   const [isLoading, setIsLoading] = useState(true);
   const [deleteConfirm, setDeleteConfirm] = useState<{ id: string; headline: string } | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -631,11 +635,15 @@ export default function DashboardPage() {
               {isAdmin && stats.submitted > 0 && (
                 <>
                   <span className="w-px h-4 bg-ink-200 dark:bg-ink-700" />
-                  <span className="inline-flex items-center gap-1.5 text-sm font-medium text-blue-600 dark:text-blue-400">
+                  <button
+                    type="button"
+                    onClick={() => setActiveFilter('SUBMITTED')}
+                    className="inline-flex items-center gap-1.5 text-sm font-medium text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 transition-colors cursor-pointer"
+                  >
                     <span className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse" />
                     <span className="font-display text-lg font-bold tabular-nums">{stats.submitted}</span>
                     awaiting review
-                  </span>
+                  </button>
                 </>
               )}
             </div>
