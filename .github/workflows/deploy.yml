@@ -54,9 +54,8 @@ jobs:
             # Pull latest image
             docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
 
-            # Update and restart
-            docker compose down app
-            docker compose up -d app
+            # Update and restart (--force-recreate ensures env vars from .env are picked up)
+            docker compose up -d --force-recreate app
 
             # Run database migrations
             docker compose exec -T app npx prisma migrate deploy
