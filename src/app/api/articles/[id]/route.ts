@@ -4,6 +4,7 @@ import { authOptions } from '@/lib/auth';
 import prisma from '@/lib/prisma';
 import slugify from 'slugify';
 import { sendDeletionNotification } from '@/lib/email';
+import { incrementUsageCount, decrementUsageCount } from '@/lib/media';
 
 // Input validation constants (same as POST endpoint)
 const MAX_HEADLINE_LENGTH = 500;
@@ -29,6 +30,7 @@ export async function GET(
         select: { id: true, name: true, email: true, avatarUrl: true },
       },
       tags: { include: { tag: true } },
+      featuredMedia: true,
       reviews: {
         include: {
           reviewer: { select: { id: true, name: true } },
@@ -94,7 +96,7 @@ export async function PUT(
     return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 });
   }
 
-  const { headline, subHeadline, bodyContent, bodyHtml, featuredImage, featuredImageId, imageCredit, tags, scheduledPublishAt, scheduledPublishTargetId } = body;
+  const { headline, subHeadline, bodyContent, bodyHtml, featuredImage, featuredImageId, featuredMediaId, imageCredit, tags, scheduledPublishAt, scheduledPublishTargetId } = body;
 
   // Validate field types and lengths (consistent with POST endpoint)
   if (headline !== undefined) {
@@ -139,7 +141,18 @@ export async function PUT(
   if (bodyHtml !== undefined) updateData.bodyHtml = typeof bodyHtml === 'string' ? bodyHtml : null;
   if (featuredImage !== undefined) updateData.featuredImage = typeof featuredImage === 'string' ? featuredImage : null;
   if (featuredImageId !== undefined) updateData.featuredImageId = typeof featuredImageId === 'string' ? featuredImageId : null;
+  if (featuredMediaId !== undefined) updateData.featuredMediaId = typeof featuredMediaId === 'string' ? featuredMediaId : null;
   if (imageCredit !== undefined) updateData.imageCredit = typeof imageCredit === 'string' ? imageCredit.trim() || null : null;
+
+  // Manage media usage counts when featuredMediaId changes
+  if (featuredMediaId !== undefined) {
+    const oldMediaId = article.featuredMediaId;
+    const newMediaId = typeof featuredMediaId === 'string' ? featuredMediaId : null;
+    if (oldMediaId !== newMediaId) {
+      if (oldMediaId) decrementUsageCount(oldMediaId).catch(() => {});
+      if (newMediaId) incrementUsageCount(newMediaId).catch(() => {});
+    }
+  }
   if (scheduledPublishAt !== undefined) {
     updateData.scheduledPublishAt = scheduledPublishAt ? new Date(scheduledPublishAt as string) : null;
   }
@@ -203,6 +216,7 @@ export async function PUT(
         select: { id: true, name: true, email: true, avatarUrl: true },
       },
       tags: { include: { tag: true } },
+      featuredMedia: true,
     },
   });
 

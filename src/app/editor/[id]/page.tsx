@@ -47,6 +47,7 @@ export default function EditArticlePage() {
   const [tags, setTags] = useState<string[]>([]);
   const [featuredImage, setFeaturedImage] = useState<string | null>(null);
   const [featuredImageId, setFeaturedImageId] = useState<string | null>(null);
+  const [featuredMediaId, setFeaturedMediaId] = useState<string | null>(null);
   const [imageCredit, setImageCredit] = useState('');
   const [showImagePicker, setShowImagePicker] = useState(false);
   const [showPublishModal, setShowPublishModal] = useState(false);
@@ -84,16 +85,11 @@ export default function EditArticlePage() {
         setTags(data.tags.map((t: any) => t.tag.name));
         setFeaturedImage(data.featuredImage);
         setFeaturedImageId(data.featuredImageId);
+        setFeaturedMediaId(data.featuredMediaId || null);
         setImageCredit(data.imageCredit || '');
-        // Backfill: if image exists but no credit, look up stored credit
-        if (data.featuredImageId && !data.imageCredit) {
-          try {
-            const creditRes = await fetch(`/api/image-credits/${data.featuredImageId}`);
-            if (creditRes.ok) {
-              const creditData = await creditRes.json();
-              if (creditData.credit) setImageCredit(creditData.credit);
-            }
-          } catch {}
+        // Auto-populate credit from Media record if available
+        if (data.featuredMedia?.credit && !data.imageCredit) {
+          setImageCredit(data.featuredMedia.credit);
         }
       } catch (error) {
         toast.error('Article not found');
@@ -134,6 +130,7 @@ export default function EditArticlePage() {
           bodyHtml,
           featuredImage,
           featuredImageId,
+          featuredMediaId,
           imageCredit: imageCredit.trim() || null,
           tags,
         }),
@@ -150,7 +147,7 @@ export default function EditArticlePage() {
     } catch {
       setAutoSaveStatus('error');
     }
-  }, [articleId, headline, subHeadline, bodyContent, bodyHtml, featuredImage, featuredImageId, imageCredit, tags]);
+  }, [articleId, headline, subHeadline, bodyContent, bodyHtml, featuredImage, featuredImageId, featuredMediaId, imageCredit, tags]);
 
   const scheduleAutoSave = useCallback(() => {
     if (isInitialLoad.current) return;
@@ -164,7 +161,7 @@ export default function EditArticlePage() {
     if (isInitialLoad.current) return;
     if (!canEdit) return;
     scheduleAutoSave();
-  }, [headline, subHeadline, bodyContent, tags, featuredImage, imageCredit, scheduleAutoSave, canEdit]);
+  }, [headline, subHeadline, bodyContent, tags, featuredImage, featuredMediaId, imageCredit, scheduleAutoSave, canEdit]);
 
   useEffect(() => {
     return () => { if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current); };
@@ -185,6 +182,7 @@ export default function EditArticlePage() {
           bodyHtml,
           featuredImage,
           featuredImageId,
+          featuredMediaId,
           imageCredit: imageCredit.trim() || null,
           tags,
         }),
@@ -338,7 +336,7 @@ export default function EditArticlePage() {
                 <div className="absolute inset-0 bg-ink-950/0 group-hover:bg-ink-950/30 transition-all flex items-center justify-center">
                   <div className="opacity-0 group-hover:opacity-100 transition-opacity flex gap-2">
                     <button onClick={() => setShowImagePicker(true)} className="px-4 py-2 bg-white rounded-lg text-sm font-medium text-ink-700 shadow-lg">Change</button>
-                    <button onClick={() => { setFeaturedImage(null); setFeaturedImageId(null); setImageCredit(''); }} className="p-2 bg-white rounded-lg text-ink-700 shadow-lg"><HiOutlineXMark className="w-5 h-5" /></button>
+                    <button onClick={() => { setFeaturedImage(null); setFeaturedImageId(null); setFeaturedMediaId(null); setImageCredit(''); }} className="p-2 bg-white rounded-lg text-ink-700 shadow-lg"><HiOutlineXMark className="w-5 h-5" /></button>
                   </div>
                 </div>
               )}
@@ -404,20 +402,17 @@ export default function EditArticlePage() {
       </div>
 
       <ImagePicker isOpen={showImagePicker} onClose={() => setShowImagePicker(false)}
-        onSelect={async (image) => {
+        onSelect={(image) => {
           setFeaturedImage(image.directUrl);
           setFeaturedImageId(image.id);
+          setFeaturedMediaId(image.id);
           setShowImagePicker(false);
-          // Fetch stored credit for the newly selected image
-          try {
-            const res = await fetch(`/api/image-credits/${image.id}`);
-            if (res.ok) {
-              const data = await res.json();
-              setImageCredit(data.credit || '');
-            }
-          } catch {}
+          // Auto-populate credit from media record
+          if (image.credit) {
+            setImageCredit(image.credit);
+          }
         }}
-        selectedImageId={featuredImageId} />
+        selectedImageId={featuredMediaId || featuredImageId} />
 
       {showPublishModal && (
         <PublishModal articleId={articleId} onClose={() => setShowPublishModal(false)}

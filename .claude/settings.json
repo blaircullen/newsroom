@@ -7,5 +7,18 @@
     "See CLAUDE.md in project root for full database documentation",
     "Production URL: https://newsroom.m3media.com",
     "App deployed via Docker Compose at /opt/newsroom/ on Hetzner"
-  ]
+  ],
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/Users/sunygxc/newsroom/.claude/hooks/auto-lint.sh"
+          }
+        ]
+      }
+    ]
+  }
 }

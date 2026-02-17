@@ -29,6 +29,8 @@ services:
     networks:
       - default
       - caddy-net
+    volumes:
+      - media_data:/data/media
     environment:
       DATABASE_URL: postgresql://newsroom:${DB_PASSWORD}@db:5432/m3newsroom?schema=public
       NEXTAUTH_URL: ${NEXTAUTH_URL}
@@ -49,10 +51,14 @@ services:
       UMAMI_LIZPEEK_WEBSITE_ID: ${UMAMI_LIZPEEK_WEBSITE_ID:-}
       UMAMI_JOEPAGS_WEBSITE_ID: ${UMAMI_JOEPAGS_WEBSITE_ID:-}
       UMAMI_ROGUERECAP_WEBSITE_ID: ${UMAMI_ROGUERECAP_WEBSITE_ID:-}
+      UMAMI_AMERICAISGOODUS_WEBSITE_ID: ${UMAMI_AMERICAISGOODUS_WEBSITE_ID:-}
       CRON_SECRET: ${CRON_SECRET:-}
+      MEDIA_STORAGE_PATH: /data/media
+      MEDIA_BASE_URL: ${MEDIA_BASE_URL:-/media}
 
 volumes:
   postgres_data:
+  media_data:
 
 networks:
   caddy-net:

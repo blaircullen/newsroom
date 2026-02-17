@@ -38,6 +38,8 @@ model Article {
   featuredImage       String?          @map("featured_image")
   featuredImageId     String?          @map("featured_image_id")
   imageCredit         String?          @map("image_credit")
+  featuredMediaId     String?          @map("featured_media_id")
+  featuredMedia       Media?           @relation("FeaturedMedia", fields: [featuredMediaId], references: [id])
   status              ArticleStatus    @default(DRAFT)
   authorId            String           @map("author_id")
   publishedUrl        String?          @map("published_url")
@@ -70,6 +72,7 @@ model Article {
   @@index([authorId, status])
   @@index([publishedAt])
   @@index([status, scheduledPublishAt])
+  @@index([featuredMediaId])
   @@map("articles")
 }
 
@@ -343,4 +346,32 @@ model ImageCredit {
   updatedAt   DateTime @updatedAt @map("updated_at")
 
   @@map("image_credits")
+}
+
+model Media {
+  id            String    @id @default(cuid())
+  filename      String
+  originalName  String    @map("original_name")
+  mimeType      String    @map("mime_type")
+  format        String
+  fileSize      Int       @map("file_size")
+  width         Int?
+  height        Int?
+  credit        String?
+  photographer  String?
+  source        String?
+  licenseType   String?   @map("license_type")
+  altText       String?   @map("alt_text")
+  description   String?
+  tags          String[]  @default([])
+  usageCount    Int       @default(0) @map("usage_count")
+  uploadedById  String?   @map("uploaded_by_id")
+  driveFileId   String?   @unique @map("drive_file_id")
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
+  articles      Article[] @relation("FeaturedMedia")
+
+  @@index([createdAt])
+  @@index([tags], type: Gin)
+  @@map("media")
 }

@@ -1,7 +1,10 @@
 import prisma from './prisma';
 import crypto from 'crypto';
+import fs from 'fs/promises';
+import path from 'path';
 import { processImage, OptimizeOptions } from './imageOptimization';
 import { decrypt } from './encryption';
+import { getMediaFilePath } from './media';
 
 interface PublishResult {
   success: boolean;
@@ -138,10 +141,23 @@ function getExtFromContentType(contentType: string): string {
   return 'jpg';
 }
 
-// Download an image — if it's a Drive proxy URL, fetch directly from Google Drive API
-// This avoids the auth-protected proxy route which can't be called server-side
+// Download an image — handles local media files, Drive proxy URLs, and external URLs
 async function downloadImage(imageUrl: string): Promise<ImageData | null> {
   try {
+    // Check if this is a local media URL (e.g., /media/2026/02/abc123.webp)
+    const mediaMatch = imageUrl.match(/^\/media\/(.+)$/);
+    if (mediaMatch) {
+      const filename = mediaMatch[1];
+      console.log(`[Image Download] Reading local media file: ${filename}`);
+      const filePath = getMediaFilePath(filename);
+      const buffer = await fs.readFile(filePath);
+      const ext = path.extname(filename).slice(1).toLowerCase();
+      const mimeMap: Record<string, string> = { webp: 'image/webp', jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png', gif: 'image/gif', svg: 'image/svg+xml' };
+      const contentType = mimeMap[ext] || 'image/jpeg';
+      console.log(`[Image Download] Local media success: ${buffer.length} bytes, ${contentType}`);
+      return { buffer, contentType, ext: ext === 'jpeg' ? 'jpg' : ext };
+    }
+
     // Check if this is a drive-images proxy URL and extract the file ID
     const driveMatch = imageUrl.match(/\/api\/drive-images\/([^/]+)\/raw/);
     if (driveMatch) {

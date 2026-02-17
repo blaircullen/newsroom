@@ -82,6 +82,7 @@ export async function GET(request: NextRequest) {
         slug: true,
         featuredImage: true,
         featuredImageId: true,
+        featuredMediaId: true,
         imageCredit: true,
         status: true,
         authorId: true,
@@ -148,7 +149,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 });
   }
 
-  const { headline, subHeadline, bodyContent, bodyHtml, featuredImage, featuredImageId, imageCredit, tags } = body;
+  const { headline, subHeadline, bodyContent, bodyHtml, featuredImage, featuredImageId, featuredMediaId, imageCredit, tags } = body;
 
   // Validate required fields
   if (typeof headline !== 'string' || !headline.trim()) {
@@ -220,6 +221,7 @@ export async function POST(request: NextRequest) {
       slug,
       featuredImage: typeof featuredImage === 'string' ? featuredImage : null,
       featuredImageId: typeof featuredImageId === 'string' ? featuredImageId : null,
+      featuredMediaId: typeof featuredMediaId === 'string' ? featuredMediaId : null,
       imageCredit: typeof imageCredit === 'string' ? imageCredit.trim() || null : null,
       status: 'DRAFT',
       authorId: session.user.id,

@@ -11,7 +11,7 @@ import {
 } from 'react-icons/hi2';
 import { useTrack } from '@/hooks/useTrack';
 
-interface DriveImage {
+interface MediaImage {
   id: string;
   name: string;
   mimeType: string;
@@ -19,12 +19,16 @@ interface DriveImage {
   directUrl: string;
   size: string;
   createdTime: string;
+  credit?: string | null;
+  altText?: string | null;
+  width?: number | null;
+  height?: number | null;
 }
 
 interface ImagePickerProps {
   isOpen: boolean;
   onClose: () => void;
-  onSelect: (image: DriveImage) => void;
+  onSelect: (image: MediaImage) => void;
   selectedImageId?: string | null;
 }
 
@@ -33,10 +37,11 @@ type Tab = 'browse' | 'upload';
 export default function ImagePicker({ isOpen, onClose, onSelect, selectedImageId }: ImagePickerProps) {
   const track = useTrack();
   const [activeTab, setActiveTab] = useState<Tab>('browse');
-  const [images, setImages] = useState<DriveImage[]>([]);
+  const [images, setImages] = useState<MediaImage[]>([]);
   const [search, setSearch] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [nextPageToken, setNextPageToken] = useState<string | null>(null);
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
 
   // Upload state
   const [isDragging, setIsDragging] = useState(false);
@@ -44,27 +49,31 @@ export default function ImagePicker({ isOpen, onClose, onSelect, selectedImageId
   const [uploadPreview, setUploadPreview] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
+  const [uploadCredit, setUploadCredit] = useState('');
+  const [uploadAltText, setUploadAltText] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const fetchImages = useCallback(async (query?: string, pageToken?: string, signal?: AbortSignal) => {
+  const fetchImages = useCallback(async (query?: string, pageNum: number = 1, signal?: AbortSignal) => {
     setIsLoading(true);
     try {
       const params = new URLSearchParams();
       if (query) params.set('q', query);
-      if (pageToken) params.set('pageToken', pageToken);
+      params.set('page', String(pageNum));
+      params.set('limit', '30');
 
-      const res = await fetch(`/api/drive-images?${params}`, { signal });
+      const res = await fetch(`/api/media?${params}`, { signal });
 
       if (!res.ok) throw new Error('Failed to fetch');
 
-      const data: { images: DriveImage[]; nextPageToken?: string } = await res.json();
+      const data = await res.json();
 
-      if (pageToken) {
+      if (pageNum > 1) {
         setImages((prev) => [...prev, ...data.images]);
       } else {
         setImages(data.images);
       }
-      setNextPageToken(data.nextPageToken || null);
+      setTotalPages(data.pages || 1);
+      setPage(pageNum);
     } catch (error) {
       if ((error as Error).name !== 'AbortError') {
         console.error('Failed to fetch images:', error);
@@ -78,7 +87,7 @@ export default function ImagePicker({ isOpen, onClose, onSelect, selectedImageId
     if (!isOpen || activeTab !== 'browse') return;
 
     const controller = new AbortController();
-    fetchImages(undefined, undefined, controller.signal);
+    fetchImages(undefined, 1, controller.signal);
 
     return () => controller.abort();
   }, [isOpen, activeTab, fetchImages]);
@@ -88,7 +97,7 @@ export default function ImagePicker({ isOpen, onClose, onSelect, selectedImageId
 
     const controller = new AbortController();
     const timer = setTimeout(() => {
-      fetchImages(search || undefined, undefined, controller.signal);
+      fetchImages(search || undefined, 1, controller.signal);
     }, 300);
 
     return () => {
@@ -110,6 +119,8 @@ export default function ImagePicker({ isOpen, onClose, onSelect, selectedImageId
     setUploadPreview(null);
     setUploadError(null);
     setIsUploading(false);
+    setUploadCredit('');
+    setUploadAltText('');
     if (fileInputRef.current) fileInputRef.current.value = '';
   }
 
@@ -172,8 +183,10 @@ export default function ImagePicker({ isOpen, onClose, onSelect, selectedImageId
     try {
       const formData = new FormData();
       formData.append('file', uploadFile);
+      if (uploadCredit.trim()) formData.append('credit', uploadCredit.trim());
+      if (uploadAltText.trim()) formData.append('altText', uploadAltText.trim());
 
-      const res = await fetch('/api/drive-images/upload', {
+      const res = await fetch('/api/media/upload', {
         method: 'POST',
         body: formData,
       });
@@ -229,7 +242,7 @@ export default function ImagePicker({ isOpen, onClose, onSelect, selectedImageId
                 Featured Image
               </h3>
               <p className="text-ink-400 text-xs">
-                Browse the shared library or upload your own
+                Browse the media library or upload your own
               </p>
             </div>
           </div>
@@ -301,7 +314,7 @@ export default function ImagePicker({ isOpen, onClose, onSelect, selectedImageId
                   <div className="text-center">
                     <HiOutlinePhoto className="w-12 h-12 text-ink-200 mx-auto mb-3" />
                     <p className="text-ink-500 text-sm">
-                      {search ? 'No images found matching your search' : 'No images in the shared drive'}
+                      {search ? 'No images found matching your search' : 'No images in the media library'}
                     </p>
                   </div>
                 </div>
@@ -343,10 +356,10 @@ export default function ImagePicker({ isOpen, onClose, onSelect, selectedImageId
                   </div>
 
                   {/* Load more */}
-                  {nextPageToken && (
+                  {page < totalPages && (
                     <div className="mt-4 text-center">
                       <button
-                        onClick={() => fetchImages(search || undefined, nextPageToken)}
+                        onClick={() => fetchImages(search || undefined, page + 1)}
                         disabled={isLoading}
                         className="px-4 py-2 text-sm text-press-600 hover:text-press-700 font-medium"
                       >
@@ -404,7 +417,7 @@ export default function ImagePicker({ isOpen, onClose, onSelect, selectedImageId
                     <img
                       src={uploadPreview}
                       alt="Upload preview"
-                      className="w-full max-h-[45vh] object-contain"
+                      className="w-full max-h-[35vh] object-contain"
                     />
                   )}
                 </div>
@@ -430,6 +443,24 @@ export default function ImagePicker({ isOpen, onClose, onSelect, selectedImageId
                   >
                     <HiOutlineXMark className="w-4 h-4" />
                   </button>
+                </div>
+
+                {/* Credit & Alt Text fields */}
+                <div className="space-y-3">
+                  <input
+                    type="text"
+                    value={uploadCredit}
+                    onChange={(e) => setUploadCredit(e.target.value)}
+                    placeholder="Image credit (e.g. Photo: Getty Images / John Smith)"
+                    className="w-full px-3 py-2 rounded-lg border border-ink-200 text-sm text-ink-700 placeholder-ink-300 focus:outline-none focus:border-press-500"
+                  />
+                  <input
+                    type="text"
+                    value={uploadAltText}
+                    onChange={(e) => setUploadAltText(e.target.value)}
+                    placeholder="Alt text (describe the image for accessibility)"
+                    className="w-full px-3 py-2 rounded-lg border border-ink-200 text-sm text-ink-700 placeholder-ink-300 focus:outline-none focus:border-press-500"
+                  />
                 </div>
 
                 {/* Error */}

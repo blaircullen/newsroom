@@ -33,5 +33,8 @@ next-env.d.ts
 # prisma
 prisma/migrations/
 
+# local media uploads
+/uploads/
+
 # ssl certs
 nginx/ssl/
