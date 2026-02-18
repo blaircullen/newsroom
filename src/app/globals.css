@@ -406,3 +406,53 @@ button, a, [role="button"] {
 @media (prefers-reduced-motion: reduce) {
   .animate-marquee { animation: none; }
 }
+
+/* ===== Mission Control Mobile Utilities ===== */
+
+@layer utilities {
+  /**
+   * Add bottom padding for pages with a fixed BottomNav (~80px nav height
+   * plus env(safe-area-inset-bottom) for notched devices).
+   * Apply to the scrollable content container in MC pages that use BottomNav.
+   */
+  .mc-safe-bottom {
+    padding-bottom: calc(80px + env(safe-area-inset-bottom, 0px));
+  }
+
+  /**
+   * Same clearance but as margin — useful when padding would collapse
+   * backgrounds in gradient containers.
+   */
+  .mc-safe-bottom-margin {
+    margin-bottom: calc(80px + env(safe-area-inset-bottom, 0px));
+  }
+}
+
+/* Skeleton shimmer — dark MC variant overrides */
+/* The CSS variables already switch in .dark, but ensure the @keyframes
+   is defined so the animation runs on dark backgrounds too. */
+@keyframes shimmer {
+  0%   { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+/* MC-specific skeleton that always uses ink tones regardless of theme */
+.mc-skeleton {
+  --mc-skeleton-base: theme('colors.ink.800');
+  --mc-skeleton-shine: theme('colors.ink.700');
+  background: linear-gradient(
+    90deg,
+    var(--mc-skeleton-base) 25%,
+    var(--mc-skeleton-shine) 50%,
+    var(--mc-skeleton-base) 75%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.5s ease-in-out infinite;
+  border-radius: 4px;
+}
+
+/* Horizontal scroll fade edges for MC strip components */
+.mc-scroll-fade-right {
+  -webkit-mask-image: linear-gradient(to right, black calc(100% - 2rem), transparent 100%);
+          mask-image: linear-gradient(to right, black calc(100% - 2rem), transparent 100%);
+}

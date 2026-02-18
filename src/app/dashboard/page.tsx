@@ -421,34 +421,82 @@ export default function DashboardPage() {
   if (uiVersion === 'mission-control') {
     return (
       <AppShell>
-        <div className="space-y-6">
-          {/* Pulse Bar */}
-          <PulseBar stats={stats} isAdmin={isAdmin} />
+        <div className="space-y-6 max-w-full overflow-x-hidden">
+          {/* Pulse Bar — scrollable on mobile if metrics overflow */}
+          <div className="overflow-x-auto scrollbar-none -mx-4 px-4 md:mx-0 md:px-0">
+            <div className="min-w-max md:min-w-0">
+              <PulseBar stats={stats} isAdmin={isAdmin} />
+            </div>
+          </div>
 
           {/* Main Grid: Queue + Trending */}
           <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
-            <div className="lg:col-span-3">
-              <QueueList
-                articles={articles}
-                isAdmin={!!isAdmin}
-                onDelete={(id, headline) => setDeleteConfirm({ id, headline })}
-              />
+            {/* QueueList — full-width on mobile, no side-padding gaps */}
+            <div className="lg:col-span-3 -mx-4 md:mx-0">
+              <div className="px-4 md:px-0">
+                <QueueList
+                  articles={articles}
+                  isAdmin={!!isAdmin}
+                  onDelete={(id, headline) => setDeleteConfirm({ id, headline })}
+                />
+              </div>
             </div>
             <div className="lg:col-span-2">
               <TrendingPanel articles={hotArticles} />
             </div>
           </div>
 
-          {/* Story Ideas Strip */}
-          <StoryIdeasStrip
-            ideas={storyIdeas}
-            onDismiss={dismissStoryIdea}
-            onDraftIt={(headline) => {
-              const idea = storyIdeas.find(i => i.headline === headline);
-              if (idea) handleCreateFromIdea(idea);
-            }}
-            isCreating={creatingFromIdea}
-          />
+          {/* Story Ideas Strip — collapsed on mobile, full strip on desktop */}
+          {storyIdeas.length > 0 && (
+            <>
+              {/* Mobile: tappable summary row */}
+              <div className="md:hidden">
+                <button
+                  onClick={() => setShowStoryIdeas((v) => !v)}
+                  className="w-full flex items-center justify-between px-4 py-3 bg-ink-900 rounded-xl border border-ink-800 active:bg-ink-800 transition-colors"
+                >
+                  <div className="flex items-center gap-2">
+                    <HiOutlineLightBulb className="w-4 h-4 text-amber-400 shrink-0" />
+                    <span className="text-sm font-medium text-paper-200">Story Ideas</span>
+                    <span className="px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-400 text-xs font-mono">
+                      {storyIdeas.length}
+                    </span>
+                  </div>
+                  <HiOutlineChevronDown
+                    className={`w-4 h-4 text-ink-400 transition-transform duration-200 ${
+                      showStoryIdeas ? 'rotate-180' : ''
+                    }`}
+                  />
+                </button>
+                {showStoryIdeas && (
+                  <div className="mt-2">
+                    <StoryIdeasStrip
+                      ideas={storyIdeas}
+                      onDismiss={dismissStoryIdea}
+                      onDraftIt={(headline) => {
+                        const idea = storyIdeas.find(i => i.headline === headline);
+                        if (idea) handleCreateFromIdea(idea);
+                      }}
+                      isCreating={creatingFromIdea}
+                    />
+                  </div>
+                )}
+              </div>
+
+              {/* Desktop: full horizontal strip */}
+              <div className="hidden md:block">
+                <StoryIdeasStrip
+                  ideas={storyIdeas}
+                  onDismiss={dismissStoryIdea}
+                  onDraftIt={(headline) => {
+                    const idea = storyIdeas.find(i => i.headline === headline);
+                    if (idea) handleCreateFromIdea(idea);
+                  }}
+                  isCreating={creatingFromIdea}
+                />
+              </div>
+            </>
+          )}
         </div>
 
         {/* Delete Confirmation Modal (shared) */}

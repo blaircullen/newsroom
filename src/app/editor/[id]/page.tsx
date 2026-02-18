@@ -269,7 +269,7 @@ export default function EditArticlePage() {
 
     return (
       <AppShell>
-        {/* Top Bar */}
+        {/* Top Bar — compact on mobile, full on desktop */}
         <div
           className={`h-12 flex items-center justify-between px-4 bg-ink-950 border-b border-ink-800 transition-opacity duration-300 ${
             focusMode ? 'opacity-0 pointer-events-none' : 'opacity-100'
@@ -281,32 +281,65 @@ export default function EditArticlePage() {
               className="flex items-center gap-1.5 text-ink-300 hover:text-paper-100 transition-colors shrink-0"
             >
               <HiArrowLeft className="w-4 h-4" />
-              <span className="terminal-label text-xs">Dashboard</span>
+              {/* Breadcrumb text hidden on mobile */}
+              <span className="terminal-label text-xs hidden md:inline">Dashboard</span>
             </Link>
-            <span className="text-ink-700 text-sm shrink-0">/</span>
-            <span className="font-display text-sm text-paper-200 truncate max-w-[40ch]">
+            {/* Separator + headline breadcrumb hidden on mobile */}
+            <span className="text-ink-700 text-sm shrink-0 hidden md:inline">/</span>
+            <span className="font-display text-sm text-paper-200 truncate max-w-[40ch] hidden md:inline">
               {headline || 'Untitled'}
             </span>
           </div>
           <div className="flex items-center gap-3 shrink-0">
-            <span className={`status-badge ${statusConfig.class} text-xs`}>
+            <span className={`status-badge ${statusConfig.class} text-xs hidden md:inline-flex`}>
               {statusConfig.label}
             </span>
+            {/* Primary publish/submit button visible in top bar on mobile */}
+            <div className="md:hidden flex items-center gap-2">
+              {canPublish && (
+                <button
+                  onClick={() => setShowPublishModal(true)}
+                  className="flex items-center gap-1 px-3 py-1.5 text-xs font-semibold text-paper-100 bg-emerald-700 rounded-md hover:bg-emerald-600 transition-colors"
+                >
+                  <HiOutlineGlobeAlt className="w-3.5 h-3.5" />
+                  Publish
+                </button>
+              )}
+              {canSubmit && (
+                <button
+                  onClick={() => saveArticle(true)}
+                  disabled={isSaving || isSubmitting}
+                  className="flex items-center gap-1 px-3 py-1.5 text-xs font-semibold text-paper-100 bg-press-500 rounded-md hover:bg-press-600 disabled:opacity-40 transition-colors"
+                >
+                  <HiOutlinePaperAirplane className="w-3.5 h-3.5" />
+                  {isSubmitting ? 'Submitting...' : 'Submit'}
+                </button>
+              )}
+              {canEdit && !canSubmit && (
+                <button
+                  onClick={() => saveArticle(false)}
+                  disabled={isSaving || isSubmitting}
+                  className="px-3 py-1.5 text-xs font-medium border border-ink-700 text-paper-300 rounded-md hover:bg-ink-800 disabled:opacity-40 transition-colors"
+                >
+                  {isSaving ? 'Saving...' : 'Save'}
+                </button>
+              )}
+            </div>
             <button
               disabled
-              className="px-3 py-1.5 text-xs font-medium text-ink-400 border border-ink-800 rounded-md cursor-not-allowed opacity-50"
+              className="px-3 py-1.5 text-xs font-medium text-ink-400 border border-ink-800 rounded-md cursor-not-allowed opacity-50 hidden md:inline-flex"
             >
               Preview
             </button>
           </div>
         </div>
 
-        {/* Writing Canvas */}
+        {/* Writing Canvas — full-width on mobile, constrained on desktop */}
         <div
           className="min-h-screen bg-ink-950 pb-20 pt-4"
           onDoubleClick={() => setFocusMode((prev) => !prev)}
         >
-          <div className="max-w-[680px] mx-auto px-4">
+          <div className="w-full md:max-w-[680px] md:mx-auto px-4">
             {/* Featured Image */}
             <div className="mb-6" onClick={(e) => e.stopPropagation()}>
               {featuredImage ? (
@@ -485,7 +518,26 @@ export default function EditArticlePage() {
             focusMode ? 'opacity-0 pointer-events-none' : 'opacity-100'
           }`}
         >
-          <div className="max-w-[680px] mx-auto px-4 h-11 flex items-center justify-between gap-4">
+          {/* Mobile footer — word count + primary action only */}
+          <div className="md:hidden px-4 h-12 flex items-center justify-between gap-4">
+            <div className="font-mono text-xs text-ink-300">
+              {wordCount.toLocaleString()} words
+            </div>
+            <div className="flex items-center gap-2">
+              {autoSaveStatus === 'saving' && (
+                <div className="animate-spin w-3 h-3 border border-ink-600 border-t-press-500 rounded-full" />
+              )}
+              {autoSaveStatus === 'saved' && (
+                <HiOutlineCheck className="w-3.5 h-3.5 text-signal-success" />
+              )}
+              {autoSaveStatus === 'error' && (
+                <HiOutlineExclamationTriangle className="w-3.5 h-3.5 text-signal-danger" />
+              )}
+            </div>
+          </div>
+
+          {/* Desktop footer — full controls */}
+          <div className="hidden md:flex max-w-[680px] mx-auto px-4 h-11 items-center justify-between gap-4">
             {/* Left: Auto-save indicator */}
             <div className="flex items-center gap-2 text-xs w-40">
               {autoSaveStatus === 'saving' && (
