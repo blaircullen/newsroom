@@ -34,8 +34,11 @@ export async function monitorXAccounts(): Promise<MonitoredStory[]> {
   const accounts = getMonitoredAccounts();
   const stories: MonitoredStory[] = [];
 
-  for (const account of accounts) {
+  for (let i = 0; i < accounts.length; i++) {
+    const account = accounts[i];
     try {
+      // Stagger requests to avoid hammering X
+      if (i > 0) await new Promise((r) => setTimeout(r, 3000));
       const tweets = await fetchUserTweets(account, 10);
 
       for (const tweet of tweets) {

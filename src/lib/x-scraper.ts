@@ -1,6 +1,35 @@
 import { raiseAlert, resolveAlert } from '@/lib/system-alerts';
 
 let consecutiveFailures = 0;
+let circuitOpenUntil = 0; // timestamp when circuit breaker resets
+const CIRCUIT_BREAKER_THRESHOLD = 5; // open circuit after this many failures
+const CIRCUIT_BREAKER_COOLDOWN = 30 * 60 * 1000; // 30 min cooldown
+
+function isCircuitOpen(): boolean {
+  if (consecutiveFailures >= CIRCUIT_BREAKER_THRESHOLD && Date.now() < circuitOpenUntil) {
+    return true;
+  }
+  if (Date.now() >= circuitOpenUntil) {
+    // Cooldown expired, allow a retry
+    return false;
+  }
+  return false;
+}
+
+function recordFailure() {
+  consecutiveFailures++;
+  if (consecutiveFailures >= CIRCUIT_BREAKER_THRESHOLD) {
+    circuitOpenUntil = Date.now() + CIRCUIT_BREAKER_COOLDOWN;
+  }
+}
+
+async function recordSuccess() {
+  if (consecutiveFailures >= 3) {
+    await resolveAlert('x_scraper_rate_limit');
+  }
+  consecutiveFailures = 0;
+  circuitOpenUntil = 0;
+}
 
 // Twikit API running on VM 101, exposed on Hetzner via reverse SSH tunnel.
 // The Python twikit library handles Cloudflare's TLS fingerprinting that
@@ -28,6 +57,10 @@ export async function fetchTweetEngagement(tweetId: string): Promise<{
   replies: number;
   views: number;
 } | null> {
+  if (isCircuitOpen()) {
+    return null;
+  }
+
   try {
     const tweet = await xApiFetch<{
       id: string;
@@ -37,10 +70,7 @@ export async function fetchTweetEngagement(tweetId: string): Promise<{
       views: number | string;
     }>(`/api/tweet/${tweetId}`);
 
-    if (consecutiveFailures >= 3) {
-      await resolveAlert('x_scraper_rate_limit');
-    }
-    consecutiveFailures = 0;
+    await recordSuccess();
 
     return {
       likes: tweet.likes ?? 0,
@@ -50,7 +80,7 @@ export async function fetchTweetEngagement(tweetId: string): Promise<{
     };
   } catch (error) {
     console.error(`[X Scraper] Failed to fetch tweet ${tweetId}:`, error);
-    consecutiveFailures++;
+    recordFailure();
     if (consecutiveFailures >= 3) {
       await raiseAlert('x_scraper_rate_limit', `X scraper has failed ${consecutiveFailures} consecutive requests — possible rate limit or ban`);
     }
@@ -72,6 +102,10 @@ export interface ScrapedTweet {
  * Fetch recent tweets from a user handle.
  */
 export async function fetchUserTweets(handle: string, count: number = 100): Promise<ScrapedTweet[]> {
+  if (isCircuitOpen()) {
+    return [];
+  }
+
   try {
     const data = await xApiFetch<{
       tweets: Array<{
@@ -85,10 +119,7 @@ export async function fetchUserTweets(handle: string, count: number = 100): Prom
       }>;
     }>(`/api/user/${encodeURIComponent(handle)}/tweets?count=${count}`);
 
-    if (consecutiveFailures >= 3) {
-      await resolveAlert('x_scraper_rate_limit');
-    }
-    consecutiveFailures = 0;
+    await recordSuccess();
 
     return data.tweets
       .filter((t) => t.id && t.timestamp)
@@ -103,7 +134,7 @@ export async function fetchUserTweets(handle: string, count: number = 100): Prom
       }));
   } catch (error) {
     console.error(`[X Scraper] Failed to fetch tweets for @${handle}:`, error);
-    consecutiveFailures++;
+    recordFailure();
     if (consecutiveFailures >= 3) {
       await raiseAlert('x_scraper_rate_limit', `X scraper has failed ${consecutiveFailures} consecutive requests — possible rate limit or ban`);
     }
@@ -123,7 +154,7 @@ export interface XSearchResult {
 }
 
 const searchCache = new Map<string, { result: XSearchResult; timestamp: number }>();
-const SEARCH_CACHE_TTL = 10 * 60 * 1000; // 10 minutes
+const SEARCH_CACHE_TTL = 30 * 60 * 1000; // 30 minutes
 
 export async function searchTweetsByKeywords(
   keywords: string[],
@@ -135,6 +166,10 @@ export async function searchTweetsByKeywords(
   const cached = searchCache.get(cacheKey);
   if (cached && Date.now() - cached.timestamp < SEARCH_CACHE_TTL) {
     return cached.result;
+  }
+
+  if (isCircuitOpen()) {
+    return null;
   }
 
   try {
@@ -190,15 +225,12 @@ export async function searchTweetsByKeywords(
 
     searchCache.set(cacheKey, { result, timestamp: Date.now() });
 
-    if (consecutiveFailures >= 3) {
-      await resolveAlert('x_scraper_rate_limit');
-    }
-    consecutiveFailures = 0;
+    await recordSuccess();
 
     return result;
   } catch (error) {
     console.error('[X Scraper] Search failed:', error);
-    consecutiveFailures++;
+    recordFailure();
     if (consecutiveFailures >= 3) {
       await raiseAlert('x_scraper_rate_limit', `X scraper has failed ${consecutiveFailures} consecutive requests — possible rate limit or ban`);
     }
