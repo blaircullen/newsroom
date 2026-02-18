@@ -9,6 +9,7 @@ import AppShell from '@/components/layout/AppShell';
 import WriterLeaderboard from '@/components/dashboard/WriterLeaderboard';
 import Sparkline from '@/components/ui/Sparkline';
 import { useTrack } from '@/hooks/useTrack';
+import { useUIVersion } from '@/contexts/UIVersionContext';
 import {
   HiOutlineChartBar,
   HiOutlineEye,
@@ -47,6 +48,7 @@ export default function AnalyticsPage() {
   const { data: session } = useSession();
   const router = useRouter();
   const track = useTrack('analytics_hub');
+  const { uiVersion } = useUIVersion();
   const [period, setPeriod] = useState<'12h' | '24h' | '7d' | '30d'>('12h');
   const [articles, setArticles] = useState<ArticleStats[]>([]);
   const [overview, setOverview] = useState<OverviewStats | null>(null);
@@ -137,6 +139,225 @@ export default function AnalyticsPage() {
   if (!session) return null;
 
   const isLive = realtime && (Date.now() - realtime.timestamp) < 30000;
+
+  // ─── Mission Control branch ───────────────────────────────────────────────
+  if (uiVersion === 'mission-control') {
+    const periodOptions = [
+      { value: '12h' as const, label: '12H' },
+      { value: '24h' as const, label: 'Day' },
+      { value: '7d' as const, label: 'Week' },
+      { value: '30d' as const, label: 'Month' },
+    ];
+
+    const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+    const monthAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+    const articlesThisWeek = articles.filter(a => new Date(a.publishedAt) >= weekAgo).length;
+    const articlesThisMonth = articles.filter(a => new Date(a.publishedAt) >= monthAgo).length;
+
+    return (
+      <AppShell>
+        <div className="max-w-[1600px] mx-auto">
+
+          {/* ── Header Row ──────────────────────────────────────────────── */}
+          <div className="flex items-center justify-between mb-6">
+            {/* Title + live indicator */}
+            <div className="flex items-center gap-3">
+              <HiOutlineChartBar className="w-5 h-5 text-ink-300" />
+              <span className="terminal-label text-ink-300">Analytics</span>
+              {isLive && (
+                <div className="flex items-center gap-1.5 ml-2">
+                  <span className="relative flex h-2 w-2">
+                    <span className="animate-pulse-live absolute inline-flex h-full w-full rounded-full bg-press-500 opacity-75" />
+                    <span className="relative inline-flex rounded-full h-2 w-2 bg-press-400" />
+                  </span>
+                  <span className="terminal-label text-press-400">
+                    {realtime?.activeVisitors ?? 0} live
+                  </span>
+                </div>
+              )}
+            </div>
+
+            {/* Period pills */}
+            <div className="flex items-center gap-1.5">
+              {periodOptions.map((opt) => (
+                <button
+                  key={opt.value}
+                  onClick={() => {
+                    setPeriod(opt.value);
+                    track('analytics_hub', 'change_period', { period: opt.value });
+                  }}
+                  className={`px-3 py-1 rounded-md text-xs font-medium border transition-colors ${
+                    period === opt.value
+                      ? 'bg-press-500/20 text-press-400 border-press-500/30'
+                      : 'bg-ink-800 text-ink-300 border-ink-700 hover:border-ink-600 hover:text-paper-200'
+                  }`}
+                >
+                  {opt.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* ── Loading state ────────────────────────────────────────────── */}
+          {isLoading ? (
+            <div className="flex items-center justify-center py-20">
+              <div className="animate-spin w-8 h-8 border-2 border-ink-700 border-t-press-500 rounded-full" />
+            </div>
+          ) : (
+            <>
+              {/* ── Stats Strip ──────────────────────────────────────────── */}
+              <div className="bg-ink-900 rounded-xl border border-ink-800 p-4 mb-6">
+                <div className="grid grid-cols-5 divide-x divide-ink-800">
+                  {/* Active Now */}
+                  <div className="flex flex-col gap-1 px-4 first:pl-0">
+                    <div className="flex items-center gap-1.5">
+                      <span className="relative flex h-1.5 w-1.5">
+                        <span className="animate-pulse-live absolute inline-flex h-full w-full rounded-full bg-press-500 opacity-75" />
+                        <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-press-400" />
+                      </span>
+                      <span className="text-xs text-ink-300 uppercase tracking-wide">Active Now</span>
+                    </div>
+                    <span className="font-mono text-lg text-paper-100">
+                      {realtime?.activeVisitors ?? '—'}
+                    </span>
+                  </div>
+
+                  {/* Articles with Traffic */}
+                  <div className="flex flex-col gap-1 px-4">
+                    <span className="text-xs text-ink-300 uppercase tracking-wide">With Traffic</span>
+                    <span className="font-mono text-lg text-paper-100">
+                      {(overview?.totalArticles ?? 0).toLocaleString()}
+                    </span>
+                  </div>
+
+                  {/* Pageviews */}
+                  <div className="flex flex-col gap-1 px-4">
+                    <span className="text-xs text-ink-300 uppercase tracking-wide">Pageviews</span>
+                    <span className="font-mono text-lg text-paper-100">
+                      {(overview?.totalPageviews ?? 0).toLocaleString()}
+                    </span>
+                  </div>
+
+                  {/* Visitors */}
+                  <div className="flex flex-col gap-1 px-4">
+                    <span className="text-xs text-ink-300 uppercase tracking-wide">Visitors</span>
+                    <span className="font-mono text-lg text-paper-100">
+                      {(overview?.totalVisitors ?? 0).toLocaleString()}
+                    </span>
+                  </div>
+
+                  {/* Avg / Article */}
+                  <div className="flex flex-col gap-1 px-4">
+                    <span className="text-xs text-ink-300 uppercase tracking-wide">Avg / Article</span>
+                    <span className="font-mono text-lg text-paper-100">
+                      {(overview?.avgPageviewsPerArticle ?? 0).toLocaleString()}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* ── Two-Column Layout ────────────────────────────────────── */}
+              <div className="grid grid-cols-5 gap-6">
+
+                {/* Left: Top Articles (60%) */}
+                <div className="col-span-3">
+                  <div className="bg-ink-900 rounded-xl border border-ink-800 overflow-hidden">
+                    <div className="px-5 py-4 border-b border-ink-800 flex items-center justify-between">
+                      <span className="terminal-label text-ink-300">Top Articles</span>
+                      {isRealtime && (
+                        <span className="terminal-label text-press-400">M3 Live</span>
+                      )}
+                    </div>
+
+                    <div className="divide-y divide-ink-800">
+                      {articles.length > 0 ? (
+                        articles.slice(0, 10).map((article, index) => (
+                          <div
+                            key={article.id}
+                            className="flex items-center gap-4 px-5 py-3 hover:bg-ink-800 transition-colors cursor-pointer"
+                            onClick={() => router.push(`/editor/${article.id}`)}
+                          >
+                            {/* Rank */}
+                            <span className={`w-6 text-right font-mono text-sm flex-shrink-0 ${
+                              index < 3 ? 'text-amber-400' : 'text-ink-400'
+                            }`}>
+                              {index + 1}
+                            </span>
+
+                            {/* Article info */}
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm text-paper-100 truncate leading-snug">
+                                {article.headline}
+                              </p>
+                              <p className="text-xs text-ink-300 mt-0.5">
+                                {article.author.name}
+                              </p>
+                            </div>
+
+                            {/* Sparkline */}
+                            {article.sparkline && article.sparkline.length > 0 && (
+                              <div className="flex-shrink-0">
+                                <Sparkline
+                                  data={article.sparkline}
+                                  width={80}
+                                  height={28}
+                                  showDots
+                                />
+                              </div>
+                            )}
+
+                            {/* Pageviews */}
+                            <div className="text-right flex-shrink-0 w-20">
+                              <p className="font-mono font-bold text-paper-100 text-sm">
+                                {article.totalPageviews.toLocaleString()}
+                              </p>
+                              <p className="text-xs text-ink-300">views</p>
+                            </div>
+                          </div>
+                        ))
+                      ) : (
+                        <div className="px-5 py-12 text-center">
+                          <HiOutlineChartBar className="w-8 h-8 text-ink-600 mx-auto mb-3" />
+                          <p className="terminal-label text-ink-400">No traffic in this period</p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Right: Leaderboard + Velocity (40%) */}
+                <div className="col-span-2 space-y-6">
+                  <WriterLeaderboard />
+
+                  {/* Publishing Velocity */}
+                  <div className="bg-ink-900 rounded-xl border border-ink-800 p-5">
+                    <span className="terminal-label text-ink-300 block mb-4">Publishing Velocity</span>
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs text-ink-300">This week</span>
+                        <span className="font-mono text-sm text-paper-100">
+                          {articlesThisWeek} articles
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs text-ink-300">This month</span>
+                        <span className="font-mono text-sm text-paper-100">
+                          {articlesThisMonth} articles
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+              </div>
+            </>
+          )}
+
+        </div>
+      </AppShell>
+    );
+  }
+  // ─── End Mission Control branch ───────────────────────────────────────────
 
   return (
     <AppShell>
