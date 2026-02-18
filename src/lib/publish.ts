@@ -698,10 +698,25 @@ async function publishToWordPress(
       slug: article.slug || undefined,
       status: 'publish',
       tags: tagIds,
-      acf: {
-        mod_mantle_subtitle: article.subHeadline || '',
-      },
     };
+
+    // Site-specific custom fields
+    const targetHost = new URL(target.url).hostname;
+    if (targetHost === 'hannity.com') {
+      // Hannity uses ACF fields for display headlines via registered REST meta
+      wpPost.meta = {
+        headline: article.headline,
+        sub_headline: article.subHeadline || '',
+        m2_head: article.headline,
+        m2_subhead: article.subHeadline || '',
+        media_type: '2',
+      };
+    } else {
+      // Default ACF fields for other WordPress sites
+      wpPost.acf = {
+        mod_mantle_subtitle: article.subHeadline || '',
+      };
+    }
 
     // Set featured image if uploaded successfully
     if (featuredMediaId) {
