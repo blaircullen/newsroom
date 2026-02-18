@@ -21,9 +21,10 @@ model User {
   updatedAt    DateTime  @updatedAt @map("updated_at")
   lastLoginAt  DateTime? @map("last_login_at")
   uiVersion    String    @default("classic") @map("ui_version")
-  articles     Article[] @relation("AuthoredArticles")
-  comments     Comment[]
-  reviews      Review[]
+  articles       Article[]           @relation("AuthoredArticles")
+  comments       Comment[]
+  reviews        Review[]
+  claimedStories StoryIntelligence[] @relation("ClaimedStories")
 
   @@index([role, isActive])
   @@map("users")
@@ -59,10 +60,11 @@ model Article {
   aiReviewedAt        DateTime?        @map("ai_reviewed_at")
   tags                ArticleTag[]
   versions            ArticleVersion[]
-  author              User             @relation("AuthoredArticles", fields: [authorId], references: [id])
+  author              User              @relation("AuthoredArticles", fields: [authorId], references: [id])
   comments            Comment[]
   reviews             Review[]
   socialPosts         SocialPost[]
+  storySource         StoryIntelligence? @relation("StorySource")
 
   @@index([authorId])
   @@index([status])
@@ -375,4 +377,89 @@ model Media {
   @@index([createdAt])
   @@index([tags], type: Gin)
   @@map("media")
+}
+
+enum VerificationStatus {
+  UNVERIFIED
+  VERIFIED
+  PLAUSIBLE
+  DISPUTED
+  FLAGGED
+}
+
+enum AlertLevel {
+  NONE
+  DASHBOARD
+  TELEGRAM
+}
+
+enum StoryOutcome {
+  IGNORED
+  CLAIMED
+  PUBLISHED
+  HIGH_PERFORMER
+}
+
+model StoryIntelligence {
+  id                  String              @id @default(cuid())
+  headline            String
+  sourceUrl           String              @map("source_url")
+  sources             Json                @default("[]")
+  category            String?
+  topicClusterId      String?             @map("topic_cluster_id")
+  relevanceScore      Int                 @default(0) @map("relevance_score")
+  velocityScore       Int                 @default(0) @map("velocity_score")
+  verificationStatus  VerificationStatus  @default(UNVERIFIED) @map("verification_status")
+  verificationNotes   String?             @map("verification_notes")
+  suggestedAngles     Json?               @map("suggested_angles")
+  alertLevel          AlertLevel          @default(NONE) @map("alert_level")
+  alertSentAt         DateTime?           @map("alert_sent_at")
+  firstSeenAt         DateTime            @default(now()) @map("first_seen_at")
+  lastUpdatedAt       DateTime            @updatedAt @map("last_updated_at")
+  claimedById         String?             @map("claimed_by_id")
+  claimedAt           DateTime?           @map("claimed_at")
+  articleId           String?             @unique @map("article_id")
+  outcome             StoryOutcome?
+  outcomePageviews    Int?                @map("outcome_pageviews")
+  platformSignals     Json?               @map("platform_signals")
+  dismissed           Boolean             @default(false)
+
+  claimedBy           User?               @relation("ClaimedStories", fields: [claimedById], references: [id])
+  article             Article?            @relation("StorySource", fields: [articleId], references: [id])
+  verificationSources VerificationSource[]
+
+  @@index([relevanceScore])
+  @@index([verificationStatus])
+  @@index([firstSeenAt])
+  @@index([topicClusterId])
+  @@index([claimedById])
+  @@index([outcome])
+  @@map("story_intelligence")
+}
+
+model TopicProfile {
+  id             String   @id @default(cuid())
+  category       String   @unique
+  keywordWeights Json     @default("{}") @map("keyword_weights")
+  avgEngagement  Float    @default(0) @map("avg_engagement")
+  articleCount   Int      @default(0) @map("article_count")
+  topPerformers  Json?    @map("top_performers")
+  lastUpdated    DateTime @default(now()) @map("last_updated")
+
+  @@map("topic_profiles")
+}
+
+model VerificationSource {
+  id           String            @id @default(cuid())
+  storyId      String            @map("story_id")
+  sourceName   String            @map("source_name")
+  sourceUrl    String            @map("source_url")
+  corroborates Boolean
+  excerpt      String?
+  checkedAt    DateTime          @default(now()) @map("checked_at")
+
+  story        StoryIntelligence @relation(fields: [storyId], references: [id], onDelete: Cascade)
+
+  @@index([storyId])
+  @@map("verification_sources")
 }
