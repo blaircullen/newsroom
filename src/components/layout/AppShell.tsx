@@ -14,6 +14,8 @@ import {
   HiOutlineExclamationTriangle,
 } from 'react-icons/hi2';
 import { getNavItemsForRole, isNavItemActive } from '@/lib/navigation';
+import { UIVersionProvider, useUIVersion } from '@/contexts/UIVersionContext';
+import UIVersionToggle from '@/components/ui/UIVersionToggle';
 
 interface AppShellProps {
   children: React.ReactNode;
@@ -23,8 +25,9 @@ interface AppShellProps {
   flush?: boolean;
 }
 
-export default function AppShell({ children, hideOnMobile = false, flush = false }: AppShellProps) {
+function AppShellInner({ children, hideOnMobile = false, flush = false }: AppShellProps) {
   const { data: session, status } = useSession();
+  const { uiVersion } = useUIVersion();
   const router = useRouter();
   const pathname = usePathname();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -79,6 +82,19 @@ export default function AppShell({ children, hideOnMobile = false, flush = false
   }
 
   if (!session) return null;
+
+  if (uiVersion === 'mission-control') {
+    return (
+      <div className="min-h-screen bg-ink-950 flex items-center justify-center">
+        <div className="text-center">
+          <p className="text-4xl mb-2">🚀</p>
+          <h1 className="text-paper-100 text-xl font-bold mb-2">Mission Control</h1>
+          <p className="text-paper-400 text-sm mb-6">Coming soon — the sidebar sends its regards.</p>
+          <UIVersionToggle />
+        </div>
+      </div>
+    );
+  }
 
   const navItems = getNavItemsForRole(session.user.role);
 
@@ -229,5 +245,13 @@ export default function AppShell({ children, hideOnMobile = false, flush = false
         )}
       </main>
     </div>
+  );
+}
+
+export default function AppShell(props: AppShellProps) {
+  return (
+    <UIVersionProvider>
+      <AppShellInner {...props} />
+    </UIVersionProvider>
   );
 }

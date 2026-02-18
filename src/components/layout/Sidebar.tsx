@@ -10,6 +10,7 @@ import {
   HiOutlineMagnifyingGlass,
 } from 'react-icons/hi2';
 import ThemeToggle from '@/components/ui/ThemeToggle';
+import UIVersionToggle from '@/components/ui/UIVersionToggle';
 import { getNavItemsForRole, isNavItemActive } from '@/lib/navigation';
 
 interface TrendingTopic {
@@ -321,6 +322,7 @@ export default function Sidebar() {
             <HiOutlineArrowRightOnRectangle className="w-4 h-4" />
           </button>
           <ThemeToggle />
+          <UIVersionToggle />
         </div>
         </div>
       </div>
