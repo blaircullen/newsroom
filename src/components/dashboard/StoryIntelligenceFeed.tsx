@@ -82,36 +82,44 @@ function RelevanceBadge({ score }: { score: number }) {
 }
 
 function VerificationBadge({ status }: { status: StoryIntelligenceItem['verificationStatus'] }) {
-  const configs: Record<string, { label: string; classes: string; icon: React.ReactNode }> = {
+  const configs: Record<string, { label: string; description: string; classes: string; icon: React.ReactNode }> = {
     VERIFIED: {
       label: 'Verified',
+      description: 'Strong multi-source corroboration confirms this story',
       classes: 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30',
       icon: <HiOutlineCheckCircle className="w-3 h-3" />,
     },
     PLAUSIBLE: {
       label: 'Plausible',
+      description: 'Credible story from 1-2 sources, not yet fully corroborated',
       classes: 'bg-blue-500/15 text-blue-400 border-blue-500/30',
       icon: <HiOutlineShieldCheck className="w-3 h-3" />,
     },
     UNVERIFIED: {
       label: 'Unverified',
+      description: 'Sources are unclear or have not been assessed yet',
       classes: 'bg-ink-700/60 text-ink-400 border-ink-600/40',
       icon: <HiOutlineQuestionMarkCircle className="w-3 h-3" />,
     },
     DISPUTED: {
       label: 'Disputed',
+      description: 'Conflicting information found across sources',
       classes: 'bg-amber-500/15 text-amber-400 border-amber-500/30',
       icon: <HiOutlineExclamationTriangle className="w-3 h-3" />,
     },
     FLAGGED: {
       label: 'Flagged',
+      description: 'Potentially dubious or misleading — needs extra scrutiny',
       classes: 'bg-red-500/15 text-red-400 border-red-500/30',
       icon: <HiOutlineExclamationTriangle className="w-3 h-3" />,
     },
   };
   const cfg = configs[status] ?? configs.UNVERIFIED;
   return (
-    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold border ${cfg.classes}`}>
+    <span
+      title={cfg.description}
+      className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold border cursor-help ${cfg.classes}`}
+    >
       {cfg.icon}
       {cfg.label}
     </span>
