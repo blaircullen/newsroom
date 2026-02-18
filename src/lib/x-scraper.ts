@@ -1,9 +1,6 @@
 import { Scraper } from '@the-convocation/twitter-scraper';
-import { HttpsProxyAgent } from 'https-proxy-agent';
+import { ProxyAgent } from 'undici';
 import { raiseAlert, resolveAlert } from '@/lib/system-alerts';
-
-// eslint-disable-next-line @typescript-eslint/no-require-imports
-const nodeFetch = require('node-fetch');
 
 let scraperInstance: Scraper | null = null;
 let consecutiveFailures = 0;
@@ -16,17 +13,21 @@ const X_PROXY_URL = process.env.X_PROXY_URL;
 
 /**
  * Create a fetch function that routes through the HTTP proxy.
- * Returns undefined if no proxy is configured (uses default fetch).
+ * Uses undici's ProxyAgent with native fetch for full Response compatibility.
+ * Returns undefined if no proxy is configured.
  */
 function createProxiedFetch(): typeof fetch | undefined {
   if (!X_PROXY_URL) return undefined;
 
-  const agent = new HttpsProxyAgent(X_PROXY_URL);
+  const proxyAgent = new ProxyAgent(X_PROXY_URL);
 
-  return (async (input: string | URL | Request, init?: Record<string, unknown>) => {
-    const url = typeof input === 'string' ? input : input instanceof URL ? input.toString() : (input as Request).url;
-    return nodeFetch(url, { ...init, agent } as Parameters<typeof nodeFetch>[1]);
-  }) as unknown as typeof fetch;
+  return ((input: RequestInfo | URL, init?: RequestInit) => {
+    return fetch(input, {
+      ...init,
+      // @ts-expect-error — dispatcher is a Node/undici-specific fetch option
+      dispatcher: proxyAgent,
+    });
+  }) as typeof fetch;
 }
 
 /**
