@@ -5,6 +5,8 @@ import { scrapeStoryIdeas } from '@/lib/cfp-scraper';
 import { scrapeReddit } from '@/lib/reddit-scraper';
 import { scrapeGoogleTrends } from '@/lib/google-trends-scraper';
 import { scoreStory, type StoryScoreInput } from '@/lib/story-scorer';
+import { searchTweetsByKeywords } from '@/lib/x-scraper';
+import { monitorXAccounts } from '@/lib/x-monitor';
 
 export async function POST(request: NextRequest) {
   const apiKey = request.headers.get('x-api-key');
@@ -16,10 +18,14 @@ export async function POST(request: NextRequest) {
 
   try {
     // Fetch all sources in parallel
-    const [storyIdeas, redditPosts, googleTrends] = await Promise.all([
+    const [storyIdeas, redditPosts, googleTrends, xMonitoredStories] = await Promise.all([
       scrapeStoryIdeas(),
       scrapeReddit(),
       scrapeGoogleTrends(),
+      monitorXAccounts().catch((err) => {
+        console.error('[ingest] X monitoring failed (non-fatal):', err);
+        return [] as Awaited<ReturnType<typeof monitorXAccounts>>;
+      }),
     ]);
 
     let created = 0;
@@ -46,6 +52,18 @@ export async function POST(request: NextRequest) {
 
       const scored = await scoreStory(input);
 
+      let xSignals = null;
+      try {
+        const keywords = idea.headline
+          .toLowerCase()
+          .split(/\s+/)
+          .filter((w: string) => w.length > 3)
+          .slice(0, 5);
+        if (keywords.length >= 2) {
+          xSignals = await searchTweetsByKeywords(keywords);
+        }
+      } catch {}
+
       await prisma.storyIntelligence.create({
         data: {
           headline: idea.headline,
@@ -57,6 +75,7 @@ export async function POST(request: NextRequest) {
           velocityScore: scored.velocityScore,
           alertLevel: scored.alertLevel,
           verificationStatus: idea.trending ? 'PLAUSIBLE' : 'UNVERIFIED',
+          platformSignals: xSignals ? { x: { tweetVolume: xSignals.tweetVolume, heat: xSignals.heat, velocity: xSignals.velocity } } : undefined,
         },
       });
 
@@ -89,6 +108,18 @@ export async function POST(request: NextRequest) {
 
       const scored = await scoreStory(input);
 
+      let xSignals = null;
+      try {
+        const keywords = post.title
+          .toLowerCase()
+          .split(/\s+/)
+          .filter((w: string) => w.length > 3)
+          .slice(0, 5);
+        if (keywords.length >= 2) {
+          xSignals = await searchTweetsByKeywords(keywords);
+        }
+      } catch {}
+
       await prisma.storyIntelligence.create({
         data: {
           headline: post.title,
@@ -101,15 +132,44 @@ export async function POST(request: NextRequest) {
           alertLevel: scored.alertLevel,
           verificationStatus: 'UNVERIFIED',
           platformSignals: {
-            reddit: {
-              score: post.score,
-              velocity: post.velocity,
-              numComments: post.numComments,
-              subreddit: post.subreddit,
-              ageMinutes: post.ageMinutes,
-              redditUrl: post.redditUrl,
-            },
+            reddit: { score: post.score, velocity: post.velocity, numComments: post.numComments, subreddit: post.subreddit, ageMinutes: post.ageMinutes, redditUrl: post.redditUrl },
+            ...(xSignals ? { x: { tweetVolume: xSignals.tweetVolume, heat: xSignals.heat, velocity: xSignals.velocity } } : {}),
           },
+        },
+      });
+
+      created++;
+    }
+
+    // ── Process X-monitored stories ─────────────────────────────────────────
+    for (const xStory of xMonitoredStories) {
+      const existing = await prisma.storyIntelligence.findFirst({
+        where: { sourceUrl: xStory.sourceUrl },
+        select: { id: true },
+      });
+      if (existing) continue;
+
+      const input: StoryScoreInput = {
+        headline: xStory.headline,
+        sourceUrl: xStory.sourceUrl,
+        sources: xStory.sources,
+        platformSignals: xStory.platformSignals,
+      };
+
+      const scored = await scoreStory(input);
+
+      await prisma.storyIntelligence.create({
+        data: {
+          headline: xStory.headline,
+          sourceUrl: xStory.sourceUrl,
+          sources: xStory.sources,
+          category: scored.matchedCategory ?? undefined,
+          topicClusterId: scored.topicClusterId ?? undefined,
+          relevanceScore: scored.relevanceScore,
+          velocityScore: scored.velocityScore,
+          alertLevel: scored.alertLevel,
+          verificationStatus: 'UNVERIFIED',
+          platformSignals: xStory.platformSignals,
         },
       });
 
@@ -124,6 +184,7 @@ export async function POST(request: NextRequest) {
         rss: storyIdeas.length,
         reddit: topReddit.length,
         googleTrends: googleTrends.length,
+        xMonitored: xMonitoredStories.length,
       },
     });
   } catch (error) {

@@ -96,7 +96,7 @@ export async function fetchTweetEngagement(tweetId: string): Promise<{
   }
 }
 
-interface ScrapedTweet {
+export interface ScrapedTweet {
   id: string;
   text: string;
   likes: number;
@@ -141,5 +141,96 @@ export async function fetchUserTweets(handle: string, count: number = 100): Prom
       await raiseAlert('x_scraper_rate_limit', `X scraper has failed ${consecutiveFailures} consecutive requests — possible rate limit or ban`);
     }
     return [];
+  }
+}
+
+export interface XSearchResult {
+  tweetVolume: number;
+  totalLikes: number;
+  totalRetweets: number;
+  totalReplies: number;
+  totalViews: number;
+  topTweetUrls: string[];
+  heat: number; // 0-100 normalized engagement score
+  velocity: 'rising' | 'new' | 'stable';
+}
+
+const searchCache = new Map<string, { result: XSearchResult; timestamp: number }>();
+const SEARCH_CACHE_TTL = 10 * 60 * 1000; // 10 minutes
+
+export async function searchTweetsByKeywords(
+  keywords: string[],
+  maxTweets: number = 40
+): Promise<XSearchResult | null> {
+  const query = keywords.slice(0, 5).join(' OR ');
+  const cacheKey = query.toLowerCase();
+
+  const cached = searchCache.get(cacheKey);
+  if (cached && Date.now() - cached.timestamp < SEARCH_CACHE_TTL) {
+    return cached.result;
+  }
+
+  try {
+    const scraper = await getScraperInstance();
+    const tweets: Array<{ likes: number; retweets: number; replies: number; views: number; id: string; timestamp: Date }> = [];
+
+    for await (const tweet of scraper.searchTweets(query, maxTweets)) {
+      if (!tweet.id) continue;
+      tweets.push({
+        id: tweet.id,
+        likes: tweet.likes ?? 0,
+        retweets: tweet.retweets ?? 0,
+        replies: tweet.replies ?? 0,
+        views: tweet.views ?? 0,
+        timestamp: tweet.timeParsed ?? new Date(),
+      });
+      if (tweets.length >= maxTweets) break;
+    }
+
+    if (tweets.length === 0) return null;
+
+    const totalLikes = tweets.reduce((sum, t) => sum + t.likes, 0);
+    const totalRetweets = tweets.reduce((sum, t) => sum + t.retweets, 0);
+    const totalReplies = tweets.reduce((sum, t) => sum + t.replies, 0);
+    const totalViews = tweets.reduce((sum, t) => sum + t.views, 0);
+
+    const avgEngagement = (totalLikes + totalRetweets * 2 + totalReplies) / tweets.length;
+    const heat = Math.min(100, Math.round(avgEngagement / 100));
+
+    const now = Date.now();
+    const recentTweets = tweets.filter((t) => now - t.timestamp.getTime() < 60 * 60 * 1000);
+    const velocity: 'rising' | 'new' | 'stable' =
+      recentTweets.length > tweets.length * 0.5 ? 'rising' :
+      recentTweets.length > tweets.length * 0.2 ? 'new' : 'stable';
+
+    const result: XSearchResult = {
+      tweetVolume: tweets.length,
+      totalLikes,
+      totalRetweets,
+      totalReplies,
+      totalViews,
+      topTweetUrls: tweets
+        .sort((a, b) => (b.likes + b.retweets) - (a.likes + a.retweets))
+        .slice(0, 3)
+        .map((t) => `https://x.com/i/status/${t.id}`),
+      heat,
+      velocity,
+    };
+
+    searchCache.set(cacheKey, { result, timestamp: Date.now() });
+
+    if (consecutiveFailures >= 3) {
+      await resolveAlert('x_scraper_rate_limit');
+    }
+    consecutiveFailures = 0;
+
+    return result;
+  } catch (error) {
+    console.error('[X Scraper] Search failed:', error);
+    consecutiveFailures++;
+    if (consecutiveFailures >= 3) {
+      await raiseAlert('x_scraper_rate_limit', `X scraper has failed ${consecutiveFailures} consecutive requests — possible rate limit or ban`);
+    }
+    return null;
   }
 }

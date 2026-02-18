@@ -14,7 +14,7 @@ export async function GET(request: NextRequest) {
 
   const since = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
 
-  const [stories, topicProfiles] = await Promise.all([
+  const [stories, topicProfiles, feedback] = await Promise.all([
     prisma.storyIntelligence.findMany({
       where: {
         outcome: { not: null },
@@ -40,7 +40,19 @@ export async function GET(request: NextRequest) {
     prisma.topicProfile.findMany({
       orderBy: { articleCount: 'desc' },
     }),
+
+    prisma.storyFeedback.findMany({
+      where: { createdAt: { gte: since } },
+      select: {
+        storyId: true,
+        rating: true,
+        tags: true,
+        action: true,
+        createdAt: true,
+      },
+      orderBy: { createdAt: 'desc' },
+    }),
   ]);
 
-  return NextResponse.json({ stories, topicProfiles });
+  return NextResponse.json({ stories, topicProfiles, feedback });
 }

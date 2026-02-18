@@ -24,6 +24,7 @@ model User {
   comments       Comment[]
   reviews        Review[]
   claimedStories StoryIntelligence[] @relation("ClaimedStories")
+  storyFeedback  StoryFeedback[]     @relation("StoryFeedback")
 
   @@index([role, isActive])
   @@map("users")
@@ -356,6 +357,7 @@ model Media {
   usageCount    Int       @default(0) @map("usage_count")
   uploadedById  String?   @map("uploaded_by_id")
   driveFileId   String?   @unique @map("drive_file_id")
+  aiStatus      String?   @default("pending") @map("ai_status")
   createdAt     DateTime  @default(now()) @map("created_at")
   updatedAt     DateTime  @updatedAt @map("updated_at")
   articles      Article[] @relation("FeaturedMedia")
@@ -413,6 +415,7 @@ model StoryIntelligence {
   claimedBy           User?               @relation("ClaimedStories", fields: [claimedById], references: [id])
   article             Article?            @relation("StorySource", fields: [articleId], references: [id])
   verificationSources VerificationSource[]
+  feedback            StoryFeedback[]
 
   @@index([relevanceScore])
   @@index([verificationStatus])
@@ -448,4 +451,22 @@ model VerificationSource {
 
   @@index([storyId])
   @@map("verification_sources")
+}
+
+model StoryFeedback {
+  id        String   @id @default(cuid())
+  storyId   String   @map("story_id")
+  userId    String   @map("user_id")
+  rating    Int      // 1-5
+  tags      String[] // GREAT_ANGLE, TIMELY, WOULD_GO_VIRAL, etc.
+  action    String   // QUICK_RATE | CLAIM_FEEDBACK | DISMISS_FEEDBACK
+  createdAt DateTime @default(now()) @map("created_at")
+
+  story StoryIntelligence @relation(fields: [storyId], references: [id], onDelete: Cascade)
+  user  User              @relation("StoryFeedback", fields: [userId], references: [id])
+
+  @@index([storyId])
+  @@index([userId])
+  @@index([createdAt])
+  @@map("story_feedback")
 }

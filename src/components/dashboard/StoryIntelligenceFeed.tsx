@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import toast from 'react-hot-toast';
+import StoryFeedbackModal from './StoryFeedbackModal';
 import {
   HiOutlineLightBulb,
   HiOutlineCheckCircle,
@@ -122,6 +123,25 @@ function StoryCard({ story, onRefresh }: { story: StoryIntelligenceItem; onRefre
   const [expanded, setExpanded] = useState(false);
   const [claiming, setClaiming] = useState(false);
   const [dismissing, setDismissing] = useState(false);
+  const [userRating, setUserRating] = useState<number | null>(null);
+  const [totalRatings, setTotalRatings] = useState(0);
+  const [avgRating, setAvgRating] = useState<number | null>(null);
+  const [showFeedbackModal, setShowFeedbackModal] = useState(false);
+  const [feedbackAction, setFeedbackAction] = useState<'CLAIM_FEEDBACK' | 'DISMISS_FEEDBACK' | null>(null);
+
+  const handleQuickRate = async (rating: 1 | 5) => {
+    try {
+      await fetch(`/api/story-intelligence/${story.id}/feedback`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ rating, tags: [], action: 'QUICK_RATE' }),
+      });
+      setUserRating(rating);
+      setTotalRatings((prev) => prev + 1);
+    } catch (error) {
+      console.error('Failed to submit rating:', error);
+    }
+  };
 
   const handleWrite = async () => {
     setClaiming(true);
@@ -133,6 +153,8 @@ function StoryCard({ story, onRefresh }: { story: StoryIntelligenceItem; onRefre
       }
       const data = await res.json();
       toast.success('Story claimed — opening editor');
+      setFeedbackAction('CLAIM_FEEDBACK');
+      setShowFeedbackModal(true);
       router.push(`/editor/${data.articleId}`);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Failed to claim story');
@@ -148,7 +170,9 @@ function StoryCard({ story, onRefresh }: { story: StoryIntelligenceItem; onRefre
         const data = await res.json().catch(() => ({}));
         throw new Error(data.error || 'Failed to dismiss');
       }
-      onRefresh();
+      setFeedbackAction('DISMISS_FEEDBACK');
+      setShowFeedbackModal(true);
+      // onRefresh() is called after the modal is closed/submitted
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Failed to dismiss');
       setDismissing(false);
@@ -258,12 +282,43 @@ function StoryCard({ story, onRefresh }: { story: StoryIntelligenceItem; onRefre
           </div>
         </div>
 
-        {/* Expand toggle */}
-        {(story.suggestedAngles?.length || story.verificationNotes || story.verificationSources.length > 0) && (
-          <button
-            onClick={() => setExpanded(v => !v)}
-            className="mt-3 flex items-center gap-1 text-[11px] text-blue-400/80 hover:text-blue-300 transition-colors"
-          >
+        {/* Rating + expand row */}
+        <div className="flex items-center mt-3">
+          <div className="flex items-center gap-1 mr-auto">
+            <button
+              onClick={() => handleQuickRate(5)}
+              className={`p-1.5 rounded-lg transition-colors ${
+                userRating === 5 ? 'bg-green-100 text-green-600' : 'text-gray-400 hover:text-green-500 hover:bg-green-50'
+              }`}
+              title="Good suggestion"
+            >
+              <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                <path d="M2 10.5a1.5 1.5 0 113 0v6a1.5 1.5 0 01-3 0v-6zM6 10.333v5.43a2 2 0 001.106 1.79l.05.025A4 4 0 008.943 18h5.416a2 2 0 001.962-1.608l1.2-6A2 2 0 0015.56 8H12V4a2 2 0 00-2-2 1 1 0 00-1 1v.667a4 4 0 01-.8 2.4L6.8 7.933a4 4 0 00-.8 2.4z" />
+              </svg>
+            </button>
+            <button
+              onClick={() => handleQuickRate(1)}
+              className={`p-1.5 rounded-lg transition-colors ${
+                userRating === 1 ? 'bg-red-100 text-red-600' : 'text-gray-400 hover:text-red-500 hover:bg-red-50'
+              }`}
+              title="Bad suggestion"
+            >
+              <svg className="w-4 h-4 rotate-180" fill="currentColor" viewBox="0 0 20 20">
+                <path d="M2 10.5a1.5 1.5 0 113 0v6a1.5 1.5 0 01-3 0v-6zM6 10.333v5.43a2 2 0 001.106 1.79l.05.025A4 4 0 008.943 18h5.416a2 2 0 001.962-1.608l1.2-6A2 2 0 0015.56 8H12V4a2 2 0 00-2-2 1 1 0 00-1 1v.667a4 4 0 01-.8 2.4L6.8 7.933a4 4 0 00-.8 2.4z" />
+              </svg>
+            </button>
+            {totalRatings > 0 && (
+              <span className="text-xs text-gray-400 ml-1">
+                {avgRating?.toFixed(1)} ({totalRatings})
+              </span>
+            )}
+          </div>
+
+          {(story.suggestedAngles?.length || story.verificationNotes || story.verificationSources.length > 0) && (
+            <button
+              onClick={() => setExpanded(v => !v)}
+              className="flex items-center gap-1 text-[11px] text-blue-400/80 hover:text-blue-300 transition-colors"
+            >
             {expanded ? (
               <>
                 <HiOutlineChevronUp className="w-3.5 h-3.5" />
@@ -277,6 +332,7 @@ function StoryCard({ story, onRefresh }: { story: StoryIntelligenceItem; onRefre
             )}
           </button>
         )}
+      </div>
       </div>
 
       {/* Expandable details */}
@@ -346,6 +402,22 @@ function StoryCard({ story, onRefresh }: { story: StoryIntelligenceItem; onRefre
             </div>
           )}
         </div>
+      )}
+
+      {showFeedbackModal && feedbackAction && (
+        <StoryFeedbackModal
+          storyId={story.id}
+          headline={story.headline}
+          action={feedbackAction}
+          onClose={() => {
+            setShowFeedbackModal(false);
+            if (feedbackAction === 'DISMISS_FEEDBACK') onRefresh();
+          }}
+          onSubmit={() => {
+            setShowFeedbackModal(false);
+            if (feedbackAction === 'DISMISS_FEEDBACK') onRefresh();
+          }}
+        />
       )}
     </div>
   );
