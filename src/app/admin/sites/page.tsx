@@ -5,7 +5,6 @@ import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import toast from 'react-hot-toast';
 import AppShell from '@/components/layout/AppShell';
-import { useTrack } from '@/hooks/useTrack';
 import { HiOutlineGlobeAlt, HiOutlinePlusCircle, HiOutlineXMark, HiOutlineTrash } from 'react-icons/hi2';
 
 interface Site {
@@ -27,7 +26,6 @@ interface Site {
 export default function AdminSitesPage() {
   const { data: session } = useSession();
   const router = useRouter();
-  useTrack('admin_sites');
   const [sites, setSites] = useState<Site[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);

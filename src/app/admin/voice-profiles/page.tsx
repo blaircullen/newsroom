@@ -5,7 +5,6 @@ import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import toast from 'react-hot-toast';
 import AppShell from '@/components/layout/AppShell';
-import { useTrack } from '@/hooks/useTrack';
 import {
   HiOutlineChatBubbleBottomCenterText,
   HiOutlinePlusCircle,
@@ -53,7 +52,6 @@ interface Article {
 export default function AdminVoiceProfilesPage() {
   const { data: session } = useSession();
   const router = useRouter();
-  useTrack('admin_voice_profiles');
   const [profiles, setProfiles] = useState<VoiceProfile[]>([]);
   const [sites, setSites] = useState<Site[]>([]);
   const [articles, setArticles] = useState<Article[]>([]);

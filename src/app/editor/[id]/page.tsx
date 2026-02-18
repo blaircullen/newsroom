@@ -10,7 +10,6 @@ import RichEditor from '@/components/editor/RichEditor';
 import TagInput from '@/components/editor/TagInput';
 import ImagePicker from '@/components/editor/ImagePicker';
 import PublishModal from '@/components/dashboard/PublishModal';
-import { useTrack } from '@/hooks/useTrack';
 import {
   HiOutlinePhoto,
   HiOutlineCloudArrowUp,
@@ -61,7 +60,6 @@ export default function EditArticlePage() {
   const hasUnsavedChanges = useRef(false);
   const isInitialLoad = useRef(true);
 
-  const track = useTrack('editor');
   const isAdmin = session?.user?.role === 'ADMIN' || session?.user?.role === 'EDITOR';
   const canEdit = article && (
     isAdmin ||
@@ -170,7 +168,6 @@ export default function EditArticlePage() {
   const saveArticle = async (submit = false) => {
     if (!headline.trim()) { toast.error('Headline is required'); return; }
     submit ? setIsSubmitting(true) : setIsSaving(true);
-    track('editor', submit ? 'submit' : 'save');
     try {
       const res = await fetch(`/api/articles/${articleId}`, {
         method: 'PUT',

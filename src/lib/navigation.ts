@@ -5,7 +5,6 @@ import {
   HiOutlineGlobeAlt,
   HiOutlineCalendarDays,
   HiOutlineChartBar,
-  HiOutlineChartBarSquare,
   HiOutlineMegaphone,
   HiOutlineShare,
   HiOutlineChatBubbleBottomCenterText,
@@ -74,12 +73,6 @@ export const navItems: NavItem[] = [
     label: 'Social Queue',
     icon: HiOutlineMegaphone,
     showFor: (role) => ['ADMIN', 'EDITOR'].includes(role),
-  },
-  {
-    href: '/admin/feature-usage',
-    label: 'Feature Usage',
-    icon: HiOutlineChartBarSquare,
-    showFor: (role) => role === 'ADMIN',
   },
 ];
 

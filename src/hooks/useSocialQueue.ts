@@ -1,6 +1,5 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import toast from 'react-hot-toast';
-import { useTrack } from '@/hooks/useTrack';
 import { etDateString, etMidnightToUTC } from '@/lib/date-utils';
 import type {
   SocialPostData,
@@ -55,8 +54,6 @@ function groupPostsByAccount(posts: SocialPostData[]): AccountGroup[] {
 }
 
 export function useSocialQueue() {
-  const track = useTrack('social_queue');
-
   // Core data
   const [posts, setPosts] = useState<SocialPostData[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -218,7 +215,6 @@ export function useSocialQueue() {
 
   // Single post actions
   async function approve(postId: string) {
-    track('social_queue', 'approve');
     try {
       const res = await fetch(`/api/social/queue/${postId}`, {
         method: 'POST',
@@ -240,7 +236,6 @@ export function useSocialQueue() {
 
   async function sendNow(postId: string) {
     if (!confirm('Send this post immediately?')) return;
-    track('social_queue', 'send_now');
     try {
       const res = await fetch(`/api/social/queue/${postId}`, {
         method: 'POST',

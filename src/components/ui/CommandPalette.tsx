@@ -17,7 +17,6 @@ import {
   HiOutlineSun,
 } from 'react-icons/hi2';
 import { useTheme } from '@/contexts/ThemeContext';
-import { useTrack } from '@/hooks/useTrack';
 
 interface CommandItem {
   id: string;
@@ -38,8 +37,6 @@ export default function CommandPalette() {
   const router = useRouter();
   const { data: session } = useSession();
   const { resolvedTheme, setTheme } = useTheme();
-  const track = useTrack();
-
   const isAdmin = session?.user?.role === 'ADMIN' || session?.user?.role === 'EDITOR';
 
   // Define commands
@@ -162,7 +159,7 @@ export default function CommandPalette() {
       if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
         e.preventDefault();
         setIsOpen(true);
-        track('command_palette', 'open');
+
       }
       if (e.key === 'Escape') {
         setIsOpen(false);
@@ -207,7 +204,6 @@ export default function CommandPalette() {
         e.preventDefault();
         const selected = allResults[selectedIndex];
         if (selected) {
-          track('command_palette', 'search', { query, type: selected.type });
           if (selected.type === 'command') {
             selected.item.action();
           } else {

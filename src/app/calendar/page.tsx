@@ -6,7 +6,6 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import AppShell from '@/components/layout/AppShell';
 import PublishingInsights from '@/components/calendar/PublishingInsights';
-import { useTrack } from '@/hooks/useTrack';
 import { etDateString } from '@/lib/date-utils';
 import {
   HiOutlineChevronLeft,
@@ -54,7 +53,6 @@ function formatArticleTime(article: CalendarArticle): string | null {
 export default function CalendarPage() {
   const { data: session } = useSession();
   const router = useRouter();
-  const track = useTrack('calendar');
   const [currentDate, setCurrentDate] = useState(new Date());
   const [articles, setArticles] = useState<CalendarArticle[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -164,14 +162,12 @@ export default function CalendarPage() {
     setCurrentDate(newDate);
     setExpandedDates(new Set());
     setExpandedMobileWeeks(new Set());
-    track('calendar', 'navigate_month', { direction });
   };
 
   const goToToday = () => {
     setCurrentDate(new Date());
     setExpandedDates(new Set());
     setExpandedMobileWeeks(new Set());
-    track('calendar', 'go_today');
   };
 
   const todayStr = useMemo(() => etDateString(new Date()), []);

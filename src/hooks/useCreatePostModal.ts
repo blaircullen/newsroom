@@ -1,12 +1,9 @@
 import { useState, useMemo, useCallback } from 'react';
 import toast from 'react-hot-toast';
-import { useTrack } from '@/hooks/useTrack';
 import { etDatetimeLocalValue } from '@/lib/date-utils';
 import type { ArticleData, SocialAccountData, PostDraft } from '@/types/social';
 
 export function useCreatePostModal(onPostsQueued: () => void) {
-  const track = useTrack('social_queue');
-
   const [isOpen, setIsOpen] = useState(false);
   const [step, setStep] = useState<'article' | 'accounts'>('article');
 
@@ -29,7 +26,6 @@ export function useCreatePostModal(onPostsQueued: () => void) {
   }
 
   const open = useCallback(async () => {
-    track('social_queue', 'create_post');
     setIsOpen(true);
     setStep('article');
     setSelectedArticle(null);
@@ -53,7 +49,7 @@ export function useCreatePostModal(onPostsQueued: () => void) {
     } finally {
       setIsLoadingArticles(false);
     }
-  }, [track]);
+  }, []);
 
   const close = useCallback(() => setIsOpen(false), []);
 
@@ -112,8 +108,6 @@ export function useCreatePostModal(onPostsQueued: () => void) {
 
   const generateCaptions = useCallback(async () => {
     if (!selectedArticle || selectedAccountIds.size === 0) return;
-    track('social_queue', 'generate_caption');
-
     const accountIds = Array.from(selectedAccountIds);
     const draftsMap = new Map<string, PostDraft>();
     for (const accountId of accountIds) {
@@ -152,7 +146,7 @@ export function useCreatePostModal(onPostsQueued: () => void) {
         });
       }
     }
-  }, [selectedArticle, selectedAccountIds, postDrafts, track]);
+  }, [selectedArticle, selectedAccountIds, postDrafts]);
 
   const writeCaptions = useCallback(() => {
     if (!selectedArticle || selectedAccountIds.size === 0) return;
