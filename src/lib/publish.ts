@@ -624,18 +624,56 @@ async function publishToGhost(
   }
 }
 
-// Generate Hannity homepage mantle headline split using AI
-// Splits a full headline into a short punchy subhead (≤30 chars, ALL CAPS)
-// and a descriptive headline for the mantle display
-async function generateHannityMantle(
+// Fetch Hannity categories from WP REST API (cached for the process lifetime)
+let hannityCategories: Array<{ id: number; name: string }> | null = null;
+
+async function getHannityCategories(auth: string, wpUrl: string): Promise<Array<{ id: number; name: string }>> {
+  if (hannityCategories) return hannityCategories;
+
+  try {
+    const allCats: Array<{ id: number; name: string }> = [];
+    let page = 1;
+    while (true) {
+      const res = await fetch(`${wpUrl}/wp-json/wp/v2/categories?per_page=100&page=${page}`, {
+        headers: { Authorization: `Basic ${auth}` },
+        signal: AbortSignal.timeout(15000),
+      });
+      if (!res.ok) break;
+      const cats = await res.json();
+      if (!cats.length) break;
+      allCats.push(...cats.map((c: any) => ({ id: c.id, name: c.name })));
+      const total = parseInt(res.headers.get('x-wp-totalpages') || '1');
+      if (page >= total) break;
+      page++;
+    }
+    hannityCategories = allCats;
+    console.log(`[Hannity] Loaded ${allCats.length} categories`);
+    return allCats;
+  } catch (error: any) {
+    console.error(`[Hannity] Failed to fetch categories:`, error.message);
+    return [];
+  }
+}
+
+// Generate Hannity mantle fields and pick category using a single AI call
+interface HannityAIResult {
+  head: string;
+  subhead: string;
+  categoryId: number | null;
+}
+
+async function generateHannityFields(
   headline: string,
-  subHeadline?: string | null
-): Promise<{ head: string; subhead: string }> {
+  subHeadline: string | null | undefined,
+  categories: Array<{ id: number; name: string }>
+): Promise<HannityAIResult> {
   const anthropicApiKey = process.env.ANTHROPIC_API_KEY;
   if (!anthropicApiKey) {
-    console.log('[Hannity Mantle] No API key, using headline as-is');
-    return { head: headline, subhead: subHeadline?.toUpperCase().slice(0, 30) || '' };
+    console.log('[Hannity AI] No API key, using defaults');
+    return { head: headline, subhead: subHeadline?.toUpperCase().slice(0, 30) || '', categoryId: null };
   }
+
+  const categoryList = categories.map(c => `${c.id}: ${c.name}`).join('\n');
 
   try {
     const response = await fetch('https://api.anthropic.com/v1/messages', {
@@ -647,26 +685,34 @@ async function generateHannityMantle(
       },
       body: JSON.stringify({
         model: 'claude-haiku-4-5-20251001',
-        max_tokens: 150,
+        max_tokens: 200,
         messages: [{
           role: 'user',
-          content: `Split this news headline into two parts for a homepage mantle display:
+          content: `You are formatting a news article for hannity.com. Given the headline, do two things:
+
+1. Split the headline into mantle display fields
+2. Pick the single best category
 
 Headline: ${headline}${subHeadline ? `\nSubheadline: ${subHeadline}` : ''}
 
-Rules:
-- "subhead": A short, punchy phrase in ALL CAPS, max 30 characters. Often a quoted word, reaction, or key theme. Examples: "INAPPROPRIATE", "WITCH HUNT!", "BREAKING", "83% OF CONTRACTS CANCELED!", "1-800-JOE-BRIBES"
-- "head": The descriptive headline, usually shorter than the full headline. Remove any prefix that became the subhead.
+MANTLE RULES:
+- "subhead": Short punchy phrase, ALL CAPS, max 30 characters. Often a quoted word, reaction, or key theme. Examples: "INAPPROPRIATE", "WITCH HUNT!", "BREAKING", "83% OF CONTRACTS CANCELED!", "1-800-JOE-BRIBES"
+- "head": The descriptive headline. Remove any prefix that became the subhead.
 
-Respond with ONLY valid JSON: {"subhead":"...","head":"..."}`
+CATEGORIES (id: name):
+${categoryList}
+
+Pick the single most relevant category ID. If none fit well, use 1 (Uncategorized).
+
+Respond with ONLY valid JSON: {"subhead":"...","head":"...","category_id":123}`
         }],
       }),
       signal: AbortSignal.timeout(15000),
     });
 
     if (!response.ok) {
-      console.error(`[Hannity Mantle] API error: ${response.status}`);
-      return { head: headline, subhead: '' };
+      console.error(`[Hannity AI] API error: ${response.status}`);
+      return { head: headline, subhead: '', categoryId: null };
     }
 
     const data = await response.json();
@@ -674,16 +720,20 @@ Respond with ONLY valid JSON: {"subhead":"...","head":"..."}`
     const jsonMatch = text.match(/\{[^}]+\}/);
     if (jsonMatch) {
       const parsed = JSON.parse(jsonMatch[0]);
+      const categoryId = parsed.category_id && categories.some(c => c.id === parsed.category_id)
+        ? parsed.category_id
+        : null;
       return {
         head: parsed.head || headline,
         subhead: (parsed.subhead || '').slice(0, 30),
+        categoryId,
       };
     }
   } catch (error: any) {
-    console.error(`[Hannity Mantle] Error:`, error.message);
+    console.error(`[Hannity AI] Error:`, error.message);
   }
 
-  return { head: headline, subhead: '' };
+  return { head: headline, subhead: '', categoryId: null };
 }
 
 // WordPress REST API Publishing
@@ -766,16 +816,21 @@ async function publishToWordPress(
 
     // Site-specific custom fields
     if (isHannity) {
-      // Generate mantle-optimized headline split using AI
-      const mantle = await generateHannityMantle(article.headline, article.subHeadline);
+      // Fetch categories and generate mantle + category via single AI call
+      const categories = await getHannityCategories(auth, target.url);
+      const fields = await generateHannityFields(article.headline, article.subHeadline, categories);
       wpPost.meta = {
         headline: article.headline,
         sub_headline: article.subHeadline || '',
-        m2_head: mantle.head,
-        m2_subhead: mantle.subhead,
+        m2_head: fields.head,
+        m2_subhead: fields.subhead,
         media_type: '2',
       };
-      console.log(`[Publish WP] Hannity mantle: "${mantle.subhead}" / "${mantle.head}"`);
+      if (fields.categoryId) {
+        wpPost.categories = [fields.categoryId];
+      }
+      console.log(`[Publish WP] Hannity mantle: "${fields.subhead}" / "${fields.head}"`);
+      console.log(`[Publish WP] Hannity category: ${fields.categoryId || 'default'}`);
     } else {
       // Default ACF fields for other WordPress sites
       wpPost.acf = {
