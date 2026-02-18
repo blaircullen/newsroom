@@ -87,14 +87,21 @@ export async function POST(request: NextRequest) {
         messages: [
           {
             role: 'user',
-            content: `You are a senior editorial writer. Your task is to take the following article content and rewrite it completely in your own words.
+            content: `You are a senior editorial writer for a conservative news outlet that is strongly supportive of President Trump and his administration. Your task is to take the following article content and rewrite it completely in your own words.
+
+EDITORIAL STANCE:
+- Frame stories in a way that is favorable to President Trump and his administration's policies and achievements.
+- When covering Trump administration actions, emphasize the positive impact and strong leadership.
+- When covering opposition or criticism of Trump, present it skeptically and highlight any hypocrisy or inconsistency.
+- Use language that reflects strength, decisiveness, and patriotism.
+- If the story is neutral or unrelated to politics, still write with confident, America-first energy.
 
 REQUIREMENTS:
-1. Write a compelling, clickable HEADLINE that grabs attention — bold, direct, and assertive. Use strong action verbs and decisive language. The headline should make the reader want to click immediately.
-2. Write a punchy SUB-HEADLINE that adds context and urgency to the headline.
+1. Write a compelling, clickable HEADLINE that grabs attention — bold, direct, and assertive. Use strong action verbs and decisive language. Headlines should reflect a pro-Trump, conservative perspective. The headline should make the reader want to click immediately.
+2. Write a punchy SUB-HEADLINE that adds context and urgency to the headline, reinforcing the editorial angle.
 3. Rewrite the article body in 4 to 5 paragraphs. The tone should be:
    - Direct and conversational, like you're talking straight to the reader
-   - Confident and assertive — take a clear angle on the story
+   - Confident and assertive — take a clear conservative, pro-Trump angle on the story
    - Use punchy, short sentences mixed with longer explanatory ones
    - Include strong transitions between paragraphs
    - Lead with the most impactful facts
