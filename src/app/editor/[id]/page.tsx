@@ -11,6 +11,7 @@ import RichEditor from '@/components/editor/RichEditor';
 import TagInput from '@/components/editor/TagInput';
 import ImagePicker from '@/components/editor/ImagePicker';
 import PublishModal from '@/components/dashboard/PublishModal';
+import PublishPanel from '@/components/dashboard/PublishPanel';
 import { useTrack } from '@/hooks/useTrack';
 import { useUIVersion } from '@/contexts/UIVersionContext';
 import {
@@ -574,17 +575,16 @@ export default function EditArticlePage() {
           selectedImageId={featuredMediaId || featuredImageId}
         />
 
-        {showPublishModal && (
-          <PublishModal
-            articleId={articleId}
-            onClose={() => setShowPublishModal(false)}
-            onPublished={(url) => {
-              setShowPublishModal(false);
-              setArticle({ ...article, status: 'PUBLISHED', publishedUrl: url });
-              toast.success('Published successfully!');
-            }}
-          />
-        )}
+        <PublishPanel
+          articleId={articleId}
+          open={showPublishModal}
+          onClose={() => setShowPublishModal(false)}
+          onPublished={(url) => {
+            setShowPublishModal(false);
+            setArticle({ ...article, status: 'PUBLISHED', publishedUrl: url });
+            toast.success('Published successfully!');
+          }}
+        />
       </AppShell>
     );
   }
