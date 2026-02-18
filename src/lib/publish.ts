@@ -624,6 +624,68 @@ async function publishToGhost(
   }
 }
 
+// Generate Hannity homepage mantle headline split using AI
+// Splits a full headline into a short punchy subhead (≤30 chars, ALL CAPS)
+// and a descriptive headline for the mantle display
+async function generateHannityMantle(
+  headline: string,
+  subHeadline?: string | null
+): Promise<{ head: string; subhead: string }> {
+  const anthropicApiKey = process.env.ANTHROPIC_API_KEY;
+  if (!anthropicApiKey) {
+    console.log('[Hannity Mantle] No API key, using headline as-is');
+    return { head: headline, subhead: subHeadline?.toUpperCase().slice(0, 30) || '' };
+  }
+
+  try {
+    const response = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': anthropicApiKey,
+        'anthropic-version': '2023-06-01',
+      },
+      body: JSON.stringify({
+        model: 'claude-haiku-4-5-20251001',
+        max_tokens: 150,
+        messages: [{
+          role: 'user',
+          content: `Split this news headline into two parts for a homepage mantle display:
+
+Headline: ${headline}${subHeadline ? `\nSubheadline: ${subHeadline}` : ''}
+
+Rules:
+- "subhead": A short, punchy phrase in ALL CAPS, max 30 characters. Often a quoted word, reaction, or key theme. Examples: "INAPPROPRIATE", "WITCH HUNT!", "BREAKING", "83% OF CONTRACTS CANCELED!", "1-800-JOE-BRIBES"
+- "head": The descriptive headline, usually shorter than the full headline. Remove any prefix that became the subhead.
+
+Respond with ONLY valid JSON: {"subhead":"...","head":"..."}`
+        }],
+      }),
+      signal: AbortSignal.timeout(15000),
+    });
+
+    if (!response.ok) {
+      console.error(`[Hannity Mantle] API error: ${response.status}`);
+      return { head: headline, subhead: '' };
+    }
+
+    const data = await response.json();
+    const text = data.content?.[0]?.text || '';
+    const jsonMatch = text.match(/\{[^}]+\}/);
+    if (jsonMatch) {
+      const parsed = JSON.parse(jsonMatch[0]);
+      return {
+        head: parsed.head || headline,
+        subhead: (parsed.subhead || '').slice(0, 30),
+      };
+    }
+  } catch (error: any) {
+    console.error(`[Hannity Mantle] Error:`, error.message);
+  }
+
+  return { head: headline, subhead: '' };
+}
+
 // WordPress REST API Publishing
 async function publishToWordPress(
   article: ArticleForPublish,
@@ -691,26 +753,29 @@ async function publishToWordPress(
     console.log(`[Publish WP] Target: ${target.url}`);
     console.log(`[Publish WP] Featured media ID: ${featuredMediaId || '(none)'}`);
 
+    const isHannity = new URL(target.url).hostname === 'hannity.com';
+
     const wpPost: any = {
       title: article.headline,
       content: processedHtml,
       excerpt: article.subHeadline || '',
       slug: article.slug || undefined,
-      status: 'publish',
+      status: isHannity ? 'draft' : 'publish',
       tags: tagIds,
     };
 
     // Site-specific custom fields
-    const targetHost = new URL(target.url).hostname;
-    if (targetHost === 'hannity.com') {
-      // Hannity uses ACF fields for display headlines via registered REST meta
+    if (isHannity) {
+      // Generate mantle-optimized headline split using AI
+      const mantle = await generateHannityMantle(article.headline, article.subHeadline);
       wpPost.meta = {
         headline: article.headline,
         sub_headline: article.subHeadline || '',
-        m2_head: article.headline,
-        m2_subhead: article.subHeadline || '',
+        m2_head: mantle.head,
+        m2_subhead: mantle.subhead,
         media_type: '2',
       };
+      console.log(`[Publish WP] Hannity mantle: "${mantle.subhead}" / "${mantle.head}"`);
     } else {
       // Default ACF fields for other WordPress sites
       wpPost.acf = {
