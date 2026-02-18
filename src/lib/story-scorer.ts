@@ -198,6 +198,42 @@ function computeRecencyScore(firstSeenAt?: Date): number {
   return Math.round(decay * 15);
 }
 
+// ─── Editorial stance filter ──────────────────────────────────────────────────
+
+// Stories should reflect positively on the current US presidential administration
+// or be non-political. Anti-administration framing gets penalized. The Claude Code
+// batch processor (Phase 2) handles nuanced stance analysis beyond keywords.
+
+const ANTI_ADMIN_SIGNALS = [
+  'trump scandal', 'trump indicted', 'trump guilty', 'trump convicted',
+  'trump impeach', 'trump criminal', 'trump corrupt', 'trump fraud',
+  'trump racist', 'trump fascist', 'trump dictator', 'trump authoritarian',
+  'trump chaos', 'trump crisis', 'trump failure', 'gop infighting',
+  'republican civil war', 'maga extremis', 'trump lie', 'trump misinformation',
+  'trump threatens democracy', 'abuse of power',
+];
+
+const PRO_ADMIN_SIGNALS = [
+  'trump wins', 'trump victory', 'trump success', 'trump delivers',
+  'trump economy', 'trump record', 'trump accomplishment', 'trump tough',
+  'trump strong', 'maga', 'america first', 'trump leads', 'trump surges',
+  'trump dominat', 'trump landslide', 'trump rally', 'trump endors',
+  'trump sav', 'trump protect', 'trump defend', 'trump secur',
+  'biden fail', 'biden disaster', 'biden crisis', 'biden blunder',
+  'democrat scandal', 'liberal hypocrisy', 'woke fail', 'left wing',
+];
+
+function computeEditorialStanceAdjustment(headline: string): number {
+  const lower = headline.toLowerCase();
+  for (const signal of ANTI_ADMIN_SIGNALS) {
+    if (lower.includes(signal)) return -25;
+  }
+  for (const signal of PRO_ADMIN_SIGNALS) {
+    if (lower.includes(signal)) return 10;
+  }
+  return 0;
+}
+
 // ─── Main scoring functions ───────────────────────────────────────────────────
 
 export async function scoreStory(input: StoryScoreInput): Promise<StoryScoreResult> {
@@ -209,10 +245,11 @@ export async function scoreStory(input: StoryScoreInput): Promise<StoryScoreResu
   const sourceScore = computeSourceScore(input.sources);
   const { score: velocityScore, isHighVelocity } = computeVelocityScore(input.platformSignals);
   const recencyScore = computeRecencyScore(input.firstSeenAt);
+  const editorialAdj = computeEditorialStanceAdjustment(input.headline);
 
   // relevanceScore is the non-velocity portion (used separately in DB)
-  const relevanceScore = categoryScore + keywordMatchScore + sourceScore + recencyScore;
-  const totalScore = relevanceScore + velocityScore;
+  const relevanceScore = Math.max(0, Math.min(100, categoryScore + keywordMatchScore + sourceScore + recencyScore + editorialAdj));
+  const totalScore = Math.max(0, Math.min(100, relevanceScore + velocityScore));
 
   let alertLevel: 'NONE' | 'DASHBOARD' | 'TELEGRAM' = 'NONE';
   if (totalScore >= 85 && isHighVelocity) {
@@ -243,9 +280,10 @@ export async function scoreStories(inputs: StoryScoreInput[]): Promise<StoryScor
       const sourceScore = computeSourceScore(input.sources);
       const { score: velocityScore, isHighVelocity } = computeVelocityScore(input.platformSignals);
       const recencyScore = computeRecencyScore(input.firstSeenAt);
+      const editorialAdj = computeEditorialStanceAdjustment(input.headline);
 
-      const relevanceScore = categoryScore + keywordMatchScore + sourceScore + recencyScore;
-      const totalScore = relevanceScore + velocityScore;
+      const relevanceScore = Math.max(0, Math.min(100, categoryScore + keywordMatchScore + sourceScore + recencyScore + editorialAdj));
+      const totalScore = Math.max(0, Math.min(100, relevanceScore + velocityScore));
 
       let alertLevel: 'NONE' | 'DASHBOARD' | 'TELEGRAM' = 'NONE';
       if (totalScore >= 85 && isHighVelocity) {
