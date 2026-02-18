@@ -58,10 +58,14 @@ async function generateAiDraft(
   suggestedAngles: string[]
 ): Promise<{ headline: string; subHeadline: string; bodyHtml: string } | null> {
   const anthropicApiKey = process.env.ANTHROPIC_API_KEY;
-  if (!anthropicApiKey) return null;
+  if (!anthropicApiKey) {
+    console.error('[claim] No ANTHROPIC_API_KEY set');
+    return null;
+  }
 
   try {
     // Fetch source article
+    console.log(`[claim] Fetching source: ${sourceUrl}`);
     const res = await fetch(sourceUrl, {
       headers: {
         'User-Agent': 'Mozilla/5.0 (compatible; NewsRoom/1.0)',
@@ -70,17 +74,26 @@ async function generateAiDraft(
       signal: AbortSignal.timeout(10000),
     });
 
-    if (!res.ok) return null;
+    if (!res.ok) {
+      console.error(`[claim] Source fetch failed: HTTP ${res.status}`);
+      return null;
+    }
 
     const html = await res.text();
     const articleText = extractArticleText(html);
-    if (articleText.length < 100) return null;
+    console.log(`[claim] Extracted ${articleText.length} chars from source`);
+
+    if (articleText.length < 100) {
+      console.error(`[claim] Extracted text too short (${articleText.length} chars)`);
+      return null;
+    }
 
     const anglesContext =
       suggestedAngles.length > 0
         ? `\n\nSUGGESTED ANGLES (use one of these as your primary angle if appropriate):\n${suggestedAngles.map((a, i) => `${i + 1}. ${a}`).join('\n')}`
         : '';
 
+    console.log('[claim] Calling Anthropic API...');
     const anthropicRes = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: {
@@ -124,24 +137,35 @@ ${articleText.substring(0, 12000)}`,
       }),
     });
 
-    if (!anthropicRes.ok) return null;
+    if (!anthropicRes.ok) {
+      const errBody = await anthropicRes.text().catch(() => '');
+      console.error(`[claim] Anthropic API error: ${anthropicRes.status} ${errBody.slice(0, 300)}`);
+      return null;
+    }
 
     const data = await anthropicRes.json();
     const aiText = data.content?.[0]?.text;
-    if (!aiText) return null;
+    if (!aiText) {
+      console.error('[claim] Anthropic returned empty content');
+      return null;
+    }
 
     const cleaned = aiText.replace(/```json\s*/g, '').replace(/```\s*/g, '').trim();
     const parsed = JSON.parse(cleaned);
 
-    if (!parsed.headline || !parsed.bodyHtml) return null;
+    if (!parsed.headline || !parsed.bodyHtml) {
+      console.error('[claim] AI response missing headline or bodyHtml');
+      return null;
+    }
 
+    console.log(`[claim] AI draft generated: "${parsed.headline.slice(0, 60)}..."`);
     return {
       headline: parsed.headline,
       subHeadline: parsed.subHeadline || '',
       bodyHtml: parsed.bodyHtml,
     };
   } catch (error) {
-    console.error('[claim] AI draft generation failed (non-fatal):', error);
+    console.error('[claim] AI draft generation failed:', error);
     return null;
   }
 }
