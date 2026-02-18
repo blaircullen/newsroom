@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { Prisma } from '@prisma/client';
 import prisma from '@/lib/prisma';
 import { timingSafeCompare } from '@/lib/auth-utils';
 import { processStoryWithAI, updateTopicWeights } from '@/lib/story-ai';
@@ -22,7 +23,7 @@ export async function POST(request: NextRequest) {
 
   const stories = await prisma.storyIntelligence.findMany({
     where: {
-      suggestedAngles: { equals: null as never },
+      suggestedAngles: { equals: Prisma.DbNull },
       dismissed: false,
       firstSeenAt: { gte: cutoff24h },
     },
