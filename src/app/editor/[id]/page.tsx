@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter, useParams } from 'next/navigation';
+import Link from 'next/link';
 import Image from 'next/image';
 import toast from 'react-hot-toast';
 import AppShell from '@/components/layout/AppShell';
@@ -11,6 +12,7 @@ import TagInput from '@/components/editor/TagInput';
 import ImagePicker from '@/components/editor/ImagePicker';
 import PublishModal from '@/components/dashboard/PublishModal';
 import { useTrack } from '@/hooks/useTrack';
+import { useUIVersion } from '@/contexts/UIVersionContext';
 import {
   HiOutlinePhoto,
   HiOutlineCloudArrowUp,
@@ -21,6 +23,7 @@ import {
   HiOutlineExclamationTriangle,
   HiOutlineGlobeAlt,
   HiOutlineCheck,
+  HiArrowLeft,
 } from 'react-icons/hi2';
 
 const STATUS_CONFIG: Record<string, { label: string; class: string }> = {
@@ -62,6 +65,8 @@ export default function EditArticlePage() {
   const isInitialLoad = useRef(true);
 
   const track = useTrack('editor');
+  const { uiVersion } = useUIVersion();
+  const [focusMode, setFocusMode] = useState(false);
   const isAdmin = session?.user?.role === 'ADMIN' || session?.user?.role === 'EDITOR';
   const canEdit = article && (
     isAdmin ||
@@ -167,6 +172,18 @@ export default function EditArticlePage() {
     return () => { if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current); };
   }, []);
 
+  useEffect(() => {
+    if (uiVersion !== 'mission-control') return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === '\\' && (e.metaKey || e.ctrlKey)) {
+        e.preventDefault();
+        setFocusMode((prev) => !prev);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [uiVersion]);
+
   const saveArticle = async (submit = false) => {
     if (!headline.trim()) { toast.error('Headline is required'); return; }
     submit ? setIsSubmitting(true) : setIsSaving(true);
@@ -243,6 +260,335 @@ export default function EditArticlePage() {
 
   if (!article) return null;
   const statusConfig = STATUS_CONFIG[article.status] || STATUS_CONFIG.DRAFT;
+
+  // ─── Mission Control UI ───────────────────────────────────────────────────
+  if (uiVersion === 'mission-control') {
+    const wordCount = bodyContent.split(/\s+/).filter(Boolean).length;
+    const readTime = Math.ceil(wordCount / 200);
+
+    return (
+      <AppShell>
+        {/* Top Bar */}
+        <div
+          className={`h-12 flex items-center justify-between px-4 bg-ink-950 border-b border-ink-800 transition-opacity duration-300 ${
+            focusMode ? 'opacity-0 pointer-events-none' : 'opacity-100'
+          }`}
+        >
+          <div className="flex items-center gap-3 min-w-0">
+            <Link
+              href="/dashboard"
+              className="flex items-center gap-1.5 text-ink-300 hover:text-paper-100 transition-colors shrink-0"
+            >
+              <HiArrowLeft className="w-4 h-4" />
+              <span className="terminal-label text-xs">Dashboard</span>
+            </Link>
+            <span className="text-ink-700 text-sm shrink-0">/</span>
+            <span className="font-display text-sm text-paper-200 truncate max-w-[40ch]">
+              {headline || 'Untitled'}
+            </span>
+          </div>
+          <div className="flex items-center gap-3 shrink-0">
+            <span className={`status-badge ${statusConfig.class} text-xs`}>
+              {statusConfig.label}
+            </span>
+            <button
+              disabled
+              className="px-3 py-1.5 text-xs font-medium text-ink-400 border border-ink-800 rounded-md cursor-not-allowed opacity-50"
+            >
+              Preview
+            </button>
+          </div>
+        </div>
+
+        {/* Writing Canvas */}
+        <div
+          className="min-h-screen bg-ink-950 pb-20 pt-4"
+          onDoubleClick={() => setFocusMode((prev) => !prev)}
+        >
+          <div className="max-w-[680px] mx-auto px-4">
+            {/* Featured Image */}
+            <div className="mb-6" onClick={(e) => e.stopPropagation()}>
+              {featuredImage ? (
+                <div className="relative rounded-xl overflow-hidden border border-ink-800 group h-48 md:h-64">
+                  <Image
+                    src={featuredImage}
+                    alt="Featured image"
+                    fill
+                    className="object-cover"
+                    sizes="(max-width: 768px) 100vw, 680px"
+                  />
+                  {canEdit && (
+                    <div className="absolute inset-0 bg-ink-950/0 group-hover:bg-ink-950/50 transition-all flex items-center justify-center">
+                      <div className="opacity-0 group-hover:opacity-100 transition-opacity flex gap-2">
+                        <button
+                          onClick={() => setShowImagePicker(true)}
+                          className="px-4 py-2 bg-ink-900 border border-ink-700 rounded-lg text-sm font-medium text-paper-200 hover:bg-ink-800 transition-colors"
+                        >
+                          Change
+                        </button>
+                        <button
+                          onClick={() => {
+                            setFeaturedImage(null);
+                            setFeaturedImageId(null);
+                            setFeaturedMediaId(null);
+                            setImageCredit('');
+                          }}
+                          className="p-2 bg-ink-900 border border-ink-700 rounded-lg text-paper-200 hover:bg-ink-800 transition-colors"
+                        >
+                          <HiOutlineXMark className="w-5 h-5" />
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ) : canEdit ? (
+                <button
+                  onClick={() => setShowImagePicker(true)}
+                  className="w-full h-48 rounded-xl border-2 border-dashed border-ink-800 flex flex-col items-center justify-center gap-2 text-ink-400 hover:border-press-500 hover:text-press-400 transition-all"
+                >
+                  <HiOutlinePhoto className="w-8 h-8" />
+                  <span className="text-sm font-medium">Choose Featured Image</span>
+                </button>
+              ) : null}
+
+              {featuredImage && canEdit && (
+                <div className="mt-2">
+                  <input
+                    type="text"
+                    value={imageCredit}
+                    onChange={(e) => setImageCredit(e.target.value)}
+                    placeholder="Image credit (e.g. Photo: Getty Images / John Smith)"
+                    className="w-full px-3 py-2 rounded-lg border border-ink-800 bg-ink-900 text-sm text-paper-300 placeholder-ink-400 focus:outline-none focus:border-press-500"
+                  />
+                </div>
+              )}
+              {featuredImage && !canEdit && imageCredit && (
+                <p className="mt-2 text-xs text-ink-300 italic">{imageCredit}</p>
+              )}
+            </div>
+
+            {/* Review Panel — MC dark version */}
+            {showReviewPanel && canReview && (
+              <div
+                className="mb-6 bg-ink-900 rounded-xl border border-ink-800 p-5"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <h3 className="font-display font-semibold text-paper-100 mb-3">Editorial Review</h3>
+                <textarea
+                  value={reviewNotes}
+                  onChange={(e) => setReviewNotes(e.target.value)}
+                  placeholder="Add notes for the writer (optional)..."
+                  className="w-full px-4 py-3 rounded-lg border border-ink-800 bg-ink-950 text-sm text-paper-200 placeholder-ink-400 focus:outline-none focus:border-press-500 resize-none h-24 mb-4"
+                />
+                <div className="flex items-center gap-3">
+                  <button
+                    onClick={() => handleReview('approved')}
+                    className="px-4 py-2 text-sm font-semibold text-white bg-emerald-700 rounded-lg hover:bg-emerald-600 transition-all focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 focus:ring-offset-ink-900"
+                  >
+                    Approve
+                  </button>
+                  <button
+                    onClick={() => handleReview('revision_requested')}
+                    className="px-4 py-2 text-sm font-medium text-amber-400 bg-amber-950/40 border border-amber-800 rounded-lg hover:bg-amber-950/60 transition-all focus:outline-none focus:ring-2 focus:ring-amber-500 focus:ring-offset-2 focus:ring-offset-ink-900"
+                  >
+                    Request Revision
+                  </button>
+                  <button
+                    onClick={() => handleReview('rejected')}
+                    className="px-4 py-2 text-sm font-medium text-red-400 bg-red-950/40 border border-red-900 rounded-lg hover:bg-red-950/60 transition-all focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 focus:ring-offset-ink-900"
+                  >
+                    Reject
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Review History — MC dark version */}
+            {article.reviews && article.reviews.length > 0 && (
+              <div
+                className="mb-6 bg-ink-900/50 rounded-xl border border-ink-800 p-5"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <h3 className="terminal-label text-ink-300 mb-3">Review History</h3>
+                <div className="space-y-3">
+                  {article.reviews.slice(0, 3).map((review: any) => (
+                    <div key={review.id} className="flex items-start gap-3 text-sm">
+                      <div
+                        className={`mt-0.5 w-2 h-2 rounded-full shrink-0 ${
+                          review.decision === 'approved'
+                            ? 'bg-emerald-500'
+                            : review.decision === 'revision_requested'
+                            ? 'bg-amber-500'
+                            : 'bg-red-500'
+                        }`}
+                      />
+                      <div>
+                        <span className="font-medium text-paper-200">{review.reviewer.name}</span>
+                        <span className="text-ink-300"> — {review.decision.replace('_', ' ')}</span>
+                        {review.notes && <p className="text-ink-400 mt-1">{review.notes}</p>}
+                        <p className="text-ink-400 text-xs mt-0.5">
+                          {new Date(review.createdAt).toLocaleString()}
+                        </p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Headline */}
+            <input
+              type="text"
+              value={headline}
+              onChange={(e) => setHeadline(e.target.value)}
+              placeholder="Write your headline..."
+              className="w-full font-display text-3xl md:text-4xl font-bold text-paper-100 placeholder-ink-600 focus:outline-none bg-transparent leading-tight mb-4"
+              readOnly={!canEdit}
+              onClick={(e) => e.stopPropagation()}
+            />
+
+            {/* Sub-headline */}
+            <input
+              type="text"
+              value={subHeadline}
+              onChange={(e) => setSubHeadline(e.target.value)}
+              placeholder={generatedSubHeadline || 'Add a sub-headline (optional)'}
+              className="w-full text-lg text-paper-300 placeholder-ink-600 focus:outline-none bg-transparent"
+              readOnly={!canEdit}
+              onClick={(e) => e.stopPropagation()}
+            />
+            {!subHeadline.trim() && generatedSubHeadline && (
+              <p className="text-xs text-ink-400 mt-1">Auto-generated from body — type to override</p>
+            )}
+
+            {/* Separator */}
+            <div className="h-px bg-ink-800 my-6" />
+
+            {/* Body Editor */}
+            <div
+              className="mc-editor-body prose-invert"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <RichEditor
+                content={bodyHtml || bodyContent}
+                onChange={handleContentChange}
+                placeholder="Tell your story..."
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* Status Footer */}
+        <div
+          className={`fixed bottom-0 left-0 right-0 z-30 bg-ink-950/95 backdrop-blur-sm border-t border-ink-800 transition-opacity duration-300 ${
+            focusMode ? 'opacity-0 pointer-events-none' : 'opacity-100'
+          }`}
+        >
+          <div className="max-w-[680px] mx-auto px-4 h-11 flex items-center justify-between gap-4">
+            {/* Left: Auto-save indicator */}
+            <div className="flex items-center gap-2 text-xs w-40">
+              {autoSaveStatus === 'saving' && (
+                <>
+                  <div className="animate-spin w-3 h-3 border border-ink-600 border-t-press-500 rounded-full" />
+                  <span className="text-ink-400">Saving...</span>
+                </>
+              )}
+              {autoSaveStatus === 'saved' && (
+                <>
+                  <HiOutlineCheck className="w-3.5 h-3.5 text-signal-success" />
+                  <span className="text-signal-success">Saved</span>
+                </>
+              )}
+              {autoSaveStatus === 'error' && (
+                <>
+                  <HiOutlineExclamationTriangle className="w-3.5 h-3.5 text-signal-danger" />
+                  <span className="text-signal-danger">Save failed</span>
+                </>
+              )}
+              {autoSaveStatus === 'idle' && (
+                <span className="text-ink-600 terminal-label">Auto-save on</span>
+              )}
+            </div>
+
+            {/* Center: Word count + read time */}
+            <div className="font-mono text-xs text-ink-300 text-center">
+              {wordCount.toLocaleString()} words &middot; {readTime} min read
+            </div>
+
+            {/* Right: Action buttons */}
+            <div className="flex items-center gap-2 w-40 justify-end">
+              {canReview && (
+                <button
+                  onClick={() => setShowReviewPanel(!showReviewPanel)}
+                  className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium border border-ink-700 text-paper-300 rounded-md hover:bg-ink-800 transition-colors"
+                >
+                  <HiOutlineCheckCircle className="w-3.5 h-3.5" />
+                  Review
+                </button>
+              )}
+              {canPublish && (
+                <button
+                  onClick={() => setShowPublishModal(true)}
+                  className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-paper-100 bg-emerald-700 rounded-md hover:bg-emerald-600 transition-colors"
+                >
+                  <HiOutlineGlobeAlt className="w-3.5 h-3.5" />
+                  Publish
+                </button>
+              )}
+              {canEdit && (
+                <>
+                  <button
+                    onClick={() => saveArticle(false)}
+                    disabled={isSaving || isSubmitting}
+                    className="px-3 py-1.5 text-xs font-medium border border-ink-700 text-paper-300 rounded-md hover:bg-ink-800 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                  >
+                    {isSaving ? 'Saving...' : 'Save Draft'}
+                  </button>
+                  {canSubmit && (
+                    <button
+                      onClick={() => saveArticle(true)}
+                      disabled={isSaving || isSubmitting}
+                      className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-paper-100 bg-press-500 rounded-md hover:bg-press-600 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                    >
+                      <HiOutlinePaperAirplane className="w-3.5 h-3.5" />
+                      {isSubmitting ? 'Submitting...' : 'Submit'}
+                    </button>
+                  )}
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Shared modals — identical in both UI versions */}
+        <ImagePicker
+          isOpen={showImagePicker}
+          onClose={() => setShowImagePicker(false)}
+          onSelect={(image) => {
+            setFeaturedImage(image.directUrl);
+            setFeaturedImageId(image.id);
+            setFeaturedMediaId(image.id);
+            setShowImagePicker(false);
+            if (image.credit) setImageCredit(image.credit);
+          }}
+          selectedImageId={featuredMediaId || featuredImageId}
+        />
+
+        {showPublishModal && (
+          <PublishModal
+            articleId={articleId}
+            onClose={() => setShowPublishModal(false)}
+            onPublished={(url) => {
+              setShowPublishModal(false);
+              setArticle({ ...article, status: 'PUBLISHED', publishedUrl: url });
+              toast.success('Published successfully!');
+            }}
+          />
+        )}
+      </AppShell>
+    );
+  }
+  // ─── End Mission Control UI ──────────────────────────────────────────────
 
   return (
     <AppShell>
