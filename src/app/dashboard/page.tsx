@@ -220,6 +220,18 @@ export default function DashboardPage() {
     }
   }, []);
 
+  const fetchIntelligence = useCallback(async () => {
+    try {
+      const res = await fetch('/api/story-intelligence');
+      if (res.ok) {
+        const data = await res.json();
+        setIntelligenceStories(data.stories || []);
+      }
+    } catch (error) {
+      console.error('Failed to fetch story intelligence:', error);
+    }
+  }, []);
+
   // Redirect if not authenticated
   useEffect(() => {
     if (status === 'unauthenticated') {
@@ -234,6 +246,7 @@ export default function DashboardPage() {
       fetchArticles();
       fetchHotArticles();
       fetchStoryIdeas();
+      fetchIntelligence();
 
       // Auto-refresh every 30 seconds
       const interval = setInterval(() => {
@@ -244,18 +257,21 @@ export default function DashboardPage() {
       // Refresh story ideas every 15 minutes
       const ideasInterval = setInterval(fetchStoryIdeas, 15 * 60 * 1000);
 
+      const intelligenceInterval = setInterval(fetchIntelligence, 5 * 60 * 1000);
+
       return () => {
         clearInterval(interval);
         clearInterval(ideasInterval);
+        clearInterval(intelligenceInterval);
       };
     }
-  }, [session, fetchArticles, fetchHotArticles, fetchStoryIdeas]);
+  }, [session, fetchArticles, fetchHotArticles, fetchStoryIdeas, fetchIntelligence]);
 
   // Pull-to-refresh handlers
   const handlePullToRefresh = async () => {
     setIsRefreshing(true);
     track('dashboard', 'pull_to_refresh');
-    await Promise.all([fetchArticles(), fetchHotArticles(), fetchStoryIdeas()]);
+    await Promise.all([fetchArticles(), fetchHotArticles(), fetchStoryIdeas(), fetchIntelligence()]);
     setTimeout(() => setIsRefreshing(false), 600);
   };
 
@@ -696,6 +712,14 @@ export default function DashboardPage() {
         {/* Hot Tab - Mobile */}
         {activeTab === 'hot' && (
           <div className="bg-slate-900 min-h-screen px-4 pt-4">
+            {intelligenceStories.length > 0 && (
+              <div className="mb-4">
+                <StoryIntelligenceFeed
+                  stories={intelligenceStories}
+                  onRefresh={fetchIntelligence}
+                />
+              </div>
+            )}
             <HotSection
               hotArticles={hotArticles}
               storyIdeas={storyIdeas}
@@ -869,6 +893,26 @@ export default function DashboardPage() {
                 View Article
                 <HiOutlineArrowTopRightOnSquare className="w-4 h-4" />
               </Link>
+            </div>
+          </div>
+        )}
+
+        {/* Story Intelligence Panel - Desktop (Admin only) */}
+        {isAdmin && intelligenceStories.length > 0 && (
+          <div className="mb-8">
+            <div className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 rounded-xl border border-blue-200 dark:border-blue-800 overflow-hidden">
+              <div className="px-5 py-4 flex items-center gap-3">
+                <div className="w-9 h-9 rounded-lg bg-blue-100 dark:bg-blue-800 flex items-center justify-center">
+                  <HiOutlineSparkles className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+                </div>
+                <div>
+                  <h3 className="font-display font-semibold text-ink-900 dark:text-ink-100">Story Intelligence</h3>
+                  <p className="text-xs text-ink-500 dark:text-ink-400">{intelligenceStories.length} AI-scored stories</p>
+                </div>
+              </div>
+              <div className="px-5 pb-5">
+                <StoryIntelligenceFeed stories={intelligenceStories} onRefresh={fetchIntelligence} />
+              </div>
             </div>
           </div>
         )}
