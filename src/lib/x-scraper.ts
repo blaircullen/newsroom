@@ -1,5 +1,4 @@
 import { Scraper } from '@the-convocation/twitter-scraper';
-import { ProxyAgent } from 'undici';
 import { raiseAlert, resolveAlert } from '@/lib/system-alerts';
 
 let scraperInstance: Scraper | null = null;
@@ -13,18 +12,19 @@ const X_PROXY_URL = process.env.X_PROXY_URL;
 
 /**
  * Create a fetch function that routes through the HTTP proxy.
- * Uses undici's ProxyAgent with native fetch for full Response compatibility.
+ * Uses undici's ProxyAgent + undici's own fetch for full compatibility.
  * Returns undefined if no proxy is configured.
  */
 function createProxiedFetch(): typeof fetch | undefined {
   if (!X_PROXY_URL) return undefined;
 
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const { ProxyAgent, fetch: undiciFetch } = require('undici');
   const proxyAgent = new ProxyAgent(X_PROXY_URL);
 
   return ((input: RequestInfo | URL, init?: RequestInit) => {
-    return fetch(input, {
+    return undiciFetch(input, {
       ...init,
-      // @ts-expect-error — dispatcher is a Node/undici-specific fetch option
       dispatcher: proxyAgent,
     });
   }) as typeof fetch;
