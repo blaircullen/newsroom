@@ -6,6 +6,9 @@ import { useRouter, usePathname } from 'next/navigation';
 import Image from 'next/image';
 import Link from 'next/link';
 import Sidebar from './Sidebar';
+import TopBar from './TopBar';
+import WireTicker from './WireTicker';
+import BottomNav from './BottomNav';
 import {
   HiOutlineArrowRightOnRectangle,
   HiOutlineBars3,
@@ -83,20 +86,144 @@ function AppShellInner({ children, hideOnMobile = false, flush = false }: AppShe
 
   if (!session) return null;
 
+  const navItems = getNavItemsForRole(session.user.role);
+
   if (uiVersion === 'mission-control') {
     return (
-      <div className="min-h-screen bg-ink-950 flex items-center justify-center">
-        <div className="text-center">
-          <p className="text-4xl mb-2">🚀</p>
-          <h1 className="text-paper-100 text-xl font-bold mb-2">Mission Control</h1>
-          <p className="text-paper-400 text-sm mb-6">Coming soon — the sidebar sends its regards.</p>
-          <UIVersionToggle />
+      <div className="min-h-screen bg-ink-950">
+        {/* Skip to content */}
+        <a
+          href="#main-content"
+          className="sr-only focus:not-sr-only focus:absolute focus:top-4 focus:left-4 focus:z-[100] focus:px-4 focus:py-2 focus:bg-press-600 focus:text-white focus:rounded-lg focus:outline-none focus:ring-2 focus:ring-press-400"
+        >
+          Skip to main content
+        </a>
+
+        {/* TopBar — desktop and mobile */}
+        <TopBar onMobileMenuToggle={() => setMobileMenuOpen(!mobileMenuOpen)} />
+
+        {/* WireTicker — desktop only */}
+        <WireTicker />
+
+        {/* Mobile Menu Overlay */}
+        {mobileMenuOpen && (
+          <div
+            className="md:hidden fixed inset-0 z-40 bg-black/50"
+            onClick={() => setMobileMenuOpen(false)}
+          />
+        )}
+
+        {/* Mobile Slide-out Menu */}
+        <div className={`md:hidden fixed top-14 left-0 bottom-0 w-64 z-50 transform transition-transform duration-200 ease-in-out bg-gradient-to-b from-ink-950 to-ink-900 ${
+          mobileMenuOpen ? 'translate-x-0' : '-translate-x-full'
+        }`}>
+          <nav className="py-4 px-3 space-y-0.5" aria-label="Mobile navigation">
+            {navItems.map((item) => {
+              const isActive = isNavItemActive(item.href, pathname);
+              const Icon = item.icon;
+              return (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-150
+                    ${isActive ? 'bg-press-500/15 text-press-400' : 'text-ink-200 hover:bg-white/5 hover:text-white'}
+                    focus:outline-none focus:ring-2 focus:ring-press-500/50 focus:ring-offset-2 focus:ring-offset-ink-900`}
+                  aria-current={isActive ? 'page' : undefined}
+                >
+                  <Icon className={`w-5 h-5 flex-shrink-0 ${isActive ? 'text-press-400' : ''}`} />
+                  {item.label}
+                </Link>
+              );
+            })}
+          </nav>
+
+          {/* Mobile User Section */}
+          <div className="absolute bottom-0 left-0 right-0 px-4 py-4 border-t border-white/10">
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 rounded-full bg-press-500/20 flex items-center justify-center flex-shrink-0">
+                <span className="text-press-400 text-xs font-semibold">
+                  {session.user.name?.charAt(0).toUpperCase()}
+                </span>
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-white text-sm font-medium truncate">{session.user.name}</p>
+                <p className="text-ink-500 text-[10px] capitalize">{session.user.role === 'ADMIN' ? 'Managing Editor' : session.user.role.toLowerCase()}</p>
+              </div>
+              <button
+                onClick={() => signOut({ callbackUrl: '/login' })}
+                className="p-2 rounded-md text-ink-400 hover:text-press-400 hover:bg-white/5 transition-colors"
+                title="Sign out"
+                aria-label="Sign out"
+              >
+                <HiOutlineArrowRightOnRectangle className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="mt-3">
+              <UIVersionToggle />
+            </div>
+          </div>
+        </div>
+
+        {/* System Alert Banners */}
+        {systemAlerts.filter((a) => !dismissedAlerts.has(a.id)).length > 0 && (
+          <div className="fixed top-[88px] left-0 right-0 z-20 space-y-0">
+            {systemAlerts
+              .filter((a) => !dismissedAlerts.has(a.id))
+              .map((alert) => (
+                <div
+                  key={alert.id}
+                  className={`flex items-center gap-3 px-4 py-2.5 text-sm text-white ${
+                    alert.severity === 'warning' ? 'bg-amber-600' : 'bg-red-600'
+                  }`}
+                >
+                  <HiOutlineExclamationTriangle className="w-5 h-5 flex-shrink-0" />
+                  <span className="flex-1">{alert.message}</span>
+                  <button
+                    onClick={() => setDismissedAlerts((prev) => new Set(prev).add(alert.id))}
+                    className="p-1 rounded hover:bg-white/20 transition-colors flex-shrink-0"
+                    aria-label="Dismiss alert"
+                  >
+                    <HiOutlineXMark className="w-4 h-4" />
+                  </button>
+                </div>
+              ))}
+          </div>
+        )}
+
+        {/* Main Content */}
+        <main id="main-content" className="pt-14 md:pt-[88px]">
+          {flush ? (
+            children
+          ) : (
+            <div className="max-w-[1600px] mx-auto px-4 md:px-6 py-4 md:py-6">
+              {children}
+            </div>
+          )}
+        </main>
+
+        {/* Mobile Bottom Nav */}
+        <div className="md:hidden">
+          <BottomNav
+            activeTab={
+              pathname.startsWith('/analytics') ? 'analytics' :
+              pathname.startsWith('/social-queue') ? 'social-queue' :
+              pathname.startsWith('/trending') ? 'hot' :
+              'home'
+            }
+            onTabChange={(tab) => {
+              const routes: Record<string, string> = {
+                home: '/dashboard',
+                hot: '/trending',
+                analytics: '/analytics',
+                'social-queue': '/social-queue',
+              };
+              router.push(routes[tab] ?? '/dashboard');
+            }}
+          />
         </div>
       </div>
     );
   }
-
-  const navItems = getNavItemsForRole(session.user.role);
 
   return (
     <div className={`min-h-screen flex flex-col md:flex-row transition-colors ${
