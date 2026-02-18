@@ -69,6 +69,9 @@ services:
       X_SCRAPER_PASSWORD: ${X_SCRAPER_PASSWORD:-}
       X_SCRAPER_USERNAME: ${X_SCRAPER_USERNAME:-}
       X_PROXY_URL: ${X_PROXY_URL:-}
+      X_SCRAPER_COOKIES: ${X_SCRAPER_COOKIES:-}
+      X_SCRAPER_API_URL: ${X_SCRAPER_API_URL:-http://172.21.0.1:8877}
+      X_SCRAPER_API_KEY: ${X_SCRAPER_API_KEY:-x-scraper-vm101-2026}
 
 volumes:
   postgres_data:
