@@ -22,6 +22,7 @@ interface MediaImage {
   altText?: string | null;
   width?: number | null;
   height?: number | null;
+  aiStatus?: string | null;
 }
 
 interface ImagePickerProps {
@@ -291,7 +292,7 @@ export default function ImagePicker({ isOpen, onClose, onSelect, selectedImageId
                   type="text"
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
-                  placeholder="Search images by name..."
+                  placeholder="Search images by name, person, or topic..."
                   className="w-full pl-10 pr-4 py-2.5 rounded-lg border border-ink-200 text-sm focus:outline-none focus:border-press-500 focus:ring-2 focus:ring-press-500/10"
                 />
               </div>
@@ -346,6 +347,13 @@ export default function ImagePicker({ isOpen, onClose, onSelect, selectedImageId
                         {selectedImageId === image.id && (
                           <div className="absolute top-2 right-2 w-6 h-6 bg-press-500 rounded-full flex items-center justify-center">
                             <HiOutlineCheck className="w-4 h-4 text-white" />
+                          </div>
+                        )}
+                        {/* AI analyzing indicator */}
+                        {image.aiStatus === 'analyzing' && (
+                          <div className="absolute top-2 left-2 px-2 py-1 bg-amber-500/90 rounded-full flex items-center gap-1.5">
+                            <div className="animate-spin w-3 h-3 border-[1.5px] border-white/40 border-t-white rounded-full" />
+                            <span className="text-white text-[10px] font-medium">AI</span>
                           </div>
                         )}
                       </button>

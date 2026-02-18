@@ -63,6 +63,17 @@ export async function POST(request: NextRequest) {
       uploadedById: session.user.id,
     });
 
+    // Fire-and-forget: trigger AI image analysis in background
+    const baseUrl = request.nextUrl.origin;
+    fetch(`${baseUrl}/api/media/${media.id}/analyze`, {
+      method: 'POST',
+      headers: {
+        'x-internal-secret': process.env.NEXTAUTH_SECRET || '',
+      },
+    }).catch((err) => {
+      console.error('[Media Upload] Failed to trigger analysis:', err.message);
+    });
+
     return NextResponse.json({
       success: true,
       image: {

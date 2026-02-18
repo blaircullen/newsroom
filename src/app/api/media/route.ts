@@ -34,6 +34,7 @@ export async function GET(request: NextRequest) {
         altText: m.altText,
         width: m.width,
         height: m.height,
+        aiStatus: m.aiStatus,
       })),
       total: result.total,
       page: result.page,

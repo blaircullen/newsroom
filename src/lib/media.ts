@@ -161,6 +161,8 @@ export async function searchMedia({
       { originalName: { contains: query, mode: 'insensitive' } },
       { credit: { contains: query, mode: 'insensitive' } },
       { description: { contains: query, mode: 'insensitive' } },
+      { tags: { has: query } },
+      { tags: { hasSome: query.split(' ').filter(Boolean) } },
     ];
   }
 
