@@ -20,7 +20,6 @@ model User {
   createdAt    DateTime  @default(now()) @map("created_at")
   updatedAt    DateTime  @updatedAt @map("updated_at")
   lastLoginAt  DateTime? @map("last_login_at")
-  uiVersion    String    @default("classic") @map("ui_version")
   articles       Article[]           @relation("AuthoredArticles")
   comments       Comment[]
   reviews        Review[]

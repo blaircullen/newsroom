@@ -12,7 +12,6 @@ export type BottomNavTabId = 'home' | 'hot' | 'analytics' | 'social-queue';
 interface BottomNavProps {
   activeTab: BottomNavTabId | (string & {});
   onTabChange: (tab: BottomNavTabId) => void;
-  className?: string;
 }
 
 type TabId = BottomNavTabId;
@@ -24,9 +23,9 @@ const tabs: { id: TabId; label: string; icon: typeof HiOutlineHome }[] = [
   { id: 'social-queue', label: 'Social', icon: HiOutlineMegaphone },
 ];
 
-export default function BottomNav({ activeTab, onTabChange, className }: BottomNavProps) {
+export default function BottomNav({ activeTab, onTabChange }: BottomNavProps) {
   return (
-    <div className={`fixed ${className ?? 'bottom-0'} left-0 right-0 z-50 md:hidden`}>
+    <div className="fixed bottom-0 left-0 right-0 z-50 md:hidden">
       <div className="mx-3 mb-3 rounded-2xl bg-ink-900/98 backdrop-blur-xl border border-white/15 shadow-2xl shadow-black/50">
         <div className="flex items-center justify-around p-2">
           {tabs.map((tab) => {

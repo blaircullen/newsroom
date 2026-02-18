@@ -46,13 +46,6 @@ const config: Config = {
           300: '#e9ecef',
           400: '#dee2e6',
         },
-        // Signal colors for Mission Control
-        signal: {
-          live: '#EF4444',
-          success: '#22C55E',
-          warning: '#F59E0B',
-          danger: '#EF4444',
-        },
       },
       fontFamily: {
         'display': ['"Playfair Display"', 'Georgia', 'serif'],
@@ -68,34 +61,6 @@ const config: Config = {
         'card': '0 1px 3px rgba(0,0,0,0.04), 0 1px 2px rgba(0,0,0,0.06)',
         'card-hover': '0 10px 25px rgba(0,0,0,0.06), 0 4px 10px rgba(0,0,0,0.04)',
         'elevated': '0 20px 50px rgba(0,0,0,0.08), 0 8px 20px rgba(0,0,0,0.04)',
-        'glow-crimson': '0 0 20px rgba(212,43,43,0.3)',
-        'glow-live': '0 0 12px rgba(239,68,68,0.4)',
-        'glow-success': '0 0 12px rgba(34,197,94,0.3)',
-        'glow-warning': '0 0 12px rgba(245,158,11,0.3)',
-      },
-      animation: {
-        'pulse-live': 'pulse-live 1.5s ease-in-out infinite',
-        'shimmer': 'shimmer 1.5s ease-in-out infinite',
-        'slide-in-right': 'slide-in-right 300ms ease-out',
-        'slide-in-up': 'slide-in-up 300ms ease-out',
-      },
-      keyframes: {
-        'pulse-live': {
-          '0%, 100%': { opacity: '1' },
-          '50%': { opacity: '0.5' },
-        },
-        'shimmer': {
-          '0%': { backgroundPosition: '-200% 0' },
-          '100%': { backgroundPosition: '200% 0' },
-        },
-        'slide-in-right': {
-          '0%': { transform: 'translateX(100%)', opacity: '0' },
-          '100%': { transform: 'translateX(0)', opacity: '1' },
-        },
-        'slide-in-up': {
-          '0%': { transform: 'translateY(100%)', opacity: '0' },
-          '100%': { transform: 'translateY(0)', opacity: '1' },
-        },
       },
     },
   },

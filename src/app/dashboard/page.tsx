@@ -15,13 +15,8 @@ import DailyRecap from '@/components/dashboard/DailyRecap';
 import HotSection, { StoryIdea } from '@/components/dashboard/HotSection';
 import AnalyticsSection from '@/components/dashboard/AnalyticsSection';
 import ProfileSection from '@/components/dashboard/ProfileSection';
-import { useTrack } from '@/hooks/useTrack';
-import { useUIVersion } from '@/contexts/UIVersionContext';
-import PulseBar from '@/components/dashboard/PulseBar';
-import QueueList from '@/components/dashboard/QueueList';
-import TrendingPanel from '@/components/dashboard/TrendingPanel';
-import StoryIdeasStrip from '@/components/dashboard/StoryIdeasStrip';
 import StoryIntelligenceFeed from '@/components/dashboard/StoryIntelligenceFeed';
+import { useTrack } from '@/hooks/useTrack';
 import { nowET } from '@/lib/date-utils';
 import {
   HiOutlineDocumentText,
@@ -134,7 +129,6 @@ export default function DashboardPage() {
   const touchStartY = useRef(0);
 
   const track = useTrack('dashboard');
-  const { uiVersion } = useUIVersion();
   const isAdmin = session?.user?.role === 'ADMIN' || session?.user?.role === 'EDITOR';
 
   // Handle tab change (state only - no URL update to avoid hydration issues)
@@ -434,126 +428,6 @@ export default function DashboardPage() {
   // Top performing article
   const sortedByViews = [...publishedArticles].sort((a, b) => b.totalPageviews - a.totalPageviews);
   const topArticle = sortedByViews.length > 0 && sortedByViews[0].totalPageviews > 20 ? sortedByViews[0] : null;
-
-  // ===== MISSION CONTROL DASHBOARD =====
-  if (uiVersion === 'mission-control') {
-    return (
-      <AppShell>
-        <div className="space-y-6 max-w-full overflow-x-hidden">
-          {/* Pulse Bar — scrollable on mobile if metrics overflow */}
-          <div className="overflow-x-auto scrollbar-none -mx-4 px-4 md:mx-0 md:px-0">
-            <div className="min-w-max md:min-w-0">
-              <PulseBar stats={stats} isAdmin={isAdmin} />
-            </div>
-          </div>
-
-          {/* Main Grid: Queue + Trending */}
-          <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
-            {/* QueueList — full-width on mobile, no side-padding gaps */}
-            <div className="lg:col-span-3 -mx-4 md:mx-0">
-              <div className="px-4 md:px-0">
-                <QueueList
-                  articles={articles}
-                  isAdmin={!!isAdmin}
-                  onDelete={(id, headline) => setDeleteConfirm({ id, headline })}
-                />
-              </div>
-            </div>
-            <div className="lg:col-span-2">
-              <TrendingPanel articles={hotArticles} />
-            </div>
-          </div>
-
-          {/* Story Ideas Strip — collapsed on mobile, full strip on desktop */}
-          {storyIdeas.length > 0 && (
-            <>
-              {/* Mobile: tappable summary row */}
-              <div className="md:hidden">
-                <button
-                  onClick={() => setShowStoryIdeas((v) => !v)}
-                  className="w-full flex items-center justify-between px-4 py-3 bg-ink-900 rounded-xl border border-ink-800 active:bg-ink-800 transition-colors"
-                >
-                  <div className="flex items-center gap-2">
-                    <HiOutlineLightBulb className="w-4 h-4 text-amber-400 shrink-0" />
-                    <span className="text-sm font-medium text-paper-200">Story Ideas</span>
-                    <span className="px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-400 text-xs font-mono">
-                      {storyIdeas.length}
-                    </span>
-                  </div>
-                  <HiOutlineChevronDown
-                    className={`w-4 h-4 text-ink-400 transition-transform duration-200 ${
-                      showStoryIdeas ? 'rotate-180' : ''
-                    }`}
-                  />
-                </button>
-                {showStoryIdeas && (
-                  <div className="mt-2">
-                    <StoryIdeasStrip
-                      ideas={storyIdeas}
-                      onDismiss={dismissStoryIdea}
-                      onDraftIt={(headline) => {
-                        const idea = storyIdeas.find(i => i.headline === headline);
-                        if (idea) handleCreateFromIdea(idea);
-                      }}
-                      isCreating={creatingFromIdea}
-                    />
-                  </div>
-                )}
-              </div>
-
-              {/* Desktop: full horizontal strip */}
-              <div className="hidden md:block">
-                <StoryIdeasStrip
-                  ideas={storyIdeas}
-                  onDismiss={dismissStoryIdea}
-                  onDraftIt={(headline) => {
-                    const idea = storyIdeas.find(i => i.headline === headline);
-                    if (idea) handleCreateFromIdea(idea);
-                  }}
-                  isCreating={creatingFromIdea}
-                />
-              </div>
-            </>
-          )}
-        </div>
-
-        {/* Delete Confirmation Modal (shared) */}
-        {deleteConfirm && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
-            <div className="bg-ink-900 border border-ink-700 rounded-xl p-6 w-full max-w-md mx-4">
-              <h3 className="text-paper-100 font-semibold mb-2">Delete Story</h3>
-              <p className="text-paper-400 text-sm mb-4">
-                Are you sure you want to delete &ldquo;{deleteConfirm.headline}&rdquo;?
-              </p>
-              <textarea
-                value={deleteReason}
-                onChange={(e) => setDeleteReason(e.target.value)}
-                placeholder="Reason for deletion (optional)"
-                className="w-full bg-ink-800 border border-ink-700 rounded-lg p-3 text-sm text-paper-200 placeholder:text-paper-500 mb-4 resize-none"
-                rows={2}
-              />
-              <div className="flex justify-end gap-3">
-                <button
-                  onClick={() => { setDeleteConfirm(null); setDeleteReason(''); }}
-                  disabled={isDeleting}
-                  className="px-4 py-2 text-sm text-paper-400 bg-ink-800 rounded-lg hover:bg-ink-700 transition-colors disabled:opacity-50"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={() => handleDelete(deleteConfirm.id)}
-                  disabled={isDeleting}
-                  className="px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-lg hover:bg-red-700 transition-colors disabled:opacity-50"
-                >
-                  {isDeleting ? 'Deleting...' : 'Delete'}
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
-      </AppShell>
-    );
-  }
 
   return (
     <AppShell hideOnMobile>
@@ -1190,3 +1064,4 @@ export default function DashboardPage() {
     </AppShell>
   );
 }
+
