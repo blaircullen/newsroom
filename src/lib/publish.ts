@@ -720,7 +720,7 @@ Respond with ONLY valid JSON: {"subhead":"...","head":"...","page_headline":"...
 
     const data = await response.json();
     const text = data.content?.[0]?.text || '';
-    const jsonMatch = text.match(/\{[^}]+\}/);
+    const jsonMatch = text.match(/\{[\s\S]*\}/);
     if (jsonMatch) {
       const parsed = JSON.parse(jsonMatch[0]);
       const categoryId = parsed.category_id && categories.some(c => c.id === parsed.category_id)
