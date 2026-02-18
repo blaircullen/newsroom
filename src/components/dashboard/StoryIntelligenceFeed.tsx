@@ -62,20 +62,20 @@ function timeAgo(dateStr: string): string {
 function RelevanceBadge({ score }: { score: number }) {
   if (score >= 70) {
     return (
-      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold bg-emerald-500/20 text-emerald-400 dark:text-emerald-300 border border-emerald-500/30">
+      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold bg-emerald-100 text-emerald-700 border border-emerald-300 dark:bg-emerald-500/20 dark:text-emerald-300 dark:border-emerald-500/30">
         {score}
       </span>
     );
   }
   if (score >= 40) {
     return (
-      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold bg-amber-500/20 text-amber-400 dark:text-amber-300 border border-amber-500/30">
+      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold bg-amber-100 text-amber-700 border border-amber-300 dark:bg-amber-500/20 dark:text-amber-300 dark:border-amber-500/30">
         {score}
       </span>
     );
   }
   return (
-    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold bg-ink-700/60 text-ink-400 border border-ink-600/40">
+    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold bg-slate-100 text-slate-600 border border-slate-300 dark:bg-ink-700/60 dark:text-ink-400 dark:border-ink-600/40">
       {score}
     </span>
   );
@@ -86,31 +86,31 @@ function VerificationBadge({ status }: { status: StoryIntelligenceItem['verifica
     VERIFIED: {
       label: 'Verified',
       description: 'Strong multi-source corroboration confirms this story',
-      classes: 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30',
+      classes: 'bg-emerald-100 text-emerald-700 border-emerald-300 dark:bg-emerald-500/15 dark:text-emerald-400 dark:border-emerald-500/30',
       icon: <HiOutlineCheckCircle className="w-3 h-3" />,
     },
     PLAUSIBLE: {
       label: 'Plausible',
       description: 'Credible story from 1-2 sources, not yet fully corroborated',
-      classes: 'bg-blue-500/15 text-blue-400 border-blue-500/30',
+      classes: 'bg-blue-100 text-blue-700 border-blue-300 dark:bg-blue-500/15 dark:text-blue-400 dark:border-blue-500/30',
       icon: <HiOutlineShieldCheck className="w-3 h-3" />,
     },
     UNVERIFIED: {
       label: 'Unverified',
       description: 'Sources are unclear or have not been assessed yet',
-      classes: 'bg-ink-700/60 text-ink-400 border-ink-600/40',
+      classes: 'bg-slate-100 text-slate-600 border-slate-300 dark:bg-ink-700/60 dark:text-ink-400 dark:border-ink-600/40',
       icon: <HiOutlineQuestionMarkCircle className="w-3 h-3" />,
     },
     DISPUTED: {
       label: 'Disputed',
       description: 'Conflicting information found across sources',
-      classes: 'bg-amber-500/15 text-amber-400 border-amber-500/30',
+      classes: 'bg-amber-100 text-amber-700 border-amber-300 dark:bg-amber-500/15 dark:text-amber-400 dark:border-amber-500/30',
       icon: <HiOutlineExclamationTriangle className="w-3 h-3" />,
     },
     FLAGGED: {
       label: 'Flagged',
       description: 'Potentially dubious or misleading — needs extra scrutiny',
-      classes: 'bg-red-500/15 text-red-400 border-red-500/30',
+      classes: 'bg-red-100 text-red-700 border-red-300 dark:bg-red-500/15 dark:text-red-400 dark:border-red-500/30',
       icon: <HiOutlineExclamationTriangle className="w-3 h-3" />,
     },
   };
