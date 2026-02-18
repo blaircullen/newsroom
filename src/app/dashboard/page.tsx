@@ -21,6 +21,7 @@ import PulseBar from '@/components/dashboard/PulseBar';
 import QueueList from '@/components/dashboard/QueueList';
 import TrendingPanel from '@/components/dashboard/TrendingPanel';
 import StoryIdeasStrip from '@/components/dashboard/StoryIdeasStrip';
+import StoryIntelligenceFeed from '@/components/dashboard/StoryIntelligenceFeed';
 import { nowET } from '@/lib/date-utils';
 import {
   HiOutlineDocumentText,
@@ -62,6 +63,7 @@ export default function DashboardPage() {
   const [articles, setArticles] = useState<Article[]>([]);
   const [hotArticles, setHotArticles] = useState<Article[]>([]);
   const [storyIdeas, setStoryIdeas] = useState<StoryIdea[]>([]);
+  const [intelligenceStories, setIntelligenceStories] = useState<any[]>([]);
   const [stats, setStats] = useState({ total: 0, submitted: 0, approved: 0, published: 0, drafts: 0, totalViews: 0 });
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
