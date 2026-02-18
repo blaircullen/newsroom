@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import prisma from '@/lib/prisma';
 import bcrypt from 'bcryptjs';
+import { isValidEmail } from '@/lib/validation';
 
 // GET /api/users - List users (admin only)
 export async function GET(request: NextRequest) {
@@ -29,8 +30,6 @@ export async function GET(request: NextRequest) {
   return NextResponse.json(users);
 }
 
-// Email validation regex
-const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 // POST /api/users - Create user (admin only)
 export async function POST(request: NextRequest) {
@@ -63,7 +62,7 @@ export async function POST(request: NextRequest) {
 
   // Validate email format
   const normalizedEmail = email.toLowerCase().trim();
-  if (!EMAIL_REGEX.test(normalizedEmail) || normalizedEmail.length > 254) {
+  if (!isValidEmail(normalizedEmail)) {
     return NextResponse.json({ error: 'Invalid email format' }, { status: 400 });
   }
 

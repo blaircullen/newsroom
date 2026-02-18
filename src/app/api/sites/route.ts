@@ -24,7 +24,7 @@ export async function GET(request: NextRequest) {
       username: s.username,
       password: s.password ? '••••••••' : null,
       blogId: s.blogId,
-      clientId: s.clientId,
+      clientId: s.clientId ? s.clientId.substring(0, 8) + '...' : null,
       clientSecret: s.clientSecret ? '••••••••' : null,
       myshopifyDomain: s.myshopifyDomain,
       isActive: s.isActive,

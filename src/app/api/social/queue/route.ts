@@ -222,6 +222,11 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: 'Invalid scheduledAt date format' }, { status: 400 });
       }
 
+      // Only ADMINs can set status to APPROVED directly; EDITORs default to PENDING
+      const postStatus = (status === 'APPROVED' && session.user.role === 'ADMIN')
+        ? 'APPROVED'
+        : (status === 'PENDING' ? 'PENDING' : (session.user.role === 'ADMIN' ? 'APPROVED' : 'PENDING'));
+
       validatedPosts.push({
         articleId: articleId.trim(),
         socialAccountId: socialAccountId.trim(),
@@ -229,7 +234,7 @@ export async function POST(request: NextRequest) {
         imageUrl: imageUrl && typeof imageUrl === 'string' ? imageUrl.trim() : undefined,
         articleUrl: articleUrl.trim(),
         scheduledAt: scheduledAt.trim(),
-        status: status || 'APPROVED',
+        status: postStatus,
       });
     }
 

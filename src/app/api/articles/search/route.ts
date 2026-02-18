@@ -23,16 +23,7 @@ export async function GET(request: NextRequest) {
 
     // Use full-text search for queries 3+ chars, ILIKE fallback for 2-char queries
     if (query.length >= 3) {
-      // Convert query to tsquery format: split words and join with &
-      const tsQuery = query
-        .trim()
-        .split(/\s+/)
-        .filter(w => w.length > 0)
-        .map(w => w.replace(/[^\w]/g, ''))
-        .filter(w => w.length > 0)
-        .join(' & ');
-
-      // Try full-text search first, with ILIKE on headline/sub_headline as supplement
+      // Use plainto_tsquery for safe handling of arbitrary user input
       const articles = await prisma.$queryRaw<Array<{
         id: string;
         headline: string;
@@ -46,7 +37,7 @@ export async function GET(request: NextRequest) {
         LEFT JOIN users u ON a.author_id = u.id
         WHERE (
           to_tsvector('english', coalesce(a.headline, '') || ' ' || coalesce(a.sub_headline, '') || ' ' || coalesce(a.body, ''))
-          @@ to_tsquery('english', ${tsQuery || query})
+          @@ plainto_tsquery('english', ${query})
           OR a.headline ILIKE ${'%' + query + '%'}
           OR a.sub_headline ILIKE ${'%' + query + '%'}
           OR u.name ILIKE ${'%' + query + '%'}

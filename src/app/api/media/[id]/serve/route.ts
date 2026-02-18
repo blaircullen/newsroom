@@ -9,6 +9,11 @@ export async function GET(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
+  // In production, Caddy serves /media/* directly — this route shouldn't be needed
+  if (process.env.NODE_ENV === 'production') {
+    return new NextResponse('Not found', { status: 404 });
+  }
+
   try {
     // The id param here is actually the filename path (e.g., "2026/02/abc123.webp")
     // But since this route is /api/media/[id]/serve, we look up by DB id

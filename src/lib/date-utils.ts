@@ -46,15 +46,20 @@ export function etDateString(date: Date = new Date()): string {
 /**
  * Get the UTC Date representing midnight ET for a given YYYY-MM-DD date string.
  * Useful for creating DB query boundaries from ET date strings.
+ * Handles DST transitions correctly by checking the offset at midnight specifically.
  */
 export function etMidnightToUTC(dateStr: string): Date {
-  // Use noon UTC to safely determine the ET offset (avoids DST edge cases)
-  const noon = new Date(`${dateStr}T12:00:00Z`);
-  const etNoon = new Date(noon.toLocaleString('en-US', { timeZone: 'America/New_York' }));
-  const offsetMs = noon.getTime() - etNoon.getTime();
-  // Midnight ET in UTC = midnight UTC + ET offset
-  const midnightUTC = new Date(`${dateStr}T00:00:00Z`);
-  return new Date(midnightUTC.getTime() + offsetMs);
+  // Start with a guess: use 05:00 UTC (midnight EST) as initial candidate
+  const guess = new Date(`${dateStr}T05:00:00Z`);
+  // Find out what ET time this actually is
+  const etStr = guess.toLocaleString('en-US', { timeZone: 'America/New_York' });
+  const etDate = new Date(etStr);
+  // Calculate the difference between our guess and midnight on the target date
+  const targetMidnight = new Date(`${dateStr}T00:00:00`);
+  const diffMs = etDate.getTime() - targetMidnight.getTime();
+  // Adjust: subtract the difference to land on midnight ET
+  const result = new Date(guess.getTime() - diffMs);
+  return result;
 }
 
 /**

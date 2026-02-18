@@ -10,7 +10,8 @@ function getKey(): Buffer {
   if (!envKey) {
     throw new Error('TOKEN_ENCRYPTION_KEY environment variable is not set');
   }
-  return crypto.scryptSync(envKey, 'social-tokens', KEY_LENGTH);
+  const salt = process.env.TOKEN_ENCRYPTION_SALT || 'social-tokens';
+  return crypto.scryptSync(envKey, salt, KEY_LENGTH);
 }
 
 export function encrypt(plaintext: string): string {

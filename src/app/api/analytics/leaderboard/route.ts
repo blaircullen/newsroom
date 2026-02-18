@@ -1,15 +1,26 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/lib/auth';
 import prisma from '@/lib/prisma';
 
 // In-memory cache for leaderboard data
 const cache: Record<string, { timestamp: number; data: unknown }> = {};
 const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
 
+// Validate period to prevent unbounded cache growth
+const validPeriods = new Set(['week', 'month', 'all']);
+
 // Returns writer leaderboard data
 export async function GET(request: NextRequest) {
   try {
+    const session = await getServerSession(authOptions);
+    if (!session) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
     const { searchParams } = new URL(request.url);
-    const period = searchParams.get('period') || 'week'; // week, month, all
+    const periodParam = searchParams.get('period') || 'week';
+    const period = validPeriods.has(periodParam) ? periodParam : 'week';
 
     // Check cache
     const cacheKey = `leaderboard-${period}`;

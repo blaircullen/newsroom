@@ -56,10 +56,11 @@ function safeDecrypt(value: string | null | undefined): string | null {
     if (value.includes(':') && value.split(':').length === 3) {
       return decrypt(value);
     }
-    // Legacy plaintext value — return as-is
+    // Legacy plaintext value — log warning for migration tracking
+    console.warn('[SECURITY] Unencrypted credential detected — run migration to encrypt');
     return value;
   } catch {
-    // If decryption fails, assume it's a legacy plaintext value
+    console.warn('[SECURITY] Decryption failed — possible plaintext credential');
     return value;
   }
 }

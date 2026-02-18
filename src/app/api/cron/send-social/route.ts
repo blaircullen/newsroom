@@ -15,18 +15,29 @@ export async function GET(request: NextRequest) {
 
     const now = new Date();
 
-    // Find all APPROVED posts that are due to send
-    const scheduledPosts = await prisma.socialPost.findMany({
-      where: {
-        status: 'APPROVED',
-        scheduledAt: {
-          lte: now,
+    // Atomically claim posts by updating status to SENDING in a single transaction
+    // This prevents double-sends if the cron fires again before processing completes
+    const claimedPosts = await prisma.$transaction(async (tx) => {
+      const pending = await tx.socialPost.findMany({
+        where: {
+          status: 'APPROVED',
+          scheduledAt: { lte: now },
         },
-      },
-      select: { id: true },
+        select: { id: true },
+        take: 50,
+      });
+
+      if (pending.length === 0) return [];
+
+      await tx.socialPost.updateMany({
+        where: { id: { in: pending.map(p => p.id) } },
+        data: { status: 'SENDING' },
+      });
+
+      return pending;
     });
 
-    if (scheduledPosts.length === 0) {
+    if (claimedPosts.length === 0) {
       return NextResponse.json({
         message: 'No social posts scheduled for sending',
         processed: 0,
@@ -35,12 +46,12 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    console.log(`[Social Sender] Found ${scheduledPosts.length} post(s) to send`);
+    console.log(`[Social Sender] Claimed ${claimedPosts.length} post(s) to send`);
 
     let sentCount = 0;
     let failedCount = 0;
 
-    for (const post of scheduledPosts) {
+    for (const post of claimedPosts) {
       const result = await sendSocialPost(post.id);
       if (result.success) {
         sentCount++;
@@ -50,8 +61,8 @@ export async function GET(request: NextRequest) {
     }
 
     return NextResponse.json({
-      message: `Sent ${sentCount} of ${scheduledPosts.length} scheduled post(s)`,
-      processed: scheduledPosts.length,
+      message: `Sent ${sentCount} of ${claimedPosts.length} scheduled post(s)`,
+      processed: claimedPosts.length,
       sent: sentCount,
       failed: failedCount,
     });

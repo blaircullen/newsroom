@@ -2,12 +2,7 @@ import { NextResponse } from 'next/server';
 import crypto from 'crypto';
 import prisma from '@/lib/prisma';
 import { sendPasswordResetEmail } from '@/lib/email';
-
-// Validate email format (same pattern as auth.ts)
-function isValidEmail(email: string): boolean {
-  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  return emailRegex.test(email) && email.length <= 254;
-}
+import { isValidEmail } from '@/lib/validation';
 
 export async function POST(request: Request) {
   try {

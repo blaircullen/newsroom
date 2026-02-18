@@ -18,8 +18,6 @@ interface XAppCredentials {
   clientSecret: string;
 }
 
-const KNOWN_APPS = ['joetalkshow', 'lizpeek'] as const;
-
 export function getXAppCredentials(appKey: string): XAppCredentials | null {
   const envPrefix = `X_${appKey.toUpperCase()}`;
   const clientId = process.env[`${envPrefix}_CLIENT_ID`] || '';
@@ -39,6 +37,9 @@ export function getXAppCredentials(appKey: string): XAppCredentials | null {
   return null;
 }
 
-export function getKnownAppKeys(): readonly string[] {
-  return KNOWN_APPS;
+// Dynamically discover known apps from env vars matching X_*_CLIENT_ID
+export function getKnownAppKeys(): string[] {
+  return Object.keys(process.env)
+    .filter(k => k.startsWith('X_') && k.endsWith('_CLIENT_ID') && k !== 'X_CLIENT_ID')
+    .map(k => k.replace(/^X_/, '').replace(/_CLIENT_ID$/, '').toLowerCase());
 }

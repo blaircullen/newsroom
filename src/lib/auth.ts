@@ -2,13 +2,8 @@ import { NextAuthOptions } from 'next-auth';
 import CredentialsProvider from 'next-auth/providers/credentials';
 import bcrypt from 'bcryptjs';
 import prisma from './prisma';
+import { isValidEmail } from './validation';
 // Type augmentation is in src/types/index.ts
-
-// Validate email format for security
-function isValidEmail(email: string): boolean {
-  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  return emailRegex.test(email) && email.length <= 254;
-}
 
 export const authOptions: NextAuthOptions = {
   providers: [

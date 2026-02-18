@@ -154,7 +154,18 @@ export async function PUT(
     }
   }
   if (scheduledPublishAt !== undefined) {
-    updateData.scheduledPublishAt = scheduledPublishAt ? new Date(scheduledPublishAt as string) : null;
+    if (scheduledPublishAt) {
+      const parsedDate = new Date(scheduledPublishAt as string);
+      if (isNaN(parsedDate.getTime())) {
+        return NextResponse.json({ error: 'Invalid scheduledPublishAt date' }, { status: 400 });
+      }
+      if (parsedDate < new Date()) {
+        return NextResponse.json({ error: 'Scheduled publish date must be in the future' }, { status: 400 });
+      }
+      updateData.scheduledPublishAt = parsedDate;
+    } else {
+      updateData.scheduledPublishAt = null;
+    }
   }
   if (scheduledPublishTargetId !== undefined) {
     updateData.scheduledPublishTargetId = typeof scheduledPublishTargetId === 'string' ? scheduledPublishTargetId : null;
