@@ -824,6 +824,7 @@ async function publishToWordPress(
         sub_headline: article.subHeadline || '',
         m2_head: fields.head,
         m2_subhead: fields.subhead,
+        m2_txt_alignmnt: 'bl',
         media_type: '2',
       };
       if (fields.categoryId) {
