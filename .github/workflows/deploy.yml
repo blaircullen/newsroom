@@ -57,6 +57,9 @@ jobs:
             # Update and restart (--force-recreate ensures env vars from .env are picked up)
             docker compose up -d --force-recreate app
 
+            # Fix media volume ownership (volume mounts as root, app runs as nextjs)
+            docker exec -u root newsroom-app chown -R nextjs:nodejs /data/media 2>/dev/null || true
+
             # Run database migrations
             docker compose exec -T app npx prisma migrate deploy
 
