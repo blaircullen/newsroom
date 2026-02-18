@@ -1,5 +1,11 @@
 import { Scraper } from '@the-convocation/twitter-scraper';
+import { HttpsProxyAgent } from 'https-proxy-agent';
 import { raiseAlert, resolveAlert } from '@/lib/system-alerts';
+
+// cross-fetch is the same fetch lib the twitter-scraper uses internally,
+// so Response types are compatible. node-fetch v2 supports the `agent` option.
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const crossFetch = require('cross-fetch');
 
 let scraperInstance: Scraper | null = null;
 let consecutiveFailures = 0;
@@ -12,21 +18,17 @@ const X_PROXY_URL = process.env.X_PROXY_URL;
 
 /**
  * Create a fetch function that routes through the HTTP proxy.
- * Uses undici's ProxyAgent + undici's own fetch for full compatibility.
+ * Uses cross-fetch (same as twitter-scraper) + https-proxy-agent.
  * Returns undefined if no proxy is configured.
  */
 function createProxiedFetch(): typeof fetch | undefined {
   if (!X_PROXY_URL) return undefined;
 
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const { ProxyAgent, fetch: undiciFetch } = require('undici');
-  const proxyAgent = new ProxyAgent(X_PROXY_URL);
+  const agent = new HttpsProxyAgent(X_PROXY_URL);
 
-  return ((input: RequestInfo | URL, init?: RequestInit) => {
-    return undiciFetch(input, {
-      ...init,
-      dispatcher: proxyAgent,
-    });
+  return ((input: string | Request | URL, init?: Record<string, unknown>) => {
+    const url = typeof input === 'string' ? input : input instanceof URL ? input.toString() : (input as Request).url;
+    return crossFetch(url, { ...init, agent });
   }) as typeof fetch;
 }
 
