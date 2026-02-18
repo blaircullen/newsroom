@@ -20,6 +20,8 @@ services:
       context: .
       dockerfile: Dockerfile
     container_name: newsroom-app
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     restart: unless-stopped
     depends_on:
       db:
@@ -66,6 +68,7 @@ services:
       X_SCRAPER_EMAIL: ${X_SCRAPER_EMAIL:-}
       X_SCRAPER_PASSWORD: ${X_SCRAPER_PASSWORD:-}
       X_SCRAPER_USERNAME: ${X_SCRAPER_USERNAME:-}
+      X_PROXY_URL: ${X_PROXY_URL:-}
 
 volumes:
   postgres_data:
