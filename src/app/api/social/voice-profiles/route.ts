@@ -191,26 +191,34 @@ Respond in this exact JSON format (no markdown fences):
   "systemPrompt": "The system prompt for AI caption generation"
 }`;
 
-    // Call Anthropic API
-    const response = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': anthropicApiKey,
-        'anthropic-version': '2023-06-01',
-      },
-      body: JSON.stringify({
-        model: 'claude-sonnet-4-20250514',
-        max_tokens: 2000,
-        messages: [{ role: 'user', content: prompt }],
-      }),
-    });
+    // Call Anthropic API with retry for transient errors (529 overloaded, 500, etc.)
+    let response: Response | null = null;
+    for (let attempt = 0; attempt < 3; attempt++) {
+      response = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': anthropicApiKey,
+          'anthropic-version': '2023-06-01',
+        },
+        body: JSON.stringify({
+          model: 'claude-sonnet-4-20250514',
+          max_tokens: 2000,
+          messages: [{ role: 'user', content: prompt }],
+        }),
+      });
 
-    if (!response.ok) {
-      const errData = await response.json().catch(() => ({}));
-      console.error('Anthropic API error:', errData);
+      if (response.ok || (response.status >= 400 && response.status < 500)) break;
+      // Retry on 5xx / 529
+      console.log(`[Voice Profile] Anthropic returned ${response.status}, retrying (${attempt + 1}/3)...`);
+      await new Promise((r) => setTimeout(r, (attempt + 1) * 2000));
+    }
+
+    if (!response || !response.ok) {
+      const errData = await response?.json().catch(() => ({}));
+      console.error('[Voice Profile] Anthropic API error:', response?.status, errData);
       return NextResponse.json(
-        { error: 'AI service error. Please try again.' },
+        { error: `AI service error (${response?.status || 'unknown'}). Please try again in a moment.` },
         { status: 502 }
       );
     }
