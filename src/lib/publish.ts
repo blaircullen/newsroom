@@ -659,6 +659,8 @@ async function getHannityCategories(auth: string, wpUrl: string): Promise<Array<
 interface HannityAIResult {
   head: string;
   subhead: string;
+  pageHeadline: string;
+  pageSubHeadline: string;
   categoryId: number | null;
 }
 
@@ -670,7 +672,7 @@ async function generateHannityFields(
   const anthropicApiKey = process.env.ANTHROPIC_API_KEY;
   if (!anthropicApiKey) {
     console.log('[Hannity AI] No API key, using defaults');
-    return { head: headline, subhead: subHeadline?.toUpperCase().slice(0, 30) || '', categoryId: null };
+    return { head: headline, subhead: subHeadline?.toUpperCase().slice(0, 30) || '', pageHeadline: headline.slice(0, 75), pageSubHeadline: subHeadline || '', categoryId: null };
   }
 
   const categoryList = categories.map(c => `${c.id}: ${c.name}`).join('\n');
@@ -688,23 +690,24 @@ async function generateHannityFields(
         max_tokens: 200,
         messages: [{
           role: 'user',
-          content: `You are formatting a news article for hannity.com. Given the headline, do two things:
-
-1. Split the headline into mantle display fields
-2. Pick the single best category
+          content: `You are formatting a news article for hannity.com. Given the headline, generate all display fields and pick a category.
 
 Headline: ${headline}${subHeadline ? `\nSubheadline: ${subHeadline}` : ''}
 
-MANTLE RULES:
-- "subhead": Short punchy phrase, ALL CAPS, max 30 characters. Often a quoted word, reaction, or key theme. Examples: "INAPPROPRIATE", "WITCH HUNT!", "BREAKING", "83% OF CONTRACTS CANCELED!", "1-800-JOE-BRIBES"
-- "head": The descriptive headline. Remove any prefix that became the subhead.
+Generate these fields:
+1. MANTLE (homepage display):
+   - "subhead": Short punchy phrase, ALL CAPS, max 30 chars. A quoted word, reaction, or key theme. Examples: "INAPPROPRIATE", "WITCH HUNT!", "BREAKING", "83% OF CONTRACTS CANCELED!"
+   - "head": Descriptive headline for the mantle. Remove any prefix that became the subhead.
 
-CATEGORIES (id: name):
+2. PAGE HEADLINE (article page display):
+   - "page_headline": Rewritten headline, MAX 75 CHARACTERS. Must be concise but capture the story. This is strictly enforced — do not exceed 75 chars.
+   - "page_sub_headline": A subtitle that provides additional context or detail not in the headline. 1 sentence, conversational.
+
+3. CATEGORY:
+Pick the single most relevant category_id from this list. If none fit, use 1.
 ${categoryList}
 
-Pick the single most relevant category ID. If none fit well, use 1 (Uncategorized).
-
-Respond with ONLY valid JSON: {"subhead":"...","head":"...","category_id":123}`
+Respond with ONLY valid JSON: {"subhead":"...","head":"...","page_headline":"...","page_sub_headline":"...","category_id":123}`
         }],
       }),
       signal: AbortSignal.timeout(15000),
@@ -712,7 +715,7 @@ Respond with ONLY valid JSON: {"subhead":"...","head":"...","category_id":123}`
 
     if (!response.ok) {
       console.error(`[Hannity AI] API error: ${response.status}`);
-      return { head: headline, subhead: '', categoryId: null };
+      return { head: headline, subhead: '', pageHeadline: headline.slice(0, 75), pageSubHeadline: '', categoryId: null };
     }
 
     const data = await response.json();
@@ -726,6 +729,8 @@ Respond with ONLY valid JSON: {"subhead":"...","head":"...","category_id":123}`
       return {
         head: parsed.head || headline,
         subhead: (parsed.subhead || '').slice(0, 30),
+        pageHeadline: (parsed.page_headline || headline).slice(0, 75),
+        pageSubHeadline: parsed.page_sub_headline || '',
         categoryId,
       };
     }
@@ -733,7 +738,7 @@ Respond with ONLY valid JSON: {"subhead":"...","head":"...","category_id":123}`
     console.error(`[Hannity AI] Error:`, error.message);
   }
 
-  return { head: headline, subhead: '', categoryId: null };
+  return { head: headline, subhead: '', pageHeadline: headline.slice(0, 75), pageSubHeadline: '', categoryId: null };
 }
 
 // WordPress REST API Publishing
@@ -820,8 +825,8 @@ async function publishToWordPress(
       const categories = await getHannityCategories(auth, target.url);
       const fields = await generateHannityFields(article.headline, article.subHeadline, categories);
       wpPost.meta = {
-        headline: article.headline,
-        sub_headline: article.subHeadline || '',
+        headline: fields.pageHeadline,
+        sub_headline: fields.pageSubHeadline,
         m2_head: fields.head,
         m2_subhead: fields.subhead,
         m2_txt_alignmnt: 'bl',
