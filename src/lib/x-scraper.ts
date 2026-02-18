@@ -1,8 +1,33 @@
 import { Scraper } from '@the-convocation/twitter-scraper';
+import { HttpsProxyAgent } from 'https-proxy-agent';
 import { raiseAlert, resolveAlert } from '@/lib/system-alerts';
+
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const nodeFetch = require('node-fetch');
 
 let scraperInstance: Scraper | null = null;
 let consecutiveFailures = 0;
+
+// Proxy URL — reverse SSH tunnel from home network (residential IP).
+// Hetzner's IP is blocked by Cloudflare on x.com; traffic routes through
+// VM 101 on the home network via autossh reverse tunnel.
+// Set X_PROXY_URL=http://host.docker.internal:8899 on production.
+const X_PROXY_URL = process.env.X_PROXY_URL;
+
+/**
+ * Create a fetch function that routes through the HTTP proxy.
+ * Returns undefined if no proxy is configured (uses default fetch).
+ */
+function createProxiedFetch(): typeof fetch | undefined {
+  if (!X_PROXY_URL) return undefined;
+
+  const agent = new HttpsProxyAgent(X_PROXY_URL);
+
+  return (async (input: string | URL | Request, init?: Record<string, unknown>) => {
+    const url = typeof input === 'string' ? input : input instanceof URL ? input.toString() : (input as Request).url;
+    return nodeFetch(url, { ...init, agent } as Parameters<typeof nodeFetch>[1]);
+  }) as unknown as typeof fetch;
+}
 
 /**
  * Get or create a singleton Twitter scraper instance.
@@ -14,7 +39,8 @@ export async function getScraperInstance(): Promise<Scraper> {
     if (loggedIn) return scraperInstance;
   }
 
-  const scraper = new Scraper();
+  const proxiedFetch = createProxiedFetch();
+  const scraper = new Scraper(proxiedFetch ? { fetch: proxiedFetch } : undefined);
 
   // Try restoring cookies first
   const cookiesEnv = process.env.X_SCRAPER_COOKIES;
@@ -46,7 +72,10 @@ export async function getScraperInstance(): Promise<Scraper> {
   try {
     await scraper.login(username, password, email);
   } catch (loginError) {
-    await raiseAlert('x_scraper_auth', `X scraper login failed: ${loginError instanceof Error ? loginError.message : 'Unknown error'}`);
+    const rawMsg = loginError instanceof Error ? loginError.message : 'Unknown error';
+    // Strip HTML from Cloudflare block pages to avoid dumping raw HTML into dashboard alerts
+    const cleanMsg = rawMsg.replace(/<[^>]*>/g, '').replace(/\s{2,}/g, ' ').slice(0, 200);
+    await raiseAlert('x_scraper_auth', `X scraper login failed: ${cleanMsg}`);
     throw loginError;
   }
 
