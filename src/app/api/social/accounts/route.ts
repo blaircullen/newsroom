@@ -135,8 +135,8 @@ export async function POST(request: NextRequest) {
 
     // Validate publishTargetId if provided
     if (publishTargetId !== null && publishTargetId !== undefined) {
-      if (typeof publishTargetId !== 'string' || !/^c[a-z0-9]{24}$/i.test(publishTargetId)) {
-        return NextResponse.json({ error: 'Invalid publish target ID format' }, { status: 400 });
+      if (typeof publishTargetId !== 'string' || !publishTargetId.trim()) {
+        return NextResponse.json({ error: 'Missing publish target ID' }, { status: 400 });
       }
 
       // Verify publish target exists

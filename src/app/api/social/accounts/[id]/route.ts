@@ -91,8 +91,8 @@ export async function PUT(
       if (publishTargetId === null) {
         updateData.publishTargetId = null;
       } else if (typeof publishTargetId === 'string') {
-        if (!/^c[a-z0-9]{24}$/i.test(publishTargetId)) {
-          return NextResponse.json({ error: 'Invalid publish target ID format' }, { status: 400 });
+        if (!publishTargetId.trim()) {
+          return NextResponse.json({ error: 'Missing publish target ID' }, { status: 400 });
         }
 
         // Verify publish target exists

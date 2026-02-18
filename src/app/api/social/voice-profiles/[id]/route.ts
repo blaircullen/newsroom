@@ -20,11 +20,6 @@ export async function PUT(
 
     const { id } = await params;
 
-    // Validate ID format
-    if (!/^c[a-z0-9]{24}$/i.test(id)) {
-      return NextResponse.json({ error: 'Invalid voice profile ID format' }, { status: 400 });
-    }
-
     // Check if voice profile exists
     const existing = await prisma.siteVoiceProfile.findUnique({
       where: { id },
@@ -120,11 +115,6 @@ export async function DELETE(
     }
 
     const { id } = await params;
-
-    // Validate ID format
-    if (!/^c[a-z0-9]{24}$/i.test(id)) {
-      return NextResponse.json({ error: 'Invalid voice profile ID format' }, { status: 400 });
-    }
 
     // Check if voice profile exists
     const existing = await prisma.siteVoiceProfile.findUnique({
