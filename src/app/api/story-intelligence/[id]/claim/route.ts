@@ -3,7 +3,150 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import prisma from '@/lib/prisma';
 
-// POST — writer claims a story, creating a draft article
+function extractArticleText(html: string): string {
+  let cleaned = html
+    .replace(/<script[\s\S]*?<\/script>/gi, '')
+    .replace(/<style[\s\S]*?<\/style>/gi, '')
+    .replace(/<svg[\s\S]*?<\/svg>/gi, '')
+    .replace(/<nav[\s\S]*?<\/nav>/gi, '')
+    .replace(/<footer[\s\S]*?<\/footer>/gi, '')
+    .replace(/<header[\s\S]*?<\/header>/gi, '')
+    .replace(/<aside[\s\S]*?<\/aside>/gi, '')
+    .replace(/<form[\s\S]*?<\/form>/gi, '')
+    .replace(/<!--[\s\S]*?-->/g, '');
+
+  const articlePatterns = [
+    /<article[\s\S]*?>([\s\S]*?)<\/article>/i,
+    /<div[^>]*class="[^"]*(?:article|story|post|entry|content-body|story-body)[^"]*"[^>]*>([\s\S]*?)<\/div>/i,
+    /<main[\s\S]*?>([\s\S]*?)<\/main>/i,
+  ];
+
+  let articleHtml = '';
+  for (const pattern of articlePatterns) {
+    const match = cleaned.match(pattern);
+    if (match && match[1] && match[1].length > 200) {
+      articleHtml = match[1];
+      break;
+    }
+  }
+
+  if (!articleHtml) {
+    const bodyMatch = cleaned.match(/<body[\s\S]*?>([\s\S]*?)<\/body>/i);
+    articleHtml = bodyMatch ? bodyMatch[1] : cleaned;
+  }
+
+  const paragraphs: string[] = [];
+  const pRegex = /<p[^>]*>([\s\S]*?)<\/p>/gi;
+  let m: RegExpExecArray | null;
+  while ((m = pRegex.exec(articleHtml)) !== null) {
+    const text = m[1].replace(/<[^>]+>/g, '').replace(/&\w+;/g, ' ').trim();
+    if (text.length > 30) {
+      paragraphs.push(text);
+    }
+  }
+
+  if (paragraphs.length >= 3) {
+    return paragraphs.join('\n\n');
+  }
+
+  return articleHtml.replace(/<[^>]+>/g, '').replace(/\s+/g, ' ').trim();
+}
+
+async function generateAiDraft(
+  headline: string,
+  sourceUrl: string,
+  suggestedAngles: string[]
+): Promise<{ headline: string; subHeadline: string; bodyHtml: string } | null> {
+  const anthropicApiKey = process.env.ANTHROPIC_API_KEY;
+  if (!anthropicApiKey) return null;
+
+  try {
+    // Fetch source article
+    const res = await fetch(sourceUrl, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (compatible; NewsRoom/1.0)',
+        Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+      },
+      signal: AbortSignal.timeout(10000),
+    });
+
+    if (!res.ok) return null;
+
+    const html = await res.text();
+    const articleText = extractArticleText(html);
+    if (articleText.length < 100) return null;
+
+    const anglesContext =
+      suggestedAngles.length > 0
+        ? `\n\nSUGGESTED ANGLES (use one of these as your primary angle if appropriate):\n${suggestedAngles.map((a, i) => `${i + 1}. ${a}`).join('\n')}`
+        : '';
+
+    const anthropicRes = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': anthropicApiKey,
+        'anthropic-version': '2023-06-01',
+      },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 4000,
+        messages: [
+          {
+            role: 'user',
+            content: `You are a senior editorial writer. Rewrite the following article in your own words.
+
+REQUIREMENTS:
+1. Write a compelling, clickable HEADLINE — bold, direct, assertive.
+2. Write a punchy SUB-HEADLINE that adds context and urgency.
+3. Rewrite the body in 4 to 5 paragraphs:
+   - Direct and conversational tone
+   - Confident and assertive — take a clear angle
+   - Punchy short sentences mixed with longer explanatory ones
+   - Lead with the most impactful facts
+   - End with a forward-looking statement
+4. Format body in clean HTML with <p> tags. Use <strong> for emphasis. No <h1>/<h2> tags.
+${anglesContext}
+
+RESPOND IN EXACTLY THIS JSON FORMAT (no markdown, no backticks, just raw JSON):
+{
+  "headline": "Your headline here",
+  "subHeadline": "Your sub-headline here",
+  "bodyHtml": "<p>First paragraph...</p><p>Second paragraph...</p>"
+}
+
+ORIGINAL HEADLINE: ${headline}
+
+SOURCE ARTICLE:
+${articleText.substring(0, 12000)}`,
+          },
+        ],
+      }),
+    });
+
+    if (!anthropicRes.ok) return null;
+
+    const data = await anthropicRes.json();
+    const aiText = data.content?.[0]?.text;
+    if (!aiText) return null;
+
+    const cleaned = aiText.replace(/```json\s*/g, '').replace(/```\s*/g, '').trim();
+    const parsed = JSON.parse(cleaned);
+
+    if (!parsed.headline || !parsed.bodyHtml) return null;
+
+    return {
+      headline: parsed.headline,
+      subHeadline: parsed.subHeadline || '',
+      bodyHtml: parsed.bodyHtml,
+    };
+  } catch (error) {
+    console.error('[claim] AI draft generation failed (non-fatal):', error);
+    return null;
+  }
+}
+
+// POST — writer claims a story, creating a draft article with AI-generated body
 export async function POST(
   _request: NextRequest,
   { params }: { params: { id: string } }
@@ -27,16 +170,30 @@ export async function POST(
     return NextResponse.json({ error: 'Story already claimed' }, { status: 409 });
   }
 
-  // Build article body: use first suggested angle as italic prompt if available
-  let body = '<p></p>';
-  if (story.suggestedAngles && Array.isArray(story.suggestedAngles) && story.suggestedAngles.length > 0) {
-    const firstAngle = String(story.suggestedAngles[0]);
-    body = `<p><em>${firstAngle}</em></p>`;
+  // Try to generate an AI draft from the source URL
+  const suggestedAngles =
+    story.suggestedAngles && Array.isArray(story.suggestedAngles)
+      ? story.suggestedAngles.map(String)
+      : [];
+
+  const aiDraft = await generateAiDraft(story.headline, story.sourceUrl, suggestedAngles);
+
+  const headline = aiDraft?.headline || story.headline;
+  const subHeadline = aiDraft?.subHeadline || '';
+
+  let body: string;
+  if (aiDraft?.bodyHtml) {
+    body = aiDraft.bodyHtml;
+  } else if (suggestedAngles.length > 0) {
+    body = `<p><em>${suggestedAngles[0]}</em></p>`;
+  } else {
+    body = '<p></p>';
   }
 
   const article = await prisma.article.create({
     data: {
-      headline: story.headline,
+      headline,
+      subHeadline,
       body,
       authorId: session.user.id,
       status: 'DRAFT',
