@@ -12,6 +12,21 @@ export async function GET() {
   }
 
   const since = new Date(Date.now() - 24 * 60 * 60 * 1000);
+  const staleThreshold = new Date(Date.now() - 18 * 60 * 60 * 1000);
+
+  // Auto-dismiss recommendations older than 18 hours
+  await prisma.storyIntelligence.updateMany({
+    where: {
+      dismissed: false,
+      firstSeenAt: { lt: staleThreshold },
+      claimedById: null,
+      outcome: null,
+    },
+    data: {
+      dismissed: true,
+      outcome: 'IGNORED',
+    },
+  });
 
   const stories = await prisma.storyIntelligence.findMany({
     where: {
@@ -27,7 +42,7 @@ export async function GET() {
       { relevanceScore: 'desc' },
       { firstSeenAt: 'desc' },
     ],
-    take: 20,
+    take: 10,
   });
 
   return NextResponse.json({ stories });
