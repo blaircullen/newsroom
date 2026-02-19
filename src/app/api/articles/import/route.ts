@@ -18,6 +18,7 @@ export async function POST(request: NextRequest) {
   }
 
   const { url } = await request.json();
+  console.log(`[import] Request for URL: ${url}`);
 
   if (!url || typeof url !== 'string') {
     return NextResponse.json(
@@ -74,6 +75,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Step 3: Call Anthropic API to rewrite the article
+    console.log(`[import] Extracted ${articleText.length} chars, calling Anthropic API...`);
     const anthropicResponse = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: {
@@ -81,6 +83,7 @@ export async function POST(request: NextRequest) {
         'x-api-key': anthropicApiKey,
         'anthropic-version': '2023-06-01',
       },
+      signal: AbortSignal.timeout(60000),
       body: JSON.stringify({
         model: 'claude-sonnet-4-20250514',
         max_tokens: 4000,
@@ -129,9 +132,9 @@ ${articleText.substring(0, 12000)}`,
 
     if (!anthropicResponse.ok) {
       const errData = await anthropicResponse.json().catch(() => ({}));
-      console.error('Anthropic API error:', errData);
+      console.error(`[import] Anthropic API error ${anthropicResponse.status}:`, JSON.stringify(errData).substring(0, 500));
       return NextResponse.json(
-        { error: 'AI service error. Please try again.' },
+        { error: `AI service error (${anthropicResponse.status}). Please try again.` },
         { status: 502 }
       );
     }
@@ -140,11 +143,14 @@ ${articleText.substring(0, 12000)}`,
     const aiText = anthropicData.content?.[0]?.text;
 
     if (!aiText) {
+      console.error('[import] Anthropic returned empty content:', JSON.stringify(anthropicData).substring(0, 300));
       return NextResponse.json(
         { error: 'AI returned an empty response. Please try again.' },
         { status: 502 }
       );
     }
+
+    console.log(`[import] AI response received: ${aiText.length} chars`);
 
     // Parse the AI response
     let parsed;
@@ -153,7 +159,8 @@ ${articleText.substring(0, 12000)}`,
       const cleaned = aiText.replace(/```json\s*/g, '').replace(/```\s*/g, '').trim();
       parsed = JSON.parse(cleaned);
     } catch (parseError) {
-      console.error('Failed to parse AI response:', aiText.substring(0, 500));
+      console.error('[import] JSON parse failed:', parseError);
+      console.error('[import] Raw AI response:', aiText.substring(0, 500));
       return NextResponse.json(
         { error: 'AI response was not in the expected format. Please try again.' },
         { status: 502 }
@@ -179,8 +186,9 @@ ${articleText.substring(0, 12000)}`,
     console.error('Import error:', error);
 
     if (error.name === 'TimeoutError' || error.name === 'AbortError') {
+      console.error('[import] Timeout:', error.message);
       return NextResponse.json(
-        { error: 'Timed out fetching the article. The URL may be unreachable.' },
+        { error: 'Request timed out. The article URL or AI service may be slow. Please try again.' },
         { status: 408 }
       );
     }
