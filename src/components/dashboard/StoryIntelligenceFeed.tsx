@@ -74,19 +74,20 @@ function StoryCard({ story, onRefresh }: { story: StoryIntelligenceItem; onRefre
   // Collect unique source labels for display (up to 3)
   const sourceLabels: Array<{ name: string; url: string }> = [];
   const seenHosts = new Set<string>();
+  const normalizeKey = (s: string) => s.toUpperCase().replace(/^@/, '');
 
   // Primary source
   const primaryLabel = getSourceLabel(story.sourceUrl);
-  const primaryNormalized = primaryLabel.toUpperCase();
+  const primaryNormalized = normalizeKey(primaryLabel);
   seenHosts.add(primaryNormalized);
-  sourceLabels.push({ name: primaryNormalized, url: story.sourceUrl });
+  sourceLabels.push({ name: primaryLabel.toUpperCase(), url: story.sourceUrl });
 
   // From story.sources
   if (Array.isArray(story.sources)) {
     for (const s of story.sources) {
       if (sourceLabels.length >= 3) break;
       const label = s.name || getSourceLabel(s.url);
-      const normalized = label.toUpperCase();
+      const normalized = normalizeKey(label);
       if (!seenHosts.has(normalized)) {
         seenHosts.add(normalized);
         sourceLabels.push({ name: label.toUpperCase(), url: s.url });
@@ -98,7 +99,7 @@ function StoryCard({ story, onRefresh }: { story: StoryIntelligenceItem; onRefre
   for (const vs of story.verificationSources.filter(s => s.corroborates)) {
     if (sourceLabels.length >= 3) break;
     const label = vs.sourceName || getSourceLabel(vs.sourceUrl);
-    const normalized = label.toUpperCase();
+    const normalized = normalizeKey(label);
     if (!seenHosts.has(normalized)) {
       seenHosts.add(normalized);
       sourceLabels.push({ name: label.toUpperCase(), url: vs.sourceUrl });
