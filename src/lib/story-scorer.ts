@@ -75,6 +75,79 @@ async function getTopicProfiles(): Promise<TopicProfileCached[]> {
   return profileCache;
 }
 
+// ─── Exemplar cache ───────────────────────────────────────────────────────────
+
+interface ExemplarCached {
+  category: string | null;
+  detectedTopics: string[];
+  fingerprint: {
+    topics: string[];
+    keywords: Record<string, number>;
+    similarToCategories: string[];
+  } | null;
+}
+
+let exemplarCache: ExemplarCached[] = [];
+let exemplarCacheTimestamp = 0;
+const EXEMPLAR_CACHE_TTL = 60 * 60 * 1000; // 1 hour
+
+async function getAnalyzedExemplars(): Promise<ExemplarCached[]> {
+  if (exemplarCache.length > 0 && Date.now() - exemplarCacheTimestamp < EXEMPLAR_CACHE_TTL) {
+    return exemplarCache;
+  }
+
+  const exemplars = await prisma.articleExemplar.findMany({
+    where: { status: 'ANALYZED' },
+    select: { category: true, detectedTopics: true, fingerprint: true },
+  });
+
+  exemplarCache = exemplars.map((e) => ({
+    category: e.category,
+    detectedTopics: (e.detectedTopics ?? []) as string[],
+    fingerprint: e.fingerprint as ExemplarCached['fingerprint'],
+  }));
+  exemplarCacheTimestamp = Date.now();
+  return exemplarCache;
+}
+
+function computeExemplarSimilarityBonus(
+  keywords: string[],
+  matchedCategory: string | null,
+  exemplars: ExemplarCached[]
+): number {
+  let bestBonus = 0;
+  const keywordSet = new Set(keywords);
+
+  for (const exemplar of exemplars) {
+    const fp = exemplar.fingerprint;
+    if (!fp) continue;
+
+    let bonus = 0;
+
+    // Category match: +3 if matchedCategory appears in fingerprint.similarToCategories
+    if (matchedCategory && fp.similarToCategories.includes(matchedCategory)) {
+      bonus += 3;
+    }
+
+    // Topic overlap: +2 per shared topic, capped at +8
+    const topicOverlap = fp.topics.filter((t) => keywordSet.has(t)).length;
+    bonus += Math.min(topicOverlap * 2, 8);
+
+    // Keyword overlap: sum of (weight * 0.2) for shared keywords, capped at +4
+    let kwBonus = 0;
+    for (const kw of keywords) {
+      if (fp.keywords[kw] !== undefined) {
+        kwBonus += fp.keywords[kw] * 0.2;
+      }
+    }
+    bonus += Math.min(kwBonus, 4);
+
+    if (bonus > bestBonus) bestBonus = bonus;
+  }
+
+  return Math.min(bestBonus, 15);
+}
+
 // ─── Score components ─────────────────────────────────────────────────────────
 
 /**
@@ -238,6 +311,7 @@ function computeEditorialStanceAdjustment(headline: string): number {
 
 export async function scoreStory(input: StoryScoreInput): Promise<StoryScoreResult> {
   const profiles = await getTopicProfiles();
+  const exemplars = await getAnalyzedExemplars();
   const keywords = extractKeywords(input.headline);
 
   const { score: categoryScore, category, topicClusterId } = computeCategoryScore(keywords, profiles);
@@ -246,9 +320,10 @@ export async function scoreStory(input: StoryScoreInput): Promise<StoryScoreResu
   const { score: velocityScore, isHighVelocity } = computeVelocityScore(input.platformSignals);
   const recencyScore = computeRecencyScore(input.firstSeenAt);
   const editorialAdj = computeEditorialStanceAdjustment(input.headline);
+  const exemplarBonus = computeExemplarSimilarityBonus(keywords, category, exemplars);
 
   // relevanceScore is the non-velocity portion (used separately in DB)
-  const relevanceScore = Math.max(0, Math.min(100, categoryScore + keywordMatchScore + sourceScore + recencyScore + editorialAdj));
+  const relevanceScore = Math.max(0, Math.min(100, categoryScore + keywordMatchScore + sourceScore + recencyScore + editorialAdj + exemplarBonus));
   const totalScore = Math.max(0, Math.min(100, relevanceScore + velocityScore));
 
   let alertLevel: 'NONE' | 'DASHBOARD' | 'TELEGRAM' = 'NONE';
@@ -269,8 +344,9 @@ export async function scoreStory(input: StoryScoreInput): Promise<StoryScoreResu
 }
 
 export async function scoreStories(inputs: StoryScoreInput[]): Promise<StoryScoreResult[]> {
-  // Load profiles once, then score all
+  // Load profiles and exemplars once, then score all
   const profiles = await getTopicProfiles();
+  const exemplars = await getAnalyzedExemplars();
   return Promise.all(
     inputs.map(async (input) => {
       const keywords = extractKeywords(input.headline);
@@ -281,8 +357,9 @@ export async function scoreStories(inputs: StoryScoreInput[]): Promise<StoryScor
       const { score: velocityScore, isHighVelocity } = computeVelocityScore(input.platformSignals);
       const recencyScore = computeRecencyScore(input.firstSeenAt);
       const editorialAdj = computeEditorialStanceAdjustment(input.headline);
+      const exemplarBonus = computeExemplarSimilarityBonus(keywords, category, exemplars);
 
-      const relevanceScore = Math.max(0, Math.min(100, categoryScore + keywordMatchScore + sourceScore + recencyScore + editorialAdj));
+      const relevanceScore = Math.max(0, Math.min(100, categoryScore + keywordMatchScore + sourceScore + recencyScore + editorialAdj + exemplarBonus));
       const totalScore = Math.max(0, Math.min(100, relevanceScore + velocityScore));
 
       let alertLevel: 'NONE' | 'DASHBOARD' | 'TELEGRAM' = 'NONE';
