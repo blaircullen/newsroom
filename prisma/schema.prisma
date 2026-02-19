@@ -25,6 +25,7 @@ model User {
   reviews        Review[]
   claimedStories StoryIntelligence[] @relation("ClaimedStories")
   storyFeedback  StoryFeedback[]     @relation("StoryFeedback")
+  submittedExemplars ArticleExemplar[] @relation("SubmittedExemplars")
 
   @@index([role, isActive])
   @@map("users")
@@ -469,4 +470,36 @@ model StoryFeedback {
   @@index([userId])
   @@index([createdAt])
   @@map("story_feedback")
+}
+
+enum ExemplarStatus {
+  PENDING
+  PREVIEW_READY
+  ANALYZED
+  FAILED
+}
+
+model ArticleExemplar {
+  id              String          @id @default(cuid())
+  url             String          @unique
+  title           String?
+  source          String?
+  category        String?
+  status          ExemplarStatus  @default(PENDING)
+  quickSummary    String?         @map("quick_summary")
+  detectedTopics  String[]        @map("detected_topics")
+  fingerprint     Json?
+  rawContent      String?         @map("raw_content")
+  wordCount       Int?            @map("word_count")
+  submittedById   String          @map("submitted_by_id")
+  notes           String?
+  createdAt       DateTime        @default(now()) @map("created_at")
+  analyzedAt      DateTime?       @map("analyzed_at")
+
+  submittedBy     User            @relation("SubmittedExemplars", fields: [submittedById], references: [id])
+
+  @@index([status])
+  @@index([category])
+  @@index([createdAt])
+  @@map("article_exemplars")
 }
