@@ -25,6 +25,7 @@ npx prisma generate  # Regenerate client after schema changes
 - All pages `'use client'` — use `layout.tsx` for metadata, `loading.tsx` for loading states
 - Article search: PG full-text search (tsvector/tsquery + GIN index) for 3+ chars, ILIKE fallback
 - Prisma migrations dir is gitignored — run SQL manually on production
+- AI article prompts: no `<strong>`/`<b>` bold, no em dashes (—), no header tags in body
 
 ## Databases
 
