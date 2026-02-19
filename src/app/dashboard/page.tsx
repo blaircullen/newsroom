@@ -12,7 +12,7 @@ import BottomNav from '@/components/layout/BottomNav';
 import ArticleCard, { Article } from '@/components/dashboard/ArticleCard';
 import StatsGrid from '@/components/dashboard/StatsGrid';
 import DailyRecap from '@/components/dashboard/DailyRecap';
-import HotSection, { StoryIdea } from '@/components/dashboard/HotSection';
+import HotSection from '@/components/dashboard/HotSection';
 import AnalyticsSection from '@/components/dashboard/AnalyticsSection';
 import ProfileSection from '@/components/dashboard/ProfileSection';
 import StoryIntelligenceFeed from '@/components/dashboard/StoryIntelligenceFeed';
@@ -21,7 +21,6 @@ import {
   HiOutlineDocumentText,
   HiOutlinePlusCircle,
   HiOutlineArrowPath,
-  HiOutlineLightBulb,
   HiOutlineArrowTopRightOnSquare,
   HiOutlineSparkles,
   HiOutlineChevronDown,
@@ -35,7 +34,6 @@ import {
   HiOutlineXMark,
   HiOutlineCalendarDays,
   HiOutlineStar,
-  HiOutlineAcademicCap,
 } from 'react-icons/hi2';
 
 type TabId = 'home' | 'hot' | 'analytics' | 'social-queue' | 'profile' | 'training';
@@ -57,7 +55,6 @@ export default function DashboardPage() {
   const [activeTab, setActiveTab] = useState<TabId>('home');
   const [articles, setArticles] = useState<Article[]>([]);
   const [hotArticles, setHotArticles] = useState<Article[]>([]);
-  const [storyIdeas, setStoryIdeas] = useState<StoryIdea[]>([]);
   const [intelligenceStories, setIntelligenceStories] = useState<any[]>([]);
   const [stats, setStats] = useState({ total: 0, submitted: 0, approved: 0, published: 0, drafts: 0, totalViews: 0 });
   const [currentPage, setCurrentPage] = useState(1);
@@ -73,23 +70,11 @@ export default function DashboardPage() {
   const [isDeleting, setIsDeleting] = useState(false);
   const [deleteReason, setDeleteReason] = useState('');
   const [isRefreshingAnalytics, setIsRefreshingAnalytics] = useState(false);
-  const [showStoryIdeas, setShowStoryIdeas] = useState(false);
-  const [creatingFromIdea, setCreatingFromIdea] = useState<string | null>(null);
   const [showAllHot, setShowAllHot] = useState(false);
-  const [dismissedIdeas, setDismissedIdeas] = useState<string[]>([]);
   const [showTopPerformer, setShowTopPerformer] = useState(true);
 
-  // Load dismissed ideas and sections from localStorage on mount
+  // Load sections from localStorage on mount
   useEffect(() => {
-    const stored = localStorage.getItem('dismissedStoryIdeas');
-    if (stored) {
-      try {
-        setDismissedIdeas(JSON.parse(stored));
-      } catch {
-        // Invalid JSON, ignore
-      }
-    }
-
     const topPerformerDismissed = localStorage.getItem('topPerformer-dismissed');
     if (topPerformerDismissed === 'true') setShowTopPerformer(false);
   }, []);
@@ -102,24 +87,6 @@ export default function DashboardPage() {
   const handleRestoreTopPerformer = () => {
     setShowTopPerformer(true);
     localStorage.setItem('topPerformer-dismissed', 'false');
-  };
-
-  // Dismiss a story idea and persist to localStorage
-  const dismissStoryIdea = (headline: string) => {
-    // Read directly from localStorage (source of truth) to avoid stale React state
-    let current: string[] = [];
-    try {
-      const stored = localStorage.getItem('dismissedStoryIdeas');
-      if (stored) current = JSON.parse(stored);
-    } catch {
-      // ignore
-    }
-    if (!current.includes(headline)) {
-      current.push(headline);
-    }
-    localStorage.setItem('dismissedStoryIdeas', JSON.stringify(current));
-    setDismissedIdeas(current);
-    setStoryIdeas(prev => prev.filter(i => i.headline !== headline));
   };
 
   // Pull-to-refresh state (mobile)
@@ -189,29 +156,6 @@ export default function DashboardPage() {
     }
   }, []);
 
-  const fetchStoryIdeas = useCallback(async () => {
-    try {
-      const res = await fetch('/api/story-ideas');
-      if (res.ok) {
-        const data = await res.json();
-        // Filter out previously dismissed ideas
-        let dismissed: string[] = [];
-        try {
-          const storedDismissed = localStorage.getItem('dismissedStoryIdeas');
-          if (storedDismissed) dismissed = JSON.parse(storedDismissed);
-        } catch {
-          // ignore malformed data
-        }
-        const filteredIdeas = (data.ideas || []).filter(
-          (idea: StoryIdea) => !dismissed.includes(idea.headline)
-        );
-        setStoryIdeas(filteredIdeas);
-      }
-    } catch (error) {
-      console.error('Failed to fetch story ideas:', error);
-    }
-  }, []);
-
   const fetchIntelligence = useCallback(async () => {
     try {
       const res = await fetch('/api/story-intelligence');
@@ -237,7 +181,6 @@ export default function DashboardPage() {
       setIsLoading(true);
       fetchArticles();
       fetchHotArticles();
-      fetchStoryIdeas();
       fetchIntelligence();
 
       // Auto-refresh every 30 seconds
@@ -246,23 +189,19 @@ export default function DashboardPage() {
         fetchArticles();
       }, 30000);
 
-      // Refresh story ideas every 15 minutes
-      const ideasInterval = setInterval(fetchStoryIdeas, 15 * 60 * 1000);
-
       const intelligenceInterval = setInterval(fetchIntelligence, 5 * 60 * 1000);
 
       return () => {
         clearInterval(interval);
-        clearInterval(ideasInterval);
         clearInterval(intelligenceInterval);
       };
     }
-  }, [session, fetchArticles, fetchHotArticles, fetchStoryIdeas, fetchIntelligence]);
+  }, [session, fetchArticles, fetchHotArticles, fetchIntelligence]);
 
   // Pull-to-refresh handlers
   const handlePullToRefresh = async () => {
     setIsRefreshing(true);
-    await Promise.all([fetchArticles(), fetchHotArticles(), fetchStoryIdeas(), fetchIntelligence()]);
+    await Promise.all([fetchArticles(), fetchHotArticles(), fetchIntelligence()]);
     setTimeout(() => setIsRefreshing(false), 600);
   };
 
@@ -341,59 +280,6 @@ export default function DashboardPage() {
       toast.error(message);
     } finally {
       setIsRefreshingAnalytics(false);
-    }
-  };
-
-  const handleCreateFromIdea = async (idea: StoryIdea) => {
-    setCreatingFromIdea(idea.headline);
-    try {
-      // Step 1: Use AI to generate article content from the source URL
-      toast.loading('Generating article with AI...', { id: 'ai-import' });
-
-      const importRes = await fetch('/api/articles/import', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ url: idea.sourceUrl }),
-      });
-
-      if (!importRes.ok) {
-        const errorData = await importRes.json();
-        throw new Error(errorData.error || 'Failed to generate article');
-      }
-
-      const aiContent = await importRes.json();
-      toast.dismiss('ai-import');
-
-      // Step 2: Create the article with AI-generated content
-      const sourceDomain = new URL(idea.sourceUrl).hostname.replace(/^www\./, '');
-      const sourceLink = `<p><em>Source: <a href="${idea.sourceUrl}" target="_blank" rel="noopener noreferrer">${sourceDomain}</a></em></p>`;
-
-      const res = await fetch('/api/articles', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          headline: aiContent.headline,
-          subHeadline: aiContent.subHeadline || null,
-          bodyContent: aiContent.bodyText || '',
-          bodyHtml: aiContent.bodyHtml + sourceLink,
-        }),
-      });
-
-      if (!res.ok) throw new Error('Failed to create article');
-
-      const newArticle = await res.json();
-
-      // Remove this idea from the list (persists to localStorage)
-      dismissStoryIdea(idea.headline);
-
-      toast.success('AI article generated! Review before publishing.');
-      router.push(`/editor/${newArticle.id}`);
-    } catch (error) {
-      toast.dismiss('ai-import');
-      const message = error instanceof Error ? error.message : 'Failed to generate article';
-      toast.error(message);
-    } finally {
-      setCreatingFromIdea(null);
     }
   };
 
@@ -583,6 +469,11 @@ export default function DashboardPage() {
           <div className="bg-slate-900 min-h-screen px-4 pt-4">
             {intelligenceStories.length > 0 && (
               <div className="mb-4">
+                <div className="flex items-center gap-2 mb-3">
+                  <HiOutlineSparkles className="w-5 h-5 text-blue-400" />
+                  <h3 className="font-display font-semibold text-white">Story Intelligence</h3>
+                  <span className="text-xs text-white/50">{intelligenceStories.length} stories</span>
+                </div>
                 <StoryIntelligenceFeed
                   stories={intelligenceStories}
                   onRefresh={fetchIntelligence}
@@ -591,10 +482,9 @@ export default function DashboardPage() {
             )}
             <HotSection
               hotArticles={hotArticles}
-              storyIdeas={storyIdeas}
+              storyIdeas={[]}
               showAllHot={showAllHot}
               setShowAllHot={setShowAllHot}
-              onDismissIdea={(idea) => dismissStoryIdea(idea.headline)}
             />
           </div>
         )}
@@ -767,119 +657,19 @@ export default function DashboardPage() {
 
         {/* Story Intelligence Panel - Desktop (Admin only) */}
         {isAdmin && intelligenceStories.length > 0 && (
-          <div className="mb-8">
-            <div className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 rounded-xl border border-blue-200 dark:border-blue-800 overflow-hidden">
-              <div className="px-5 py-4 flex items-center gap-3">
-                <div className="w-9 h-9 rounded-lg bg-blue-100 dark:bg-blue-800 flex items-center justify-center">
-                  <HiOutlineSparkles className="w-5 h-5 text-blue-600 dark:text-blue-400" />
-                </div>
-                <div>
-                  <h3 className="font-display font-semibold text-ink-900 dark:text-ink-100">Story Intelligence</h3>
-                  <p className="text-xs text-ink-500 dark:text-ink-400">{intelligenceStories.length} AI-scored stories</p>
-                </div>
-              </div>
-              <div className="px-5 pb-5">
-                <StoryIntelligenceFeed stories={intelligenceStories} onRefresh={fetchIntelligence} />
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Story Ideas Panel - Desktop (Admin only) */}
-        {isAdmin && storyIdeas.length > 0 && (
           <div className="mb-8 bg-gradient-to-r from-amber-50 to-yellow-50 dark:from-amber-900/20 dark:to-yellow-900/20 rounded-xl border border-amber-200 dark:border-amber-800 overflow-hidden">
             <div className="px-5 py-4 flex items-center gap-3">
               <div className="w-9 h-9 rounded-lg bg-amber-100 dark:bg-amber-800 flex items-center justify-center">
-                <HiOutlineLightBulb className="w-5 h-5 text-amber-600 dark:text-amber-400" />
+                <HiOutlineSparkles className="w-5 h-5 text-amber-600 dark:text-amber-400" />
               </div>
               <div>
-                <h3 className="font-display font-semibold text-ink-900 dark:text-ink-100">
-                  Story Ideas
-                </h3>
-                <p className="text-xs text-ink-500 dark:text-ink-400">
-                  {storyIdeas.length} trending topics from around the web
-                </p>
+                <h3 className="font-display font-semibold text-ink-900 dark:text-ink-100">Story Intelligence</h3>
+                <p className="text-xs text-ink-500 dark:text-ink-400">{intelligenceStories.length} AI-scored stories from around the web</p>
               </div>
             </div>
-
             <div className="px-5 pb-5">
-              <div className="grid grid-cols-3 gap-3">
-                {storyIdeas.map((idea, index) => (
-                    <div
-                      key={index}
-                      className={`rounded-lg p-4 hover:shadow-md transition-all group relative overflow-hidden ${
-                        idea.trending
-                          ? 'bg-gradient-to-br from-red-50 to-orange-50 dark:from-red-900/20 dark:to-orange-900/20 border-2 border-press-300 dark:border-press-700 ring-1 ring-press-200 dark:ring-press-800'
-                          : 'bg-white dark:bg-ink-900 border border-amber-200/50 dark:border-amber-800/50'
-                      }`}
-                    >
-                      {/* Dismiss button */}
-                      <button
-                        onClick={() => dismissStoryIdea(idea.headline)}
-                        className={`absolute top-2 right-2 p-1 rounded-full transition-colors z-10 opacity-0 group-hover:opacity-100 ${
-                          idea.trending
-                            ? 'top-8 text-press-400 hover:text-press-600 hover:bg-press-100 dark:hover:bg-press-900'
-                            : 'text-ink-400 hover:text-ink-600 hover:bg-ink-100 dark:hover:bg-ink-800'
-                        }`}
-                        title="Dismiss suggestion"
-                      >
-                        <HiOutlineXMark className="w-4 h-4" />
-                      </button>
-                      {idea.trending && (
-                        <div className="absolute top-0 right-0">
-                          <div className="bg-gradient-to-r from-press-500 to-orange-500 text-white text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-bl-lg flex items-center gap-1">
-                            <HiOutlineArrowTrendingUp className="w-3 h-3" />
-                            Multi-Source
-                          </div>
-                        </div>
-                      )}
-                      <h4 className={`text-sm font-medium line-clamp-2 mb-3 leading-snug ${
-                        idea.trending
-                          ? 'text-press-900 dark:text-red-100 pr-20'
-                          : 'text-ink-800 dark:text-ink-200'
-                      }`}>
-                        {idea.headline}
-                      </h4>
-                      <div className="flex items-center justify-between">
-                        <a
-                          href={idea.sourceUrl}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className={`flex items-center gap-1 text-xs hover:underline ${
-                            idea.trending
-                              ? 'text-press-600 dark:text-press-400'
-                              : 'text-amber-600 dark:text-amber-400'
-                          }`}
-                        >
-                          <span className="uppercase tracking-wider font-medium">{idea.source}</span>
-                          <HiOutlineArrowTopRightOnSquare className="w-3 h-3" />
-                        </a>
-                        <button
-                          onClick={() => handleCreateFromIdea(idea)}
-                          disabled={creatingFromIdea === idea.headline}
-                          className={`flex items-center gap-1.5 px-3 py-1.5 text-white text-xs font-semibold rounded-lg disabled:opacity-50 transition-all active:scale-95 ${
-                            idea.trending
-                              ? 'bg-gradient-to-r from-press-600 to-orange-500 hover:from-press-700 hover:to-orange-600'
-                              : 'bg-ink-950 dark:bg-ink-700 hover:bg-ink-800 dark:hover:bg-ink-600'
-                          }`}
-                        >
-                          {creatingFromIdea === idea.headline ? (
-                            <>
-                              <div className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                              Creating...
-                            </>
-                          ) : (
-                            <>
-                              <HiOutlineSparkles className="w-3.5 h-3.5" />
-                              Write This
-                            </>
-                          )}
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
+              <StoryIntelligenceFeed stories={intelligenceStories} onRefresh={fetchIntelligence} />
+            </div>
           </div>
         )}
 

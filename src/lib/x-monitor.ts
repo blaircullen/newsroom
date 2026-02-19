@@ -3,6 +3,7 @@ import { fetchUserTweets } from './x-scraper';
 const DEFAULT_ACCOUNTS = [
   'FoxNews', 'BreitbartNews', 'DailyWire', 'OANN', 'nypost', 'WashTimes',
   'TuckerCarlson', 'RealJamesWoods', 'catturd2', 'libsoftiktok', 'EndWokeness',
+  'greg_price11', 'bennyjohnson', 'nicksortor', 'johnnymaga', 'saras76',
 ];
 
 export interface MonitoredStory {

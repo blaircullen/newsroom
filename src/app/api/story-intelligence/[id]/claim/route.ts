@@ -53,9 +53,72 @@ function extractArticleText(html: string): string {
   return articleHtml.replace(/<[^>]+>/g, '').replace(/\s+/g, ' ').trim();
 }
 
+// ---------------------------------------------------------------------------
+// Helpers for multi-source fetching and labeling
+// ---------------------------------------------------------------------------
+
+interface SourceInfo {
+  name: string;
+  url: string;
+}
+
+function getSourceLabel(url: string): string {
+  try {
+    const parsed = new URL(url);
+    const host = parsed.hostname.replace(/^www\./, '');
+    const isX = host === 'x.com' || host === 'twitter.com';
+    if (isX) {
+      const account = parsed.pathname.split('/')[1];
+      return account ? `${account} on X` : 'X';
+    }
+    // Map common domains to friendly names
+    const domainMap: Record<string, string> = {
+      'foxnews.com': 'Fox News', 'dailywire.com': 'The Daily Wire',
+      'breitbart.com': 'Breitbart', 'nypost.com': 'The New York Post',
+      'bizpacreview.com': 'BizPac Review', 'thegatewaypundit.com': 'The Gateway Pundit',
+      'freebeacon.com': 'The Free Beacon', 'washingtontimes.com': 'The Washington Times',
+      'dailycaller.com': 'The Daily Caller', 'newsmax.com': 'Newsmax',
+      'oann.com': 'OANN', 'reuters.com': 'Reuters', 'apnews.com': 'AP News',
+      'cnn.com': 'CNN', 'nbcnews.com': 'NBC News', 'cbsnews.com': 'CBS News',
+      'abcnews.go.com': 'ABC News', 'bbc.com': 'BBC', 'nytimes.com': 'The New York Times',
+      'washingtonpost.com': 'The Washington Post', 'politico.com': 'Politico',
+      'thehill.com': 'The Hill', 'townhall.com': 'Townhall',
+    };
+    return domainMap[host] || host;
+  } catch {
+    return url;
+  }
+}
+
+async function fetchSourceContent(url: string): Promise<{ url: string; label: string; text: string } | null> {
+  try {
+    const res = await fetch(url, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (compatible; NewsRoom/1.0)',
+        Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+      },
+      signal: AbortSignal.timeout(10000),
+    });
+    if (!res.ok) {
+      console.warn(`[claim] Source fetch failed for ${url}: HTTP ${res.status}`);
+      return null;
+    }
+    const html = await res.text();
+    const text = extractArticleText(html);
+    if (text.length < 100) {
+      console.warn(`[claim] Extracted text too short from ${url} (${text.length} chars)`);
+      return null;
+    }
+    return { url, label: getSourceLabel(url), text };
+  } catch (err) {
+    console.warn(`[claim] Failed to fetch ${url}:`, err);
+    return null;
+  }
+}
+
 async function generateAiDraft(
   headline: string,
-  sourceUrl: string,
+  sourceUrls: SourceInfo[],
   suggestedAngles: string[]
 ): Promise<{ headline: string; subHeadline: string; bodyHtml: string } | null> {
   const anthropicApiKey = process.env.ANTHROPIC_API_KEY;
@@ -65,36 +128,44 @@ async function generateAiDraft(
   }
 
   try {
-    // Fetch source article
-    console.log(`[claim] Fetching source: ${sourceUrl}`);
-    const res = await fetch(sourceUrl, {
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (compatible; NewsRoom/1.0)',
-        Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-      },
-      signal: AbortSignal.timeout(10000),
-    });
+    // Fetch up to 3 source articles in parallel
+    const urlsToFetch = sourceUrls.slice(0, 3).map(s => s.url);
+    console.log(`[claim] Fetching ${urlsToFetch.length} source(s): ${urlsToFetch.join(', ')}`);
+    const fetchResults = await Promise.all(urlsToFetch.map(fetchSourceContent));
+    const fetched = fetchResults.filter((r): r is NonNullable<typeof r> => r !== null);
 
-    if (!res.ok) {
-      console.error(`[claim] Source fetch failed: HTTP ${res.status}`);
+    if (fetched.length === 0) {
+      console.error('[claim] All source fetches failed');
       return null;
     }
 
-    const html = await res.text();
-    const articleText = extractArticleText(html);
-    console.log(`[claim] Extracted ${articleText.length} chars from source`);
+    // Build combined source content with labels
+    const sourceContentBlocks = fetched.map((s, i) =>
+      `--- SOURCE ${i + 1}: ${s.label} (${s.url}) ---\n${s.text.substring(0, Math.floor(12000 / fetched.length))}`
+    ).join('\n\n');
 
-    if (articleText.length < 100) {
-      console.error(`[claim] Extracted text too short (${articleText.length} chars)`);
-      return null;
-    }
+    // Build source citation instructions
+    const sourceLabels = fetched.map(s => `"${s.label}" (${s.url})`);
+    const sourceCitationInstruction = fetched.length === 1
+      ? `5. SOURCE CITATION (MANDATORY — YOUR ARTICLE WILL BE REJECTED WITHOUT THIS): You MUST cite the source publication in the article body within the FIRST or SECOND paragraph. The source is: ${sourceLabels[0]}
+   - Use natural attribution like "according to ${fetched[0].label}" or "as first reported by ${fetched[0].label}"
+   - If the source is a social media post (x.com, twitter.com), cite it as "[Account Name] reported on X"
+   - This is NON-NEGOTIABLE. Articles without source citations are automatically rejected.`
+      : `5. SOURCE CITATIONS (MANDATORY — YOUR ARTICLE WILL BE REJECTED WITHOUT THESE): You MUST cite ALL ${fetched.length} sources naturally throughout the article body. The more sources cited, the better and more credible the article.
+   Sources to cite:
+${sourceLabels.map((s, i) => `   ${i + 1}. ${s}`).join('\n')}
+   - Cite the PRIMARY source in the FIRST or SECOND paragraph using natural attribution ("according to...", "as reported by...")
+   - Cite ADDITIONAL sources in LATER paragraphs to add depth and corroboration ("${fetched.length >= 2 ? fetched[1].label : ''} also reported...", "corroborating the story, ${fetched.length >= 2 ? fetched[1].label : ''} noted...")
+   - If a source is a social media post (x.com, twitter.com), cite as "[Account Name] reported on X"
+   - Every source MUST be cited at least once. Articles missing ANY source citation are automatically rejected.
+   - Multiple sources make the article MORE credible — weave them in naturally.`;
 
     const anglesContext =
       suggestedAngles.length > 0
         ? `\n\nSUGGESTED ANGLES (use one of these as your primary angle if appropriate):\n${suggestedAngles.map((a, i) => `${i + 1}. ${a}`).join('\n')}`
         : '';
 
-    console.log('[claim] Calling Anthropic API...');
+    console.log(`[claim] Calling Anthropic API with ${fetched.length} source(s)...`);
     const anthropicRes = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: {
@@ -108,7 +179,7 @@ async function generateAiDraft(
         messages: [
           {
             role: 'user',
-            content: `You are a senior editorial writer for a conservative news outlet that is strongly supportive of President Trump and his administration. Rewrite the following article in your own words.
+            content: `You are a senior editorial writer for a conservative news outlet that is strongly supportive of President Trump and his administration. Rewrite the following article in your own words, synthesizing information from ${fetched.length > 1 ? 'multiple sources' : 'the source'} provided.
 
 EDITORIAL STANCE:
 - Frame stories in a way that is favorable to President Trump and his administration's policies and achievements.
@@ -126,12 +197,9 @@ REQUIREMENTS:
    - Punchy short sentences mixed with longer explanatory ones
    - Lead with the most impactful facts
    - End with a forward-looking statement
+${fetched.length > 1 ? '   - Synthesize facts and details from ALL sources — use unique details from each source to create a richer, more comprehensive article' : ''}
 4. Format body in clean HTML with <p> tags. Do NOT use <strong>, <b>, or any bold formatting. Do NOT use em dashes (—). Just plain text in paragraphs. No <h1>/<h2> tags.
-5. SOURCE CITATION (MANDATORY — YOUR ARTICLE WILL BE REJECTED WITHOUT THIS): You MUST cite the source publication in the article body within the FIRST or SECOND paragraph. The source URL is: ${sourceUrl}
-   - Extract the publication/account name from the URL (e.g. foxnews.com → "Fox News", x.com/FoxNews → "Fox News", dailywire.com → "The Daily Wire")
-   - Use natural attribution like "according to Fox News" or "as first reported by The Daily Wire" or "Fox News reported"
-   - If the source is a social media post (x.com, twitter.com), cite it as "[Account Name] reported on X" or "according to a post by [Account Name] on X"
-   - This is NON-NEGOTIABLE. Every single article MUST have a source attribution. Articles without source citations are automatically rejected.
+${sourceCitationInstruction}
 ${anglesContext}
 
 RESPOND IN EXACTLY THIS JSON FORMAT (no markdown, no backticks, just raw JSON):
@@ -143,8 +211,7 @@ RESPOND IN EXACTLY THIS JSON FORMAT (no markdown, no backticks, just raw JSON):
 
 ORIGINAL HEADLINE: ${headline}
 
-SOURCE ARTICLE:
-${articleText.substring(0, 12000)}`,
+${sourceContentBlocks}`,
           },
         ],
       }),
@@ -171,26 +238,31 @@ ${articleText.substring(0, 12000)}`,
       return null;
     }
 
-    // Validate source citation exists — extract source name from URL
-    const urlHost = new URL(sourceUrl).hostname.replace(/^www\./, '');
-    const urlPath = new URL(sourceUrl).pathname;
-    const isXPost = urlHost === 'x.com' || urlHost === 'twitter.com';
-    const sourceName = isXPost ? urlPath.split('/')[1] : urlHost.replace(/\.com$|\.org$|\.net$/, '');
+    // Validate source citations — check each fetched source is cited
     const bodyLower = parsed.bodyHtml.toLowerCase();
-    const hasSourceCitation = bodyLower.includes('according to') ||
-      bodyLower.includes('reported by') ||
-      bodyLower.includes('reported on') ||
-      bodyLower.includes('as reported') ||
-      bodyLower.includes(sourceName.toLowerCase());
-
-    if (!hasSourceCitation) {
-      console.warn(`[claim] AI draft missing source citation for ${sourceUrl} — injecting`);
-      const sourceLabel = isXPost ? `${urlPath.split('/')[1]} on X` : urlHost;
-      const citation = `<p><em>According to ${sourceLabel}:</em></p>`;
-      parsed.bodyHtml = citation + parsed.bodyHtml;
+    const missingCitations: typeof fetched = [];
+    for (const source of fetched) {
+      const host = new URL(source.url).hostname.replace(/^www\./, '');
+      const isX = host === 'x.com' || host === 'twitter.com';
+      const nameToCheck = isX
+        ? new URL(source.url).pathname.split('/')[1]?.toLowerCase()
+        : host.replace(/\.com$|\.org$|\.net$/, '').toLowerCase();
+      const hasCitation = bodyLower.includes(nameToCheck) ||
+        bodyLower.includes(source.label.toLowerCase());
+      if (!hasCitation) {
+        missingCitations.push(source);
+      }
     }
 
-    console.log(`[claim] AI draft generated: "${parsed.headline.slice(0, 60)}..."`);
+    if (missingCitations.length > 0) {
+      console.warn(`[claim] AI draft missing citations for: ${missingCitations.map(s => s.label).join(', ')} — injecting`);
+      const injections = missingCitations.map(s =>
+        `<p>The story was also covered by ${s.label}.</p>`
+      ).join('');
+      parsed.bodyHtml = parsed.bodyHtml + injections;
+    }
+
+    console.log(`[claim] AI draft generated with ${fetched.length} source(s): "${parsed.headline.slice(0, 60)}..."`);
     return {
       headline: parsed.headline,
       subHeadline: parsed.subHeadline || '',
@@ -298,6 +370,12 @@ export async function POST(
 
   const story = await prisma.storyIntelligence.findUnique({
     where: { id },
+    include: {
+      verificationSources: {
+        where: { corroborates: true },
+        take: 3,
+      },
+    },
   });
 
   if (!story) {
@@ -308,13 +386,42 @@ export async function POST(
     return NextResponse.json({ error: 'Story already claimed' }, { status: 409 });
   }
 
-  // Try to generate an AI draft from the source URL
+  // Collect up to 3 unique source URLs for multi-source article generation
+  const sourceUrls: SourceInfo[] = [];
+  const seenUrls = new Set<string>();
+
+  // Primary source first
+  seenUrls.add(story.sourceUrl);
+  sourceUrls.push({ name: getSourceLabel(story.sourceUrl), url: story.sourceUrl });
+
+  // Add from story.sources JSON array
+  const storySources = Array.isArray(story.sources) ? story.sources as Array<{ name: string; url: string }> : [];
+  for (const s of storySources) {
+    if (sourceUrls.length >= 3) break;
+    if (s.url && !seenUrls.has(s.url)) {
+      seenUrls.add(s.url);
+      sourceUrls.push({ name: s.name || getSourceLabel(s.url), url: s.url });
+    }
+  }
+
+  // Add corroborating verification sources
+  for (const vs of story.verificationSources) {
+    if (sourceUrls.length >= 3) break;
+    if (vs.sourceUrl && !seenUrls.has(vs.sourceUrl)) {
+      seenUrls.add(vs.sourceUrl);
+      sourceUrls.push({ name: vs.sourceName || getSourceLabel(vs.sourceUrl), url: vs.sourceUrl });
+    }
+  }
+
+  console.log(`[claim] Collected ${sourceUrls.length} source(s) for story: ${story.headline.slice(0, 60)}`);
+
+  // Try to generate an AI draft from the source URL(s)
   const suggestedAngles =
     story.suggestedAngles && Array.isArray(story.suggestedAngles)
       ? story.suggestedAngles.map(String)
       : [];
 
-  const aiDraft = await generateAiDraft(story.headline, story.sourceUrl, suggestedAngles);
+  const aiDraft = await generateAiDraft(story.headline, sourceUrls, suggestedAngles);
 
   const headline = aiDraft?.headline || story.headline;
   const subHeadline = aiDraft?.subHeadline || '';
