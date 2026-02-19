@@ -297,6 +297,12 @@ export async function DELETE(
     ).catch((err) => console.error('Failed to send deletion email:', err));
   }
 
+  // Nullify StoryIntelligence FK before deleting (no cascade configured)
+  await prisma.storyIntelligence.updateMany({
+    where: { articleId: params.id },
+    data: { articleId: null },
+  });
+
   await prisma.article.delete({ where: { id: params.id } });
   return NextResponse.json({ success: true });
 }
