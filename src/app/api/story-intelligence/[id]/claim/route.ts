@@ -127,6 +127,7 @@ REQUIREMENTS:
    - Lead with the most impactful facts
    - End with a forward-looking statement
 4. Format body in clean HTML with <p> tags. Do NOT use <strong>, <b>, or any bold formatting. Do NOT use em dashes (—). Just plain text in paragraphs. No <h1>/<h2> tags.
+5. SOURCE CITATION (MANDATORY): You MUST cite the source in the article body. Include a natural attribution to the source, such as "according to [Source Name]" or "as reported by [Source Name]", within the first or second paragraph. The source URL is: ${sourceUrl} — extract the publication name from this URL and reference it by name in the text. This is non-negotiable; every article must attribute its reporting to the original source.
 ${anglesContext}
 
 RESPOND IN EXACTLY THIS JSON FORMAT (no markdown, no backticks, just raw JSON):
