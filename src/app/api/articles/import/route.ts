@@ -114,6 +114,12 @@ REQUIREMENTS:
 
 4. The body should be formatted in clean HTML with <p> tags for paragraphs. Do NOT use <strong>, <b>, or any bold formatting. Do NOT use em dashes (—). You may use <a> tags if referencing specific entities. Do NOT use <h1>, <h2>, or other header tags in the body — just paragraphs.
 
+5. SOURCE CITATION (MANDATORY — YOUR ARTICLE WILL BE REJECTED WITHOUT THIS): You MUST cite the source publication in the article body within the FIRST or SECOND paragraph. The source URL is: ${url}
+   - Extract the publication/account name from the URL (e.g. foxnews.com = "Fox News", dailywire.com = "The Daily Wire")
+   - Use natural attribution like "according to Fox News" or "as first reported by The Daily Wire"
+   - If the source is a social media post (x.com, twitter.com), cite as "[Account Name] reported on X"
+   - This is NON-NEGOTIABLE. Every article MUST have source attribution.
+
 RESPOND IN EXACTLY THIS JSON FORMAT (no markdown, no backticks, just raw JSON):
 {
   "headline": "Your compelling headline here",

@@ -127,7 +127,11 @@ REQUIREMENTS:
    - Lead with the most impactful facts
    - End with a forward-looking statement
 4. Format body in clean HTML with <p> tags. Do NOT use <strong>, <b>, or any bold formatting. Do NOT use em dashes (—). Just plain text in paragraphs. No <h1>/<h2> tags.
-5. SOURCE CITATION (MANDATORY): You MUST cite the source in the article body. Include a natural attribution to the source, such as "according to [Source Name]" or "as reported by [Source Name]", within the first or second paragraph. The source URL is: ${sourceUrl} — extract the publication name from this URL and reference it by name in the text. This is non-negotiable; every article must attribute its reporting to the original source.
+5. SOURCE CITATION (MANDATORY — YOUR ARTICLE WILL BE REJECTED WITHOUT THIS): You MUST cite the source publication in the article body within the FIRST or SECOND paragraph. The source URL is: ${sourceUrl}
+   - Extract the publication/account name from the URL (e.g. foxnews.com → "Fox News", x.com/FoxNews → "Fox News", dailywire.com → "The Daily Wire")
+   - Use natural attribution like "according to Fox News" or "as first reported by The Daily Wire" or "Fox News reported"
+   - If the source is a social media post (x.com, twitter.com), cite it as "[Account Name] reported on X" or "according to a post by [Account Name] on X"
+   - This is NON-NEGOTIABLE. Every single article MUST have a source attribution. Articles without source citations are automatically rejected.
 ${anglesContext}
 
 RESPOND IN EXACTLY THIS JSON FORMAT (no markdown, no backticks, just raw JSON):
@@ -165,6 +169,25 @@ ${articleText.substring(0, 12000)}`,
     if (!parsed.headline || !parsed.bodyHtml) {
       console.error('[claim] AI response missing headline or bodyHtml');
       return null;
+    }
+
+    // Validate source citation exists — extract source name from URL
+    const urlHost = new URL(sourceUrl).hostname.replace(/^www\./, '');
+    const urlPath = new URL(sourceUrl).pathname;
+    const isXPost = urlHost === 'x.com' || urlHost === 'twitter.com';
+    const sourceName = isXPost ? urlPath.split('/')[1] : urlHost.replace(/\.com$|\.org$|\.net$/, '');
+    const bodyLower = parsed.bodyHtml.toLowerCase();
+    const hasSourceCitation = bodyLower.includes('according to') ||
+      bodyLower.includes('reported by') ||
+      bodyLower.includes('reported on') ||
+      bodyLower.includes('as reported') ||
+      bodyLower.includes(sourceName.toLowerCase());
+
+    if (!hasSourceCitation) {
+      console.warn(`[claim] AI draft missing source citation for ${sourceUrl} — injecting`);
+      const sourceLabel = isXPost ? `${urlPath.split('/')[1]} on X` : urlHost;
+      const citation = `<p><em>According to ${sourceLabel}:</em></p>`;
+      parsed.bodyHtml = citation + parsed.bodyHtml;
     }
 
     console.log(`[claim] AI draft generated: "${parsed.headline.slice(0, 60)}..."`);
