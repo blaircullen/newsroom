@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import prisma from '@/lib/prisma';
+import { generateQuickPreview, generateDeepFingerprint } from '@/lib/exemplar-ai';
 
 function extractArticleText(html: string): string {
   let cleaned = html
@@ -177,6 +178,88 @@ ${articleText.substring(0, 12000)}`,
   }
 }
 
+// ---------------------------------------------------------------------------
+// Auto-create exemplar from claimed story (fire-and-forget training signal)
+// ---------------------------------------------------------------------------
+
+async function createExemplarFromClaim(
+  sourceUrl: string,
+  headline: string,
+  articleText: string,
+  userId: string,
+) {
+  try {
+    // Check for duplicate
+    const existing = await prisma.articleExemplar.findUnique({
+      where: { url: sourceUrl },
+    });
+    if (existing) return;
+
+    const source = new URL(sourceUrl).hostname.replace(/^www\./, '');
+    const wordCount = articleText.split(/\s+/).length;
+
+    // Create record
+    const exemplar = await prisma.articleExemplar.create({
+      data: {
+        url: sourceUrl,
+        title: headline,
+        source,
+        status: 'PENDING',
+        rawContent: articleText,
+        wordCount,
+        submittedById: userId,
+        notes: 'Auto-created from Story Intelligence claim',
+      },
+    });
+
+    // Quick preview
+    const preview = await generateQuickPreview(headline, articleText);
+    await prisma.articleExemplar.update({
+      where: { id: exemplar.id },
+      data: {
+        category: preview.category,
+        detectedTopics: preview.topics,
+        quickSummary: preview.quickSummary,
+        status: 'PREVIEW_READY',
+      },
+    });
+
+    // Deep fingerprint
+    const fingerprint = await generateDeepFingerprint(headline, articleText, source);
+    await prisma.articleExemplar.update({
+      where: { id: exemplar.id },
+      data: {
+        fingerprint: fingerprint as object,
+        status: 'ANALYZED',
+        analyzedAt: new Date(),
+      },
+    });
+
+    // Boost TopicProfile weights
+    for (const category of fingerprint.similarToCategories) {
+      const profile = await prisma.topicProfile.findUnique({ where: { category } });
+      if (!profile) continue;
+
+      const weights = (profile.keywordWeights as Record<string, number>) ?? {};
+      for (const [keyword, delta] of Object.entries(fingerprint.keywords)) {
+        const current = weights[keyword] ?? 1.0;
+        const isNew = !(keyword in weights);
+        const boost = isNew ? 1.5 : current + delta * 0.5;
+        weights[keyword] = Math.min(10, Math.max(0.5, boost));
+      }
+
+      await prisma.topicProfile.update({
+        where: { category },
+        data: { keywordWeights: weights, lastUpdated: new Date() },
+      });
+    }
+
+    console.log(`[claim] Auto-exemplar created and analyzed: ${exemplar.id}`);
+  } catch (err) {
+    console.error('[claim] Auto-exemplar failed (non-blocking):', err);
+  }
+}
+
 // POST — writer claims a story, creating a draft article with AI-generated body
 export async function POST(
   _request: NextRequest,
@@ -238,8 +321,27 @@ export async function POST(
       claimedAt: new Date(),
       articleId: article.id,
       outcome: 'CLAIMED',
+      dismissed: true,
     },
   });
+
+  // Fire-and-forget: create exemplar from claimed story to train the algorithm
+  // Claiming = positive signal that this topic fits our audience
+  void (async () => {
+    try {
+      const res = await fetch(story.sourceUrl, {
+        headers: { 'User-Agent': 'Mozilla/5.0 (compatible; NewsRoom/1.0)' },
+        signal: AbortSignal.timeout(10000),
+      });
+      const html = await res.text();
+      const text = extractArticleText(html);
+      if (text.length >= 100) {
+        await createExemplarFromClaim(story.sourceUrl, story.headline, text, session.user.id);
+      }
+    } catch (err) {
+      console.error('[claim] Exemplar fetch failed (non-blocking):', err);
+    }
+  })();
 
   return NextResponse.json({ success: true, articleId: article.id });
 }

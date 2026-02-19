@@ -160,7 +160,9 @@ function StoryCard({ story, onRefresh }: { story: StoryIntelligenceItem; onRefre
         throw new Error(data.error || 'Failed to claim story');
       }
       const data = await res.json();
-      toast.success('Story claimed — opening editor');
+      toast.success('Story claimed — training algorithm & opening editor');
+      // Remove from feed immediately, then refresh to sync server state
+      onRefresh();
       setFeedbackAction('CLAIM_FEEDBACK');
       setShowFeedbackModal(true);
       router.push(`/editor/${data.articleId}`);
