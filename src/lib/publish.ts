@@ -25,17 +25,20 @@ interface ArticleForPublish {
 
 interface GhostTarget {
   url: string;
+  name: string;
   apiKey?: string | null;
 }
 
 interface WordPressTarget {
   url: string;
+  name: string;
   username?: string | null;
   password?: string | null;
 }
 
 interface ShopifyTarget {
   url: string;
+  name: string;
   blogId?: string | null;
   clientId?: string | null;
   clientSecret?: string | null;
@@ -579,10 +582,13 @@ async function publishToGhost(
     console.log(`[Publish Ghost] Target: ${target.url}`);
     console.log(`[Publish Ghost] Feature image: ${featureImageUrl || '(none)'}`);
 
+    // Generate a slightly different headline for this site
+    const varied = await generateHeadlineVariation(article.headline, article.subHeadline, target.name);
+
     const ghostPost: any = {
       posts: [{
-        title: article.headline,
-        custom_excerpt: article.subHeadline || undefined,
+        title: varied.headline,
+        custom_excerpt: varied.subHeadline || undefined,
         custom_template: 'custom-post-with-sidebar',
         html: processedHtml,
         feature_image: featureImageUrl || undefined,
@@ -654,6 +660,64 @@ async function getHannityCategories(auth: string, wpUrl: string): Promise<Array<
     console.error(`[Hannity] Failed to fetch categories:`, error.message);
     return [];
   }
+}
+
+// Generate a slightly different headline for a site to avoid duplicate content across sites
+async function generateHeadlineVariation(
+  headline: string,
+  subHeadline: string | null | undefined,
+  siteName: string
+): Promise<{ headline: string; subHeadline: string }> {
+  const anthropicApiKey = process.env.ANTHROPIC_API_KEY;
+  if (!anthropicApiKey) {
+    console.log(`[Headline AI] No API key, using original headline for ${siteName}`);
+    return { headline, subHeadline: subHeadline || '' };
+  }
+
+  try {
+    const response = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': anthropicApiKey,
+        'anthropic-version': '2023-06-01',
+      },
+      body: JSON.stringify({
+        model: 'claude-haiku-4-5-20251001',
+        max_tokens: 150,
+        messages: [{
+          role: 'user',
+          content: `Rewrite this news headline and subheadline for ${siteName}. Keep the same meaning and tone but vary the wording so it's not identical to other versions. Do not change the meaning, do not sensationalize, and keep a similar length.
+
+Headline: ${headline}${subHeadline ? `\nSubheadline: ${subHeadline}` : ''}
+
+Respond with ONLY valid JSON: {"headline":"...","subheadline":"..."}`
+        }],
+      }),
+      signal: AbortSignal.timeout(15000),
+    });
+
+    if (!response.ok) {
+      console.error(`[Headline AI] API error for ${siteName}: ${response.status}`);
+      return { headline, subHeadline: subHeadline || '' };
+    }
+
+    const data = await response.json();
+    const text = data.content?.[0]?.text || '';
+    const jsonMatch = text.match(/\{[\s\S]*\}/);
+    if (jsonMatch) {
+      const parsed = JSON.parse(jsonMatch[0]);
+      console.log(`[Headline AI] ${siteName}: "${parsed.headline}"`);
+      return {
+        headline: parsed.headline || headline,
+        subHeadline: parsed.subheadline || subHeadline || '',
+      };
+    }
+  } catch (error: any) {
+    console.error(`[Headline AI] Error for ${siteName}:`, error.message);
+  }
+
+  return { headline, subHeadline: subHeadline || '' };
 }
 
 // Generate Hannity mantle fields and pick category using a single AI call
@@ -811,10 +875,19 @@ async function publishToWordPress(
 
     const isHannity = new URL(target.url).hostname === 'hannity.com';
 
+    // Generate varied headline for non-Hannity WordPress sites
+    let wpTitle = article.headline;
+    let wpExcerpt = article.subHeadline || '';
+    if (!isHannity) {
+      const varied = await generateHeadlineVariation(article.headline, article.subHeadline, target.name);
+      wpTitle = varied.headline;
+      wpExcerpt = varied.subHeadline;
+    }
+
     const wpPost: any = {
-      title: article.headline,
+      title: wpTitle,
       content: processedHtml,
-      excerpt: article.subHeadline || '',
+      excerpt: wpExcerpt,
       slug: article.slug || undefined,
       status: isHannity ? 'draft' : 'publish',
       tags: tagIds,
@@ -841,7 +914,7 @@ async function publishToWordPress(
     } else {
       // Default ACF fields for other WordPress sites
       wpPost.acf = {
-        mod_mantle_subtitle: article.subHeadline || '',
+        mod_mantle_subtitle: wpExcerpt,
       };
     }
 
@@ -976,11 +1049,14 @@ async function publishToShopify(
 
     console.log(`[Publish Shopify] Target: ${target.myshopifyDomain}, Blog ID: ${blogId}`);
 
+    // Generate a slightly different headline for this site
+    const varied = await generateHeadlineVariation(article.headline, article.subHeadline, target.name);
+
     const shopifyArticle: any = {
       article: {
-        title: article.headline,
+        title: varied.headline,
         body_html: processedHtml,
-        summary_html: article.subHeadline || undefined,
+        summary_html: varied.subHeadline || undefined,
         tags: tags || undefined,
         published: true,
       },
