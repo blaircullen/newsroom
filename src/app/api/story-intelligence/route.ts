@@ -42,7 +42,7 @@ export async function GET() {
       { relevanceScore: 'desc' },
       { firstSeenAt: 'desc' },
     ],
-    take: 8,
+    take: 9,
   });
 
   return NextResponse.json({ stories });
