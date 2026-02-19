@@ -585,10 +585,14 @@ async function publishToGhost(
     // Generate a slightly different headline for this site
     const varied = await generateHeadlineVariation(article.headline, article.subHeadline, target.name);
 
+    // Generate SEO meta description
+    const seo = await generateSeoDescription(article.headline, article.subHeadline, article.body, target.name);
+
     const ghostPost: any = {
       posts: [{
         title: varied.headline,
         custom_excerpt: varied.subHeadline || undefined,
+        meta_description: seo.description || undefined,
         custom_template: 'custom-post-with-sidebar',
         html: processedHtml,
         feature_image: featureImageUrl || undefined,
@@ -659,6 +663,108 @@ async function getHannityCategories(auth: string, wpUrl: string): Promise<Array<
   } catch (error: any) {
     console.error(`[Hannity] Failed to fetch categories:`, error.message);
     return [];
+  }
+}
+
+// Generate an SEO meta description for a published article using Claude Haiku
+// Returns a 150-155 character description optimized for search engine snippets
+async function generateSeoDescription(
+  headline: string,
+  subHeadline: string | null | undefined,
+  bodyText: string,
+  siteName: string
+): Promise<{ description: string; keywords: string[] }> {
+  const anthropicApiKey = process.env.ANTHROPIC_API_KEY;
+  if (!anthropicApiKey) {
+    console.log(`[SEO AI] No API key, skipping SEO description for ${siteName}`);
+    return { description: '', keywords: [] };
+  }
+
+  try {
+    // Use first ~500 chars of body for context
+    const bodyPreview = bodyText.replace(/<[^>]+>/g, '').slice(0, 500);
+
+    const response = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': anthropicApiKey,
+        'anthropic-version': '2023-06-01',
+      },
+      body: JSON.stringify({
+        model: 'claude-haiku-4-5-20251001',
+        max_tokens: 250,
+        messages: [{
+          role: 'user',
+          content: `Generate an SEO meta description and keywords for this news article.
+
+Headline: ${headline}${subHeadline ? `\nSubheadline: ${subHeadline}` : ''}
+Body preview: ${bodyPreview}
+
+Requirements:
+1. Meta description: 150-155 characters exactly. Compelling, informative, includes the main topic. Ends with a complete sentence.
+2. Keywords: 5-8 relevant SEO keywords/phrases separated by commas.
+3. Do NOT repeat the headline verbatim. Summarize the key information that would make someone click.
+
+Respond with ONLY valid JSON: {"description":"...","keywords":["keyword1","keyword2",...]}`
+        }],
+      }),
+      signal: AbortSignal.timeout(15000),
+    });
+
+    if (!response.ok) {
+      console.error(`[SEO AI] API error for ${siteName}: ${response.status}`);
+      return { description: '', keywords: [] };
+    }
+
+    const data = await response.json();
+    const text = data.content?.[0]?.text || '';
+    const jsonMatch = text.match(/\{[\s\S]*\}/);
+    if (jsonMatch) {
+      const parsed = JSON.parse(jsonMatch[0]);
+      const desc = (parsed.description || '').slice(0, 160);
+      const kw = Array.isArray(parsed.keywords) ? parsed.keywords : [];
+      console.log(`[SEO AI] ${siteName}: "${desc.slice(0, 60)}..." (${kw.length} keywords)`);
+      return { description: desc, keywords: kw };
+    }
+  } catch (error: any) {
+    console.error(`[SEO AI] Error for ${siteName}:`, error.message);
+  }
+
+  return { description: '', keywords: [] };
+}
+
+// Set SEO fields on a WordPress post via ACF v3 endpoint (for sites using ACF SEO fields like JoePags)
+async function setWordPressAcfSeo(
+  postId: number,
+  auth: string,
+  wpUrl: string,
+  description: string,
+  keywords: string[]
+): Promise<void> {
+  try {
+    const response = await fetch(`${wpUrl}/wp-json/acf/v3/posts/${postId}`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Basic ${auth}`,
+      },
+      body: JSON.stringify({
+        fields: {
+          seo_descr: description,
+          seo_keywords: keywords.join(', '),
+        },
+      }),
+      signal: AbortSignal.timeout(API_TIMEOUT),
+    });
+
+    if (response.ok) {
+      console.log(`[SEO] ACF v3 SEO fields set for post ${postId}`);
+    } else {
+      console.error(`[SEO] ACF v3 failed for post ${postId}: ${response.status}`);
+    }
+  } catch (error: any) {
+    console.error(`[SEO] ACF v3 error for post ${postId}:`, error.message);
   }
 }
 
@@ -875,6 +981,9 @@ async function publishToWordPress(
 
     const isHannity = new URL(target.url).hostname === 'hannity.com';
 
+    // Generate SEO meta description for all WordPress sites
+    const seo = await generateSeoDescription(article.headline, article.subHeadline, article.body, target.name);
+
     // Generate varied headline for non-Hannity WordPress sites
     let wpTitle = article.headline;
     let wpExcerpt = article.subHeadline || '';
@@ -884,10 +993,13 @@ async function publishToWordPress(
       wpExcerpt = varied.subHeadline;
     }
 
+    // For non-Hannity sites, use SEO description as excerpt if available (theme renders excerpt as meta description)
+    const finalExcerpt = (!isHannity && seo.description) ? seo.description : wpExcerpt;
+
     const wpPost: any = {
       title: wpTitle,
       content: processedHtml,
-      excerpt: wpExcerpt,
+      excerpt: finalExcerpt,
       slug: article.slug || undefined,
       status: isHannity ? 'draft' : 'publish',
       tags: tagIds,
@@ -905,6 +1017,7 @@ async function publishToWordPress(
         m2_subhead: fields.subhead,
         m2_txt_alignmnt: 'bl',
         media_type: '2',
+        seo_descr: seo.description || undefined,
       };
       if (fields.categoryId) {
         wpPost.categories = [fields.categoryId];
@@ -943,6 +1056,11 @@ async function publishToWordPress(
 
     const data = await response.json();
     console.log(`[Publish WP] Success: ${data.link}`);
+
+    // Set SEO fields via ACF v3 for non-Hannity sites (JoePags, LizPeek)
+    if (!isHannity && seo.description && data.id) {
+      setWordPressAcfSeo(data.id, auth, target.url, seo.description, seo.keywords).catch(() => {});
+    }
 
     return {
       success: true,
@@ -1141,6 +1259,15 @@ export async function publishArticle(
 
   if (!targetRow || !targetRow.isActive) {
     return { success: false, error: 'Publish target not found or inactive' };
+  }
+
+  // Prevent duplicate publishing to the same site
+  if (article.publishedSite) {
+    const alreadyPublishedSites = article.publishedSite.split(' | ');
+    if (alreadyPublishedSites.includes(targetRow.name)) {
+      console.log(`[Publish] BLOCKED: "${article.headline}" already published to ${targetRow.name}`);
+      return { success: false, error: `Article has already been published to ${targetRow.name}` };
+    }
   }
 
   const target = {
