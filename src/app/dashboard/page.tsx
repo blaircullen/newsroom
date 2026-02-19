@@ -16,6 +16,7 @@ import HotSection from '@/components/dashboard/HotSection';
 import AnalyticsSection from '@/components/dashboard/AnalyticsSection';
 import ProfileSection from '@/components/dashboard/ProfileSection';
 import StoryIntelligenceFeed from '@/components/dashboard/StoryIntelligenceFeed';
+import ExemplarSubmitForm from '@/components/dashboard/ExemplarSubmitForm';
 import { nowET } from '@/lib/date-utils';
 import {
   HiOutlineDocumentText,
@@ -669,6 +670,14 @@ export default function DashboardPage() {
             </div>
             <div className="px-5 pb-5">
               <StoryIntelligenceFeed stories={intelligenceStories} onRefresh={fetchIntelligence} />
+            </div>
+            <div className="px-5 pb-5 border-t border-amber-200 dark:border-amber-800 pt-4">
+              <div className="flex items-center gap-2 mb-3">
+                <HiOutlineStar className="w-4 h-4 text-amber-600 dark:text-amber-400" />
+                <h4 className="text-sm font-semibold text-ink-700 dark:text-ink-300">Train AI with Exemplar Stories</h4>
+              </div>
+              <p className="text-xs text-ink-500 dark:text-ink-400 mb-3">Submit URLs of excellent articles to improve story scoring</p>
+              <ExemplarSubmitForm onSubmitted={fetchIntelligence} />
             </div>
           </div>
         )}

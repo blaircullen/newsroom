@@ -10,6 +10,10 @@ import {
   HiOutlineArrowTrendingUp,
   HiOutlineSparkles,
   HiOutlineArrowTopRightOnSquare,
+  HiOutlineHandThumbUp,
+  HiOutlineHandThumbDown,
+  HiHandThumbUp,
+  HiHandThumbDown,
 } from 'react-icons/hi2';
 
 export interface StoryIntelligenceItem {
@@ -73,8 +77,9 @@ function StoryCard({ story, onRefresh }: { story: StoryIntelligenceItem; onRefre
 
   // Primary source
   const primaryLabel = getSourceLabel(story.sourceUrl);
-  seenHosts.add(primaryLabel);
-  sourceLabels.push({ name: primaryLabel, url: story.sourceUrl });
+  const primaryNormalized = primaryLabel.toUpperCase();
+  seenHosts.add(primaryNormalized);
+  sourceLabels.push({ name: primaryNormalized, url: story.sourceUrl });
 
   // From story.sources
   if (Array.isArray(story.sources)) {
@@ -221,38 +226,34 @@ function StoryCard({ story, onRefresh }: { story: StoryIntelligenceItem; onRefre
       {/* Action row: rating + Write This */}
       <div className="flex items-center justify-between">
         {/* Thumbs up / down rating */}
-        <div className="flex items-center gap-0.5">
+        <div className="flex items-center gap-1">
           <button
             onClick={() => handleQuickRate(5)}
             disabled={userRating !== null}
-            className={`p-1.5 rounded-lg transition-colors disabled:cursor-default ${
+            className={`flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium transition-colors disabled:cursor-default border ${
               userRating === 5
-                ? 'bg-green-100 text-green-600 dark:bg-green-900/30 dark:text-green-400'
+                ? 'bg-green-100 text-green-700 border-green-300 dark:bg-green-900/40 dark:text-green-400 dark:border-green-700'
                 : userRating !== null
-                  ? 'text-ink-200 dark:text-ink-700'
-                  : 'text-ink-300 dark:text-ink-600 hover:text-green-500 hover:bg-green-50 dark:hover:text-green-400 dark:hover:bg-green-900/20'
+                  ? 'text-ink-300 border-transparent dark:text-ink-700'
+                  : 'text-ink-500 border-ink-200 dark:text-ink-400 dark:border-ink-700 hover:text-green-600 hover:bg-green-50 hover:border-green-300 dark:hover:text-green-400 dark:hover:bg-green-900/20 dark:hover:border-green-700'
             }`}
             title="Good suggestion"
           >
-            <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-              <path d="M2 10.5a1.5 1.5 0 113 0v6a1.5 1.5 0 01-3 0v-6zM6 10.333v5.43a2 2 0 001.106 1.79l.05.025A4 4 0 008.943 18h5.416a2 2 0 001.962-1.608l1.2-6A2 2 0 0015.56 8H12V4a2 2 0 00-2-2 1 1 0 00-1 1v.667a4 4 0 01-.8 2.4L6.8 7.933a4 4 0 00-.8 2.4z" />
-            </svg>
+            {userRating === 5 ? <HiHandThumbUp className="w-3.5 h-3.5" /> : <HiOutlineHandThumbUp className="w-3.5 h-3.5" />}
           </button>
           <button
             onClick={() => handleQuickRate(1)}
             disabled={userRating !== null}
-            className={`p-1.5 rounded-lg transition-colors disabled:cursor-default ${
+            className={`flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium transition-colors disabled:cursor-default border ${
               userRating === 1
-                ? 'bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400'
+                ? 'bg-red-100 text-red-700 border-red-300 dark:bg-red-900/40 dark:text-red-400 dark:border-red-700'
                 : userRating !== null
-                  ? 'text-ink-200 dark:text-ink-700'
-                  : 'text-ink-300 dark:text-ink-600 hover:text-red-500 hover:bg-red-50 dark:hover:text-red-400 dark:hover:bg-red-900/20'
+                  ? 'text-ink-300 border-transparent dark:text-ink-700'
+                  : 'text-ink-500 border-ink-200 dark:text-ink-400 dark:border-ink-700 hover:text-red-600 hover:bg-red-50 hover:border-red-300 dark:hover:text-red-400 dark:hover:bg-red-900/20 dark:hover:border-red-700'
             }`}
             title="Bad suggestion"
           >
-            <svg className="w-4 h-4 rotate-180" fill="currentColor" viewBox="0 0 20 20">
-              <path d="M2 10.5a1.5 1.5 0 113 0v6a1.5 1.5 0 01-3 0v-6zM6 10.333v5.43a2 2 0 001.106 1.79l.05.025A4 4 0 008.943 18h5.416a2 2 0 001.962-1.608l1.2-6A2 2 0 0015.56 8H12V4a2 2 0 00-2-2 1 1 0 00-1 1v.667a4 4 0 01-.8 2.4L6.8 7.933a4 4 0 00-.8 2.4z" />
-            </svg>
+            {userRating === 1 ? <HiHandThumbDown className="w-3.5 h-3.5" /> : <HiOutlineHandThumbDown className="w-3.5 h-3.5" />}
           </button>
         </div>
 
