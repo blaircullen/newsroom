@@ -125,7 +125,7 @@ REQUIREMENTS:
    - Punchy short sentences mixed with longer explanatory ones
    - Lead with the most impactful facts
    - End with a forward-looking statement
-4. Format body in clean HTML with <p> tags. Use <strong> for emphasis. No <h1>/<h2> tags.
+4. Format body in clean HTML with <p> tags. Do NOT use <strong>, <b>, or any bold formatting — just plain text in paragraphs. No <h1>/<h2> tags.
 ${anglesContext}
 
 RESPOND IN EXACTLY THIS JSON FORMAT (no markdown, no backticks, just raw JSON):

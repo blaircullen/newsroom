@@ -109,7 +109,7 @@ REQUIREMENTS:
    - Write with energy and conviction — avoid dry, academic language
    - Use phrases that create urgency and importance
 
-4. The body should be formatted in clean HTML with <p> tags for paragraphs. You may use <strong> for emphasis on key phrases and <a> tags if referencing specific entities. Do NOT use <h1>, <h2>, or other header tags in the body — just paragraphs.
+4. The body should be formatted in clean HTML with <p> tags for paragraphs. Do NOT use <strong>, <b>, or any bold formatting. You may use <a> tags if referencing specific entities. Do NOT use <h1>, <h2>, or other header tags in the body — just paragraphs.
 
 RESPOND IN EXACTLY THIS JSON FORMAT (no markdown, no backticks, just raw JSON):
 {
