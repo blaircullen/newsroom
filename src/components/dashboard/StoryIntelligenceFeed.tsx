@@ -62,6 +62,7 @@ function StoryCard({ story, onRefresh }: { story: StoryIntelligenceItem; onRefre
   const [dismissing, setDismissing] = useState(false);
   const [showFeedbackModal, setShowFeedbackModal] = useState(false);
   const [feedbackAction, setFeedbackAction] = useState<'CLAIM_FEEDBACK' | 'DISMISS_FEEDBACK' | null>(null);
+  const [userRating, setUserRating] = useState<number | null>(null);
 
   const isMultiSource = (story.sources?.length || 0) > 1 ||
     story.verificationSources.filter(s => s.corroborates).length > 0;
@@ -98,6 +99,19 @@ function StoryCard({ story, onRefresh }: { story: StoryIntelligenceItem; onRefre
       sourceLabels.push({ name: label.toUpperCase(), url: vs.sourceUrl });
     }
   }
+
+  const handleQuickRate = async (rating: 1 | 5) => {
+    try {
+      await fetch(`/api/story-intelligence/${story.id}/feedback`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ rating, tags: [], action: 'QUICK_RATE' }),
+      });
+      setUserRating(rating);
+    } catch (error) {
+      console.error('Failed to submit rating:', error);
+    }
+  };
 
   const handleWrite = async () => {
     setClaiming(true);
@@ -145,15 +159,15 @@ function StoryCard({ story, onRefresh }: { story: StoryIntelligenceItem; onRefre
           : 'bg-white dark:bg-ink-900 border border-blue-200/50 dark:border-blue-800/50'
       }`}
     >
-      {/* Dismiss button */}
+      {/* Dismiss button — always visible */}
       {!isClaimed && (
         <button
           onClick={handleDismiss}
           disabled={dismissing}
-          className={`absolute top-2 right-2 p-1 rounded-full transition-colors z-10 opacity-0 group-hover:opacity-100 ${
+          className={`absolute z-10 p-1 rounded-full transition-colors ${
             isMultiSource
-              ? 'top-8 text-press-400 hover:text-press-600 hover:bg-press-100 dark:hover:bg-press-900'
-              : 'text-ink-400 hover:text-ink-600 hover:bg-ink-100 dark:hover:bg-ink-800'
+              ? 'top-8 right-2 text-press-400/60 hover:text-press-600 hover:bg-press-100 dark:hover:bg-press-900'
+              : 'top-2 right-2 text-ink-300 hover:text-ink-600 hover:bg-ink-100 dark:text-ink-600 dark:hover:text-ink-400 dark:hover:bg-ink-800'
           }`}
           title="Dismiss story"
         >
@@ -176,35 +190,73 @@ function StoryCard({ story, onRefresh }: { story: StoryIntelligenceItem; onRefre
       )}
 
       {/* Headline */}
-      <h4 className={`text-sm font-medium line-clamp-2 mb-3 leading-snug ${
+      <h4 className={`text-sm font-medium line-clamp-2 mb-3 leading-snug pr-6 ${
         isMultiSource
-          ? 'text-press-900 dark:text-red-100 pr-20'
+          ? 'text-press-900 dark:text-red-100'
           : 'text-ink-800 dark:text-ink-200'
       }`}>
         {story.headline}
       </h4>
 
-      {/* Source labels + Write This button */}
+      {/* Source labels */}
+      <div className="flex items-center gap-1.5 flex-wrap mb-3">
+        {sourceLabels.map((src, i) => (
+          <a
+            key={i}
+            href={src.url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className={`flex items-center gap-1 text-[11px] hover:underline ${
+              isMultiSource
+                ? 'text-press-600 dark:text-press-400'
+                : 'text-blue-600 dark:text-blue-400'
+            }`}
+          >
+            <span className="uppercase tracking-wider font-medium">{src.name}</span>
+            <HiOutlineArrowTopRightOnSquare className="w-2.5 h-2.5" />
+          </a>
+        ))}
+      </div>
+
+      {/* Action row: rating + Write This */}
       <div className="flex items-center justify-between">
-        <div className="flex items-center gap-1.5 flex-wrap min-w-0 mr-2">
-          {sourceLabels.map((src, i) => (
-            <a
-              key={i}
-              href={src.url}
-              target="_blank"
-              rel="noopener noreferrer"
-              className={`flex items-center gap-1 text-[11px] hover:underline ${
-                isMultiSource
-                  ? 'text-press-600 dark:text-press-400'
-                  : 'text-blue-600 dark:text-blue-400'
-              }`}
-            >
-              <span className="uppercase tracking-wider font-medium">{src.name}</span>
-              <HiOutlineArrowTopRightOnSquare className="w-2.5 h-2.5" />
-            </a>
-          ))}
+        {/* Thumbs up / down rating */}
+        <div className="flex items-center gap-0.5">
+          <button
+            onClick={() => handleQuickRate(5)}
+            disabled={userRating !== null}
+            className={`p-1.5 rounded-lg transition-colors disabled:cursor-default ${
+              userRating === 5
+                ? 'bg-green-100 text-green-600 dark:bg-green-900/30 dark:text-green-400'
+                : userRating !== null
+                  ? 'text-ink-200 dark:text-ink-700'
+                  : 'text-ink-300 dark:text-ink-600 hover:text-green-500 hover:bg-green-50 dark:hover:text-green-400 dark:hover:bg-green-900/20'
+            }`}
+            title="Good suggestion"
+          >
+            <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+              <path d="M2 10.5a1.5 1.5 0 113 0v6a1.5 1.5 0 01-3 0v-6zM6 10.333v5.43a2 2 0 001.106 1.79l.05.025A4 4 0 008.943 18h5.416a2 2 0 001.962-1.608l1.2-6A2 2 0 0015.56 8H12V4a2 2 0 00-2-2 1 1 0 00-1 1v.667a4 4 0 01-.8 2.4L6.8 7.933a4 4 0 00-.8 2.4z" />
+            </svg>
+          </button>
+          <button
+            onClick={() => handleQuickRate(1)}
+            disabled={userRating !== null}
+            className={`p-1.5 rounded-lg transition-colors disabled:cursor-default ${
+              userRating === 1
+                ? 'bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400'
+                : userRating !== null
+                  ? 'text-ink-200 dark:text-ink-700'
+                  : 'text-ink-300 dark:text-ink-600 hover:text-red-500 hover:bg-red-50 dark:hover:text-red-400 dark:hover:bg-red-900/20'
+            }`}
+            title="Bad suggestion"
+          >
+            <svg className="w-4 h-4 rotate-180" fill="currentColor" viewBox="0 0 20 20">
+              <path d="M2 10.5a1.5 1.5 0 113 0v6a1.5 1.5 0 01-3 0v-6zM6 10.333v5.43a2 2 0 001.106 1.79l.05.025A4 4 0 008.943 18h5.416a2 2 0 001.962-1.608l1.2-6A2 2 0 0015.56 8H12V4a2 2 0 00-2-2 1 1 0 00-1 1v.667a4 4 0 01-.8 2.4L6.8 7.933a4 4 0 00-.8 2.4z" />
+            </svg>
+          </button>
         </div>
 
+        {/* Write This / View Draft button */}
         {!isClaimed ? (
           <button
             onClick={handleWrite}
