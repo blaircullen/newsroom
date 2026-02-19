@@ -5,9 +5,10 @@ import {
   HiOutlineFire,
   HiOutlineChartBarSquare,
   HiOutlineMegaphone,
+  HiOutlineAcademicCap,
 } from 'react-icons/hi2';
 
-export type BottomNavTabId = 'home' | 'hot' | 'analytics' | 'social-queue';
+export type BottomNavTabId = 'home' | 'hot' | 'analytics' | 'social-queue' | 'training';
 
 interface BottomNavProps {
   activeTab: BottomNavTabId | (string & {});
@@ -20,6 +21,7 @@ const tabs: { id: TabId; label: string; icon: typeof HiOutlineHome }[] = [
   { id: 'home', label: 'Home', icon: HiOutlineHome },
   { id: 'hot', label: 'Hot', icon: HiOutlineFire },
   { id: 'analytics', label: 'Analytics', icon: HiOutlineChartBarSquare },
+  { id: 'training', label: 'Training', icon: HiOutlineAcademicCap },
   { id: 'social-queue', label: 'Social', icon: HiOutlineMegaphone },
 ];
 

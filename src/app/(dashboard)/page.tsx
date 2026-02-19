@@ -15,6 +15,7 @@ import DailyRecap from '@/components/dashboard/DailyRecap';
 import HotSection, { StoryIdea } from '@/components/dashboard/HotSection';
 import AnalyticsSection from '@/components/dashboard/AnalyticsSection';
 import ProfileSection from '@/components/dashboard/ProfileSection';
+import ExemplarTab from '@/components/dashboard/ExemplarTab';
 import {
   HiOutlineDocumentText,
   HiOutlinePlusCircle,
@@ -33,9 +34,10 @@ import {
   HiOutlineXMark,
   HiOutlineCalendarDays,
   HiOutlineStar,
+  HiOutlineAcademicCap,
 } from 'react-icons/hi2';
 
-type TabId = 'home' | 'hot' | 'analytics' | 'social-queue' | 'profile';
+type TabId = 'home' | 'hot' | 'analytics' | 'social-queue' | 'profile' | 'training';
 
 const FILTERS = [
   { value: '', label: 'All Stories' },
@@ -631,6 +633,13 @@ export default function DashboardPage() {
           </div>
         )}
 
+        {/* Training Tab - Mobile */}
+        {activeTab === 'training' && (
+          <div className="bg-slate-900 min-h-screen px-4 pt-4">
+            <ExemplarTab />
+          </div>
+        )}
+
         {/* Profile Tab - Mobile */}
         {activeTab === 'profile' && (
           <div className="bg-gradient-to-b from-ink-950 via-ink-950 to-ink-900 min-h-screen px-4 pt-8">
@@ -807,6 +816,17 @@ export default function DashboardPage() {
                 View Article
                 <HiOutlineArrowTopRightOnSquare className="w-4 h-4" />
               </Link>
+            </div>
+          </div>
+        )}
+
+        {/* Exemplar Training Panel - Desktop (Admin only) */}
+        {isAdmin && (
+          <div className="mb-8">
+            <div className="bg-gradient-to-r from-violet-50 to-purple-50 dark:from-violet-900/20 dark:to-purple-900/20 rounded-xl border border-violet-200 dark:border-violet-800 overflow-hidden">
+              <div className="p-5">
+                <ExemplarTab />
+              </div>
             </div>
           </div>
         )}
