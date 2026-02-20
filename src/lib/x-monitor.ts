@@ -23,6 +23,11 @@ export interface MonitoredStory {
 const seenTweetIds = new Set<string>();
 const MAX_SEEN_SIZE = 10000;
 
+// Cache to avoid hammering X every 60s (ingestion runs every minute)
+let cachedStories: MonitoredStory[] = [];
+let cacheTimestamp = 0;
+const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+
 function getMonitoredAccounts(): string[] {
   const envAccounts = process.env.X_MONITOR_ACCOUNTS;
   if (envAccounts) {
@@ -32,14 +37,19 @@ function getMonitoredAccounts(): string[] {
 }
 
 export async function monitorXAccounts(): Promise<MonitoredStory[]> {
+  // Return cached if fresh — prevents rate limiting from 60s cron interval
+  if (cachedStories.length > 0 && Date.now() - cacheTimestamp < CACHE_TTL) {
+    return cachedStories;
+  }
+
   const accounts = getMonitoredAccounts();
   const stories: MonitoredStory[] = [];
 
   for (let i = 0; i < accounts.length; i++) {
     const account = accounts[i];
     try {
-      // Stagger requests to avoid hammering X
-      if (i > 0) await new Promise((r) => setTimeout(r, 3000));
+      // Stagger requests to respect X rate limits (16 accounts * 5s = 80s per cycle)
+      if (i > 0) await new Promise((r) => setTimeout(r, 5000));
       const tweets = await fetchUserTweets(account, 10);
 
       for (const tweet of tweets) {
@@ -83,6 +93,9 @@ export async function monitorXAccounts(): Promise<MonitoredStory[]> {
     seenTweetIds.clear();
     entries.forEach((id) => seenTweetIds.add(id));
   }
+
+  cachedStories = stories;
+  cacheTimestamp = Date.now();
 
   return stories;
 }
