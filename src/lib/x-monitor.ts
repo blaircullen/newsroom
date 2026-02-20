@@ -6,6 +6,12 @@ const DEFAULT_ACCOUNTS = [
   'greg_price11', 'bennyjohnson', 'nicksortor', 'johnnymaga', 'saras76',
 ];
 
+// A/B groups — fetch 8 accounts per cycle, alternating each run
+// Each account gets checked once per hour (2 cycles * 30min cache = 60min)
+const GROUP_A = DEFAULT_ACCOUNTS.slice(0, 8);
+const GROUP_B = DEFAULT_ACCOUNTS.slice(8);
+let lastGroup: 'A' | 'B' = 'B'; // Start with B so first run fetches A
+
 export interface MonitoredStory {
   headline: string;
   sourceUrl: string;
@@ -23,17 +29,20 @@ export interface MonitoredStory {
 const seenTweetIds = new Set<string>();
 const MAX_SEEN_SIZE = 10000;
 
-// Cache to avoid hammering X every 60s (ingestion runs every minute)
+// Cache per group — 30min TTL means each group refreshes once per hour
 let cachedStories: MonitoredStory[] = [];
 let cacheTimestamp = 0;
-const CACHE_TTL = 15 * 60 * 1000; // 15 minutes — cron runs every 30min, no need for shorter
+const CACHE_TTL = 30 * 60 * 1000; // 30 minutes — each group checked every other cycle
 
 function getMonitoredAccounts(): string[] {
   const envAccounts = process.env.X_MONITOR_ACCOUNTS;
   if (envAccounts) {
     return envAccounts.split(',').map((a) => a.trim().replace('@', ''));
   }
-  return DEFAULT_ACCOUNTS;
+  // Alternate between A/B groups
+  lastGroup = lastGroup === 'A' ? 'B' : 'A';
+  console.log(`[X Monitor] Fetching group ${lastGroup} (${lastGroup === 'A' ? GROUP_A.length : GROUP_B.length} accounts)`);
+  return lastGroup === 'A' ? GROUP_A : GROUP_B;
 }
 
 export async function monitorXAccounts(): Promise<MonitoredStory[]> {
@@ -48,7 +57,7 @@ export async function monitorXAccounts(): Promise<MonitoredStory[]> {
   for (let i = 0; i < accounts.length; i++) {
     const account = accounts[i];
     try {
-      // Stagger requests to respect X rate limits (16 accounts * 10s = 160s per cycle)
+      // Stagger requests to respect X rate limits (8 accounts * 10s = 80s per cycle)
       if (i > 0) await new Promise((r) => setTimeout(r, 10000));
       const tweets = await fetchUserTweets(account, 5);
 

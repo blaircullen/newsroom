@@ -445,7 +445,6 @@ export async function runIngestStories(): Promise<{ success: boolean; created: n
   const { scrapeReddit } = await import('@/lib/reddit-scraper');
   const { scrapeGoogleTrends } = await import('@/lib/google-trends-scraper');
   const { scoreStory } = await import('@/lib/story-scorer');
-  const { searchTweetsByKeywords } = await import('@/lib/x-scraper');
   const { monitorXAccounts } = await import('@/lib/x-monitor');
 
   const [storyIdeas, redditPosts, , xMonitoredStories] = await Promise.all([
@@ -475,12 +474,6 @@ export async function runIngestStories(): Promise<{ success: boolean; created: n
 
     const scored = await scoreStory({ headline: idea.headline, sourceUrl: idea.sourceUrl, sources });
 
-    let xSignals = null;
-    try {
-      const keywords = idea.headline.toLowerCase().split(/\s+/).filter((w: string) => w.length > 3).slice(0, 5);
-      if (keywords.length >= 2) xSignals = await searchTweetsByKeywords(keywords);
-    } catch {}
-
     await prisma.storyIntelligence.create({
       data: {
         headline: idea.headline,
@@ -492,7 +485,6 @@ export async function runIngestStories(): Promise<{ success: boolean; created: n
         velocityScore: scored.velocityScore,
         alertLevel: scored.alertLevel,
         verificationStatus: idea.trending ? 'PLAUSIBLE' : 'UNVERIFIED',
-        platformSignals: xSignals ? { x: { tweetVolume: xSignals.tweetVolume, heat: xSignals.heat, velocity: xSignals.velocity } } : undefined,
       },
     });
     created++;
@@ -514,12 +506,6 @@ export async function runIngestStories(): Promise<{ success: boolean; created: n
       platformSignals: { reddit: { score: post.score, velocity: post.velocity, numComments: post.numComments } },
     });
 
-    let xSignals = null;
-    try {
-      const keywords = post.title.toLowerCase().split(/\s+/).filter((w: string) => w.length > 3).slice(0, 5);
-      if (keywords.length >= 2) xSignals = await searchTweetsByKeywords(keywords);
-    } catch {}
-
     await prisma.storyIntelligence.create({
       data: {
         headline: post.title,
@@ -533,7 +519,6 @@ export async function runIngestStories(): Promise<{ success: boolean; created: n
         verificationStatus: 'UNVERIFIED',
         platformSignals: {
           reddit: { score: post.score, velocity: post.velocity, numComments: post.numComments, subreddit: post.subreddit, ageMinutes: post.ageMinutes, redditUrl: post.redditUrl },
-          ...(xSignals ? { x: { tweetVolume: xSignals.tweetVolume, heat: xSignals.heat, velocity: xSignals.velocity } } : {}),
         },
       },
     });
