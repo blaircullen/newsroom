@@ -43,7 +43,7 @@ const TOP_N = 30;
 async function fetchSubreddit(subreddit: string): Promise<RedditPost[]> {
   try {
     const response = await fetch(
-      `https://www.reddit.com/r/${subreddit}/hot.json?limit=25`,
+      `https://old.reddit.com/r/${subreddit}/hot.json?limit=25`,
       {
         headers: { 'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36' },
         signal: AbortSignal.timeout(10000),
