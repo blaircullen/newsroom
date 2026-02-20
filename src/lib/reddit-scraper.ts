@@ -1,3 +1,5 @@
+import { raiseAlert, resolveAlert } from '@/lib/system-alerts';
+
 export interface RedditTrending {
   title: string;
   url: string;        // external link (or reddit permalink if self post)
@@ -143,5 +145,14 @@ export async function scrapeReddit(): Promise<RedditTrending[]> {
   cacheTimestamp = now;
 
   console.log(`[Reddit] Found ${unique.length} trending posts across ${SUBREDDITS.length} subreddits`);
+
+  // Alert if ALL subreddits returned 0 posts
+  const totalFetched = subredditResults.reduce((sum, r) => sum + r.posts.length, 0);
+  if (totalFetched === 0) {
+    await raiseAlert('reddit_scraper_down', `Reddit scraper returned 0 posts from all ${SUBREDDITS.length} subreddits — likely blocked (403)`);
+  } else {
+    await resolveAlert('reddit_scraper_down');
+  }
+
   return unique;
 }

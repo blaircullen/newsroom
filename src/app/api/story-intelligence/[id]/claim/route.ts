@@ -94,7 +94,7 @@ async function fetchSourceContent(url: string): Promise<{ url: string; label: st
   try {
     const res = await fetch(url, {
       headers: {
-        'User-Agent': 'Mozilla/5.0 (compatible; NewsRoom/1.0)',
+        'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
         Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
       },
       signal: AbortSignal.timeout(10000),
@@ -423,17 +423,16 @@ export async function POST(
 
   const aiDraft = await generateAiDraft(story.headline, sourceUrls, suggestedAngles);
 
-  const headline = aiDraft?.headline || story.headline;
-  const subHeadline = aiDraft?.subHeadline || '';
-
-  let body: string;
-  if (aiDraft?.bodyHtml) {
-    body = aiDraft.bodyHtml;
-  } else if (suggestedAngles.length > 0) {
-    body = `<p><em>${suggestedAngles[0]}</em></p>`;
-  } else {
-    body = '<p></p>';
+  if (!aiDraft?.bodyHtml) {
+    return NextResponse.json(
+      { error: 'Could not generate article — all source fetches failed. Try again or write manually.' },
+      { status: 422 }
+    );
   }
+
+  const headline = aiDraft.headline || story.headline;
+  const subHeadline = aiDraft.subHeadline || '';
+  const body = aiDraft.bodyHtml;
 
   const article = await prisma.article.create({
     data: {

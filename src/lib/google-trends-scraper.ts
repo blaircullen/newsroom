@@ -1,5 +1,6 @@
 // @ts-expect-error — no type definitions for google-trends-api
 import googleTrends from 'google-trends-api';
+import { raiseAlert, resolveAlert } from '@/lib/system-alerts';
 
 export interface GoogleTrend {
   title: string;
@@ -65,9 +66,11 @@ export async function scrapeGoogleTrends(): Promise<GoogleTrend[]> {
     cacheTimestamp = Date.now();
 
     console.log(`[Google Trends] Found ${trends.length} trending political stories`);
+    await resolveAlert('google_trends_down');
     return trends;
   } catch (error) {
     console.error('[Google Trends] Error:', error);
+    await raiseAlert('google_trends_down', `Google Trends scraper failing — ${error instanceof Error ? error.message.slice(0, 100) : 'unknown error'}`);
     return cachedTrends;
   }
 }
