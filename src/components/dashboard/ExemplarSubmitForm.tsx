@@ -10,8 +10,11 @@ interface ExemplarSubmitFormProps {
 
 export default function ExemplarSubmitForm({ onSubmitted }: ExemplarSubmitFormProps) {
   const [url, setUrl] = useState('');
+  const [title, setTitle] = useState('');
+  const [content, setContent] = useState('');
   const [notes, setNotes] = useState('');
   const [showNotes, setShowNotes] = useState(false);
+  const [showManual, setShowManual] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
@@ -23,10 +26,15 @@ export default function ExemplarSubmitForm({ onSubmitted }: ExemplarSubmitFormPr
     setIsSubmitting(true);
 
     try {
+      const payload: Record<string, string> = { url: trimmedUrl };
+      if (notes.trim()) payload.notes = notes.trim();
+      if (title.trim()) payload.title = title.trim();
+      if (content.trim()) payload.content = content.trim();
+
       const res = await fetch('/api/exemplars', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ url: trimmedUrl, notes: notes.trim() || undefined }),
+        body: JSON.stringify(payload),
       });
 
       if (res.status === 409) {
@@ -35,15 +43,23 @@ export default function ExemplarSubmitForm({ onSubmitted }: ExemplarSubmitFormPr
       }
 
       if (!res.ok) {
-        const data = await res.json().catch(() => ({})) as { error?: string };
+        const data = await res.json().catch(() => ({})) as { error?: string; needsContent?: boolean };
+        if (data.needsContent && !showManual) {
+          setShowManual(true);
+          toast.error('Could not fetch article. Paste the title and content below.');
+          return;
+        }
         toast.error(data.error ?? 'Failed to submit URL.');
         return;
       }
 
       toast.success('Exemplar submitted — analysis in progress.');
       setUrl('');
+      setTitle('');
+      setContent('');
       setNotes('');
       setShowNotes(false);
+      setShowManual(false);
       onSubmitted();
     } catch {
       toast.error('Network error — please try again.');
@@ -68,6 +84,29 @@ export default function ExemplarSubmitForm({ onSubmitted }: ExemplarSubmitFormPr
             className="flex-1 bg-transparent text-sm text-ink-900 dark:text-ink-100 placeholder-ink-400 dark:placeholder-ink-500 outline-none disabled:opacity-60"
           />
         </div>
+
+        {/* Manual content fields (shown when URL fetch fails) */}
+        {showManual && (
+          <div className="space-y-2 p-3 rounded-lg border border-amber-300 dark:border-amber-700 bg-amber-50 dark:bg-amber-900/20">
+            <p className="text-xs text-amber-700 dark:text-amber-400 font-medium">Could not fetch article. Paste the content below:</p>
+            <input
+              type="text"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              placeholder="Article title..."
+              disabled={isSubmitting}
+              className="w-full rounded-lg border border-ink-200 dark:border-ink-700 bg-white dark:bg-ink-800 px-3 py-2 text-sm text-ink-900 dark:text-ink-100 placeholder-ink-400 dark:placeholder-ink-500 outline-none focus:ring-2 focus:ring-violet-500/40 transition-all disabled:opacity-60"
+            />
+            <textarea
+              value={content}
+              onChange={(e) => setContent(e.target.value)}
+              placeholder="Paste full article text here..."
+              rows={6}
+              disabled={isSubmitting}
+              className="w-full rounded-lg border border-ink-200 dark:border-ink-700 bg-white dark:bg-ink-800 px-3 py-2 text-sm text-ink-900 dark:text-ink-100 placeholder-ink-400 dark:placeholder-ink-500 outline-none focus:ring-2 focus:ring-violet-500/40 transition-all resize-none disabled:opacity-60"
+            />
+          </div>
+        )}
 
         {/* Notes toggle + textarea */}
         {!showNotes ? (

@@ -82,7 +82,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
 
-  let body: { url?: unknown };
+  let body: { url?: unknown; title?: unknown; content?: unknown };
   try {
     body = await request.json();
   } catch {
@@ -90,6 +90,8 @@ export async function POST(request: NextRequest) {
   }
 
   const { url } = body;
+  const manualTitle = typeof body.title === 'string' ? body.title.trim() : '';
+  const manualContent = typeof body.content === 'string' ? body.content.trim() : '';
 
   // Validate URL format
   if (typeof url !== 'string' || !url.trim()) {
@@ -133,40 +135,52 @@ export async function POST(request: NextRequest) {
     });
 
     if (!fetchRes.ok) {
+      // Fall back to manual content if provided
+      if (manualContent.length >= 100) {
+        rawContent = manualContent;
+        title = manualTitle;
+      } else {
+        return NextResponse.json(
+          { error: `Failed to fetch URL: HTTP ${fetchRes.status}. Paste the article content to submit manually.`, needsContent: true },
+          { status: 422 },
+        );
+      }
+    } else {
+      const html = await fetchRes.text();
+      const $ = load(html);
+
+      // Extract title: og:title first, then <title>
+      title =
+        $('meta[property="og:title"]').attr('content')?.trim() ||
+        $('title').text().trim() ||
+        '';
+
+      // Remove noise elements before extracting text
+      $('nav, footer, script, style, aside, [class*="ad"], [id*="ad"]').remove();
+
+      // Extract text from article/main/body in priority order
+      let contentEl = $('article');
+      if (!contentEl.length) contentEl = $('main');
+      if (!contentEl.length) contentEl = $('body');
+
+      rawContent = contentEl
+        .text()
+        .replace(/\s+/g, ' ')
+        .trim();
+    }
+  } catch (err) {
+    // Fall back to manual content on fetch error too
+    if (manualContent.length >= 100) {
+      rawContent = manualContent;
+      title = manualTitle;
+    } else {
+      const message = err instanceof Error ? err.message : String(err);
+      console.error('[exemplars] fetch/scrape error', { url: normalizedUrl, message });
       return NextResponse.json(
-        { error: `Failed to fetch URL: HTTP ${fetchRes.status}` },
+        { error: `Failed to scrape URL: ${message}. Paste the article content to submit manually.`, needsContent: true },
         { status: 422 },
       );
     }
-
-    const html = await fetchRes.text();
-    const $ = load(html);
-
-    // Extract title: og:title first, then <title>
-    title =
-      $('meta[property="og:title"]').attr('content')?.trim() ||
-      $('title').text().trim() ||
-      '';
-
-    // Remove noise elements before extracting text
-    $('nav, footer, script, style, aside, [class*="ad"], [id*="ad"]').remove();
-
-    // Extract text from article/main/body in priority order
-    let contentEl = $('article');
-    if (!contentEl.length) contentEl = $('main');
-    if (!contentEl.length) contentEl = $('body');
-
-    rawContent = contentEl
-      .text()
-      .replace(/\s+/g, ' ')
-      .trim();
-  } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
-    console.error('[exemplars] fetch/scrape error', { url: normalizedUrl, message });
-    return NextResponse.json(
-      { error: `Failed to scrape URL: ${message}` },
-      { status: 422 },
-    );
   }
 
   if (rawContent.length < 100) {
