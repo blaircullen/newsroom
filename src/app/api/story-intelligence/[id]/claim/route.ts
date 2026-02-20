@@ -179,18 +179,15 @@ ${sourceLabels.map((s, i) => `   ${i + 1}. ${s}`).join('\n')}
         messages: [
           {
             role: 'user',
-            content: `You are a senior editorial writer for a conservative news outlet that is strongly supportive of President Trump and his administration. Rewrite the following article in your own words, synthesizing information from ${fetched.length > 1 ? 'multiple sources' : 'the source'} provided.
+            content: `You are a senior editorial writer for a news outlet. Rewrite the following article in your own words, synthesizing information from ${fetched.length > 1 ? 'multiple sources' : 'the source'} provided.
 
 EDITORIAL STANCE:
-- Frame stories in a way that is favorable to President Trump and his administration's policies and achievements.
-- When covering Trump administration actions, emphasize the positive impact and strong leadership.
-- When covering opposition or criticism of Trump, present it skeptically and highlight any hypocrisy or inconsistency.
-- Use language that reflects strength, decisiveness, and patriotism.
-- If the story is neutral or unrelated to politics, still write with confident, America-first energy.
+- Write with a confident, direct, America-first editorial perspective
+- Use assertive, engaging language that captures reader attention
 
 REQUIREMENTS:
-1. Write a compelling, clickable HEADLINE — bold, direct, assertive. Headlines should reflect a pro-Trump, conservative perspective.
-2. Write a punchy SUB-HEADLINE that adds context and urgency, reinforcing the editorial angle.
+1. Write a compelling, clickable HEADLINE — bold, direct, assertive.
+2. Write a punchy SUB-HEADLINE that adds context and urgency.
 3. Rewrite the body in 4 to 5 paragraphs:
    - Direct and conversational tone
    - Confident and assertive — take a clear conservative angle
@@ -213,6 +210,10 @@ ORIGINAL HEADLINE: ${headline}
 
 ${sourceContentBlocks}`,
           },
+          {
+            role: 'assistant',
+            content: '{',
+          },
         ],
       }),
     });
@@ -230,8 +231,16 @@ ${sourceContentBlocks}`,
       return null;
     }
 
-    const cleaned = aiText.replace(/```json\s*/g, '').replace(/```\s*/g, '').trim();
-    const parsed = JSON.parse(cleaned);
+    // Prepend '{' since we used assistant prefill
+    const fullJson = '{' + aiText.replace(/```json\s*/g, '').replace(/```\s*/g, '').trim();
+
+    // Detect AI refusals (doesn't look like JSON)
+    if (!fullJson.startsWith('{"')) {
+      console.error(`[claim] AI refused or returned non-JSON: "${fullJson.slice(0, 100)}..."`);
+      return null;
+    }
+
+    const parsed = JSON.parse(fullJson);
 
     if (!parsed.headline || !parsed.bodyHtml) {
       console.error('[claim] AI response missing headline or bodyHtml');
@@ -421,11 +430,17 @@ export async function POST(
       ? story.suggestedAngles.map(String)
       : [];
 
-  const aiDraft = await generateAiDraft(story.headline, sourceUrls, suggestedAngles);
+  let aiDraft = await generateAiDraft(story.headline, sourceUrls, suggestedAngles);
+
+  // Retry once on failure (AI refusals are transient — different sampling can succeed)
+  if (!aiDraft?.bodyHtml) {
+    console.log('[claim] First attempt failed, retrying...');
+    aiDraft = await generateAiDraft(story.headline, sourceUrls, suggestedAngles);
+  }
 
   if (!aiDraft?.bodyHtml) {
     return NextResponse.json(
-      { error: 'Could not generate article — all source fetches failed. Try again or write manually.' },
+      { error: 'Could not generate article. The AI may have refused this topic. Try again or write manually.' },
       { status: 422 }
     );
   }
