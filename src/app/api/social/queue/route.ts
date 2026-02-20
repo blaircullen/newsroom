@@ -2,17 +2,28 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import prisma from '@/lib/prisma';
+import { Prisma, SocialPostStatus, SocialPlatform } from '@prisma/client';
 import { etDateString, etMidnightToUTC } from '@/lib/date-utils';
+import { z } from 'zod';
 
-interface QueuePostPayload {
-  articleId: string;
-  socialAccountId: string;
-  caption: string;
-  imageUrl?: string;
-  articleUrl: string;
-  scheduledAt: string;
-  status?: 'PENDING' | 'APPROVED';
-}
+const cuidRegex = /^c[a-z0-9]{24}$/i;
+
+const QueuePostSchema = z.object({
+  articleId: z.string().trim().min(1, 'articleId is required').regex(cuidRegex, 'Invalid article ID format'),
+  socialAccountId: z.string().trim().min(1, 'socialAccountId is required').regex(cuidRegex, 'Invalid social account ID format'),
+  caption: z.string().trim().min(1, 'caption is required'),
+  imageUrl: z.string().trim().optional(),
+  articleUrl: z.string().trim().min(1, 'articleUrl is required'),
+  scheduledAt: z.string().trim().min(1, 'scheduledAt is required').refine(
+    (val) => !isNaN(new Date(val).getTime()),
+    'Invalid scheduledAt date format'
+  ),
+  status: z.enum(['PENDING', 'APPROVED']).optional(),
+});
+
+const QueuePostBodySchema = z.object({
+  posts: z.array(QueuePostSchema).min(1, 'posts array is required and must not be empty'),
+});
 
 // GET /api/social/queue - List social posts for the queue (admin/editor)
 export async function GET(request: NextRequest) {
@@ -36,10 +47,10 @@ export async function GET(request: NextRequest) {
     const search = searchParams.get('search');
 
     // Build where clause
-    const where: any = {};
+    const where: Prisma.SocialPostWhereInput = {};
 
     if (status) {
-      where.status = status;
+      where.status = status as SocialPostStatus;
     }
 
     if (search && search.trim()) {
@@ -48,7 +59,7 @@ export async function GET(request: NextRequest) {
 
     if (platform) {
       where.socialAccount = {
-        platform,
+        platform: platform as SocialPlatform,
       };
     }
 
@@ -60,7 +71,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Determine ordering and date filter
-    let orderBy: any = { scheduledAt: 'asc' };
+    let orderBy: Prisma.SocialPostOrderByWithRelationInput = { scheduledAt: 'asc' };
 
     if (filterBy === 'sentAt' && since) {
       // Filter by sentAt (for "Posted" column) — uses @@index([status, sentAt])
@@ -155,146 +166,83 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    let body: Record<string, unknown>;
+    let body: unknown;
     try {
       body = await request.json();
     } catch {
       return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 });
     }
 
-    const { posts } = body;
-
-    // Validate posts array
-    if (!Array.isArray(posts) || posts.length === 0) {
-      return NextResponse.json(
-        { error: 'posts array is required and must not be empty' },
-        { status: 400 }
-      );
+    const parseResult = QueuePostBodySchema.safeParse(body);
+    if (!parseResult.success) {
+      const firstError = parseResult.error.errors[0];
+      return NextResponse.json({ error: firstError.message }, { status: 400 });
     }
 
-    // Validate each post
-    const validatedPosts: QueuePostPayload[] = [];
-    for (const post of posts) {
-      if (typeof post !== 'object' || post === null) {
-        return NextResponse.json({ error: 'Each post must be an object' }, { status: 400 });
-      }
-
-      const { articleId, socialAccountId, caption, imageUrl, articleUrl, scheduledAt, status } = post;
-
-      // Validate optional status field
-      if (status !== undefined && status !== 'PENDING' && status !== 'APPROVED') {
-        return NextResponse.json({ error: 'status must be PENDING or APPROVED' }, { status: 400 });
-      }
-
-      // Validate required fields
-      if (typeof articleId !== 'string' || !articleId.trim()) {
-        return NextResponse.json({ error: 'articleId is required for each post' }, { status: 400 });
-      }
-
-      if (typeof socialAccountId !== 'string' || !socialAccountId.trim()) {
-        return NextResponse.json({ error: 'socialAccountId is required for each post' }, { status: 400 });
-      }
-
-      if (typeof caption !== 'string' || !caption.trim()) {
-        return NextResponse.json({ error: 'caption is required for each post' }, { status: 400 });
-      }
-
-      if (typeof articleUrl !== 'string' || !articleUrl.trim()) {
-        return NextResponse.json({ error: 'articleUrl is required for each post' }, { status: 400 });
-      }
-
-      if (typeof scheduledAt !== 'string' || !scheduledAt.trim()) {
-        return NextResponse.json({ error: 'scheduledAt is required for each post' }, { status: 400 });
-      }
-
-      // Validate ID formats
-      if (!/^c[a-z0-9]{24}$/i.test(articleId)) {
-        return NextResponse.json({ error: 'Invalid article ID format' }, { status: 400 });
-      }
-
-      if (!/^c[a-z0-9]{24}$/i.test(socialAccountId)) {
-        return NextResponse.json({ error: 'Invalid social account ID format' }, { status: 400 });
-      }
-
-      // Validate scheduledAt date
-      const scheduledDate = new Date(scheduledAt);
-      if (isNaN(scheduledDate.getTime())) {
-        return NextResponse.json({ error: 'Invalid scheduledAt date format' }, { status: 400 });
-      }
-
+    const validatedPosts = parseResult.data.posts.map((post) => {
       // Only ADMINs can set status to APPROVED directly; EDITORs default to PENDING
-      const postStatus = (status === 'APPROVED' && session.user.role === 'ADMIN')
-        ? 'APPROVED'
-        : (status === 'PENDING' ? 'PENDING' : (session.user.role === 'ADMIN' ? 'APPROVED' : 'PENDING'));
+      const postStatus = (post.status === 'APPROVED' && session.user.role === 'ADMIN')
+        ? 'APPROVED' as const
+        : (post.status === 'PENDING' ? 'PENDING' as const : (session.user.role === 'ADMIN' ? 'APPROVED' as const : 'PENDING' as const));
 
-      validatedPosts.push({
-        articleId: articleId.trim(),
-        socialAccountId: socialAccountId.trim(),
-        caption: caption.trim(),
-        imageUrl: imageUrl && typeof imageUrl === 'string' ? imageUrl.trim() : undefined,
-        articleUrl: articleUrl.trim(),
-        scheduledAt: scheduledAt.trim(),
-        status: postStatus,
-      });
-    }
+      return { ...post, status: postStatus };
+    });
 
-    // Upsert posts — update existing (non-SENT) posts for same article+account, or create new
-    const upsertedPosts = [];
-    for (const post of validatedPosts) {
-      // Check for existing non-SENT post for same article + account
-      const existing = await prisma.socialPost.findFirst({
-        where: {
-          articleId: post.articleId,
-          socialAccountId: post.socialAccountId,
-          status: { not: 'SENT' },
-        },
-      });
+    // Batch upsert: prefetch all existing non-SENT posts for these article+account combos in one query
+    const existingPosts = await prisma.socialPost.findMany({
+      where: {
+        OR: validatedPosts.map((p) => ({
+          articleId: p.articleId,
+          socialAccountId: p.socialAccountId,
+          status: { not: 'SENT' as const },
+        })),
+      },
+      select: { id: true, articleId: true, socialAccountId: true },
+    });
 
-      let result;
-      if (existing) {
-        result = await prisma.socialPost.update({
-          where: { id: existing.id },
-          data: {
-            caption: post.caption,
-            imageUrl: post.imageUrl,
-            articleUrl: post.articleUrl,
-            scheduledAt: new Date(post.scheduledAt),
-            status: post.status || 'APPROVED',
-          },
-          include: {
-            socialAccount: {
-              select: {
-                platform: true,
-                accountName: true,
-                accountHandle: true,
-              },
+    // Build lookup map: "articleId:socialAccountId" → existing post id
+    const existingMap = new Map(
+      existingPosts.map((p) => [`${p.articleId}:${p.socialAccountId}`, p.id])
+    );
+
+    const socialAccountInclude = {
+      socialAccount: {
+        select: { platform: true, accountName: true, accountHandle: true },
+      },
+    } as const;
+
+    // Upsert all posts in parallel
+    const upsertedPosts = await Promise.all(
+      validatedPosts.map((post) => {
+        const existingId = existingMap.get(`${post.articleId}:${post.socialAccountId}`);
+        if (existingId) {
+          return prisma.socialPost.update({
+            where: { id: existingId },
+            data: {
+              caption: post.caption,
+              imageUrl: post.imageUrl,
+              articleUrl: post.articleUrl,
+              scheduledAt: new Date(post.scheduledAt),
+              status: post.status || 'APPROVED',
             },
-          },
-        });
-      } else {
-        result = await prisma.socialPost.create({
-          data: {
-            articleId: post.articleId,
-            socialAccountId: post.socialAccountId,
-            caption: post.caption,
-            imageUrl: post.imageUrl,
-            articleUrl: post.articleUrl,
-            scheduledAt: new Date(post.scheduledAt),
-            status: post.status || 'APPROVED',
-          },
-          include: {
-            socialAccount: {
-              select: {
-                platform: true,
-                accountName: true,
-                accountHandle: true,
-              },
+            include: socialAccountInclude,
+          });
+        } else {
+          return prisma.socialPost.create({
+            data: {
+              articleId: post.articleId,
+              socialAccountId: post.socialAccountId,
+              caption: post.caption,
+              imageUrl: post.imageUrl,
+              articleUrl: post.articleUrl,
+              scheduledAt: new Date(post.scheduledAt),
+              status: post.status || 'APPROVED',
             },
-          },
-        });
-      }
-      upsertedPosts.push(result);
-    }
+            include: socialAccountInclude,
+          });
+        }
+      })
+    );
 
     return NextResponse.json({
       success: true,

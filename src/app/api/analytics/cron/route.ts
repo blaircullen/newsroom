@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
-import { getArticleAnalytics } from '@/lib/umami';
+import { Prisma } from '@prisma/client';
+import { getArticleAnalyticsIncremental } from '@/lib/umami';
 
 export async function POST(request: NextRequest) {
   try {
@@ -19,20 +20,21 @@ export async function POST(request: NextRequest) {
     sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
 
     // Smart query based on mode
-    const where: any = {
+    const where: Prisma.ArticleWhereInput = {
       status: 'PUBLISHED',
-      publishedUrl: { not: null }
+      publishedUrl: { not: null },
     };
 
     if (mode === 'recent') {
-      // Articles published in last 7 days
       where.publishedAt = { gte: sevenDaysAgo };
     } else if (mode === 'old') {
-      // Articles older than 7 days
       where.publishedAt = { lt: sevenDaysAgo };
     }
 
-    const articles = await prisma.article.findMany({ where });
+    const articles = await prisma.article.findMany({
+      where,
+      select: { id: true, publishedUrl: true, analyticsUpdatedAt: true, totalPageviews: true, totalUniqueVisitors: true },
+    });
 
     let updated = 0;
     let failed = 0;
@@ -52,14 +54,22 @@ export async function POST(request: NextRequest) {
           // Split publishedUrl by " | " to get individual URLs for each site
           const urls = article.publishedUrl.split(' | ').map(url => url.trim());
 
-          const analytics = await getArticleAnalytics(urls);
+          const hasExistingData = article.analyticsUpdatedAt && (article.totalPageviews > 0 || article.totalUniqueVisitors > 0);
+          const analytics = await getArticleAnalyticsIncremental(
+            urls,
+            hasExistingData ? article.analyticsUpdatedAt : null
+          );
 
           await prisma.article.update({
             where: { id: article.id },
             data: {
-              totalPageviews: analytics.totalPageviews,
-              totalUniqueVisitors: analytics.totalUniqueVisitors,
-              analyticsUpdatedAt: new Date()
+              totalPageviews: hasExistingData
+                ? article.totalPageviews + analytics.totalPageviews
+                : analytics.totalPageviews,
+              totalUniqueVisitors: hasExistingData
+                ? article.totalUniqueVisitors + analytics.totalUniqueVisitors
+                : analytics.totalUniqueVisitors,
+              analyticsUpdatedAt: new Date(),
             }
           });
 

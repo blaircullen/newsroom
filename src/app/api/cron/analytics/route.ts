@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
-import { getArticleAnalytics } from '@/lib/umami';
+import { getArticleAnalyticsIncremental } from '@/lib/umami';
 import { verifyBearerToken } from '@/lib/auth-utils';
 
 export const dynamic = 'force-dynamic';
@@ -36,7 +36,8 @@ export async function GET(request: NextRequest) {
       where: {
         status: 'PUBLISHED',
         publishedUrl: { not: null }
-      }
+      },
+      select: { id: true, publishedUrl: true, analyticsUpdatedAt: true, totalPageviews: true, totalUniqueVisitors: true },
     });
 
     let updated = 0;
@@ -53,14 +54,22 @@ export async function GET(request: NextRequest) {
           // publishedUrl can be a single URL or multiple URLs separated by " | "
           const urls = article.publishedUrl!.split(' | ').map(u => u.trim());
 
-          const analytics = await getArticleAnalytics(urls);
+          const hasExistingData = article.analyticsUpdatedAt && (article.totalPageviews > 0 || article.totalUniqueVisitors > 0);
+          const analytics = await getArticleAnalyticsIncremental(
+            urls,
+            hasExistingData ? article.analyticsUpdatedAt : null
+          );
 
           await prisma.article.update({
             where: { id: article.id },
             data: {
-              totalPageviews: analytics.totalPageviews,
-              totalUniqueVisitors: analytics.totalUniqueVisitors,
-              analyticsUpdatedAt: new Date()
+              totalPageviews: hasExistingData
+                ? article.totalPageviews + analytics.totalPageviews
+                : analytics.totalPageviews,
+              totalUniqueVisitors: hasExistingData
+                ? article.totalUniqueVisitors + analytics.totalUniqueVisitors
+                : analytics.totalUniqueVisitors,
+              analyticsUpdatedAt: new Date(),
             }
           });
 

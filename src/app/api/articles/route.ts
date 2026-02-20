@@ -4,6 +4,7 @@ import { authOptions } from '@/lib/auth';
 import prisma from '@/lib/prisma';
 import slugify from 'slugify';
 import { ArticleStatus, Prisma } from '@prisma/client';
+import { z } from 'zod';
 
 // Valid article statuses for validation
 const VALID_STATUSES = new Set<string>([
@@ -135,6 +136,18 @@ const MAX_BODY_LENGTH = 500000; // 500KB
 const MAX_TAGS = 20;
 const MAX_TAG_NAME_LENGTH = 100;
 
+const CreateArticleSchema = z.object({
+  headline: z.string().trim().min(1, 'Headline is required').max(MAX_HEADLINE_LENGTH, `Headline must be under ${MAX_HEADLINE_LENGTH} characters`),
+  subHeadline: z.string().trim().max(MAX_SUBHEADLINE_LENGTH, `Subheadline must be under ${MAX_SUBHEADLINE_LENGTH} characters`).nullish(),
+  bodyContent: z.string().trim().min(1, 'Body content is required').max(MAX_BODY_LENGTH, 'Article body is too long'),
+  bodyHtml: z.string().nullish(),
+  featuredImage: z.string().nullish(),
+  featuredImageId: z.string().nullish(),
+  featuredMediaId: z.string().nullish(),
+  imageCredit: z.string().trim().nullish(),
+  tags: z.array(z.string()).max(MAX_TAGS).optional(),
+});
+
 // POST /api/articles - Create new article
 export async function POST(request: NextRequest) {
   const session = await getServerSession(authOptions);
@@ -142,45 +155,29 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
-  let body: Record<string, unknown>;
+  let body: unknown;
   try {
     body = await request.json();
   } catch {
     return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 });
   }
 
-  const { headline, subHeadline, bodyContent, bodyHtml, featuredImage, featuredImageId, featuredMediaId, imageCredit, tags } = body;
-
-  // Validate required fields
-  if (typeof headline !== 'string' || !headline.trim()) {
-    return NextResponse.json({ error: 'Headline is required' }, { status: 400 });
+  const parseResult = CreateArticleSchema.safeParse(body);
+  if (!parseResult.success) {
+    const firstError = parseResult.error.errors[0];
+    return NextResponse.json({ error: firstError.message }, { status: 400 });
   }
 
-  if (typeof bodyContent !== 'string' || !bodyContent.trim()) {
-    return NextResponse.json({ error: 'Body content is required' }, { status: 400 });
-  }
+  const { headline, subHeadline, bodyContent, bodyHtml, featuredImage, featuredImageId, featuredMediaId, imageCredit, tags } = parseResult.data;
 
-  // Validate field lengths
-  if (headline.length > MAX_HEADLINE_LENGTH) {
-    return NextResponse.json({ error: `Headline must be under ${MAX_HEADLINE_LENGTH} characters` }, { status: 400 });
-  }
-
-  if (subHeadline && typeof subHeadline === 'string' && subHeadline.length > MAX_SUBHEADLINE_LENGTH) {
-    return NextResponse.json({ error: `Subheadline must be under ${MAX_SUBHEADLINE_LENGTH} characters` }, { status: 400 });
-  }
-
-  if (bodyContent.length > MAX_BODY_LENGTH) {
-    return NextResponse.json({ error: 'Article body is too long' }, { status: 400 });
-  }
-
-  const slug = slugify(headline.trim(), { lower: true, strict: true });
+  const slug = slugify(headline, { lower: true, strict: true });
 
   // Process and validate tags
   // Optimized to reduce N+1 queries by running upserts in parallel
   const tagConnections: { tag: { connect: { id: string } } }[] = [];
-  if (tags && Array.isArray(tags)) {
+  if (tags && tags.length > 0) {
     const uniqueTags = Array.from(new Set(
-      tags.slice(0, MAX_TAGS).filter((t): t is string => typeof t === 'string' && Boolean(t.trim()))
+      tags.filter((t) => Boolean(t.trim()))
     ));
 
     // Prepare tag data
@@ -214,15 +211,15 @@ export async function POST(request: NextRequest) {
 
   const article = await prisma.article.create({
     data: {
-      headline: headline.trim(),
-      subHeadline: typeof subHeadline === 'string' ? subHeadline.trim() || null : null,
-      body: bodyContent.trim(),
-      bodyHtml: typeof bodyHtml === 'string' ? bodyHtml : null,
+      headline,
+      subHeadline: subHeadline || null,
+      body: bodyContent,
+      bodyHtml: bodyHtml || null,
       slug,
-      featuredImage: typeof featuredImage === 'string' ? featuredImage : null,
-      featuredImageId: typeof featuredImageId === 'string' ? featuredImageId : null,
-      featuredMediaId: typeof featuredMediaId === 'string' ? featuredMediaId : null,
-      imageCredit: typeof imageCredit === 'string' ? imageCredit.trim() || null : null,
+      featuredImage: featuredImage || null,
+      featuredImageId: featuredImageId || null,
+      featuredMediaId: featuredMediaId || null,
+      imageCredit: imageCredit || null,
       status: 'DRAFT',
       authorId: session.user.id,
       tags: {

@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import prisma from '@/lib/prisma';
-import { getArticleAnalytics } from '@/lib/umami';
+import { getArticleAnalyticsIncremental } from '@/lib/umami';
 
 export async function POST(request: NextRequest) {
   try {
@@ -18,12 +18,16 @@ export async function POST(request: NextRequest) {
 
     // If articleId provided, refresh single article; otherwise refresh all
     const articles = articleId
-      ? [await prisma.article.findUnique({ where: { id: articleId } })]
+      ? [await prisma.article.findUnique({
+          where: { id: articleId },
+          select: { id: true, publishedUrl: true, analyticsUpdatedAt: true, totalPageviews: true, totalUniqueVisitors: true },
+        })]
       : await prisma.article.findMany({
           where: {
             status: 'PUBLISHED',
-            publishedUrl: { not: null }
-          }
+            publishedUrl: { not: null },
+          },
+          select: { id: true, publishedUrl: true, analyticsUpdatedAt: true, totalPageviews: true, totalUniqueVisitors: true },
         });
 
     let updated = 0;
@@ -44,14 +48,24 @@ export async function POST(request: NextRequest) {
           // Split publishedUrl by " | " to get individual URLs for each site
           const urls = article.publishedUrl.split(' | ').map(url => url.trim());
 
-          const analytics = await getArticleAnalytics(urls);
+          // Incremental sync: if we have a previous update timestamp, only fetch the delta
+          const hasExistingData = article.analyticsUpdatedAt && (article.totalPageviews > 0 || article.totalUniqueVisitors > 0);
+          const analytics = await getArticleAnalyticsIncremental(
+            urls,
+            hasExistingData ? article.analyticsUpdatedAt : null
+          );
 
           await prisma.article.update({
             where: { id: article.id },
             data: {
-              totalPageviews: analytics.totalPageviews,
-              totalUniqueVisitors: analytics.totalUniqueVisitors,
-              analyticsUpdatedAt: new Date()
+              // If incremental, add delta to existing totals; otherwise set directly (first sync)
+              totalPageviews: hasExistingData
+                ? article.totalPageviews + analytics.totalPageviews
+                : analytics.totalPageviews,
+              totalUniqueVisitors: hasExistingData
+                ? article.totalUniqueVisitors + analytics.totalUniqueVisitors
+                : analytics.totalUniqueVisitors,
+              analyticsUpdatedAt: new Date(),
             }
           });
 

@@ -210,13 +210,16 @@ export async function getArticleAnalyticsForTimeRange(
   );
 }
 
-// Accept array of URLs and aggregate stats using Promise.all + reduce to avoid race conditions
-export async function getArticleAnalytics(
-  urls: string[]
+// Fetch incremental analytics since a given date, returning deltas to add to existing totals.
+// If no sinceDate provided, fetches all-time stats (used for first-time sync).
+export async function getArticleAnalyticsIncremental(
+  urls: string[],
+  sinceDate?: Date | null
 ): Promise<{ totalPageviews: number; totalUniqueVisitors: number }> {
   const websiteConfigs = getWebsiteConfigs();
+  const startAt = sinceDate ? sinceDate.getTime() : 0;
+  const endAt = Date.now();
 
-  // Build fetch promises for all URLs
   const fetchPromises = urls.map(async (url) => {
     try {
       const urlObj = new URL(url);
@@ -228,7 +231,7 @@ export async function getArticleAnalytics(
         return { pageviews: 0, visitors: 0 };
       }
 
-      const metrics = await fetchUmamiMetrics(config, url);
+      const metrics = await fetchUmamiMetricsForTimeRange(config, url, startAt, endAt);
       return {
         pageviews: metrics.pageviews.value,
         visitors: metrics.visitors.value,
@@ -239,7 +242,6 @@ export async function getArticleAnalytics(
     }
   });
 
-  // Wait for all fetches and aggregate results using reduce (thread-safe)
   const results = await Promise.all(fetchPromises);
 
   return results.reduce(
@@ -249,4 +251,11 @@ export async function getArticleAnalytics(
     }),
     { totalPageviews: 0, totalUniqueVisitors: 0 }
   );
+}
+
+// Legacy all-time fetch — kept for backward compatibility but prefer getArticleAnalyticsIncremental
+export async function getArticleAnalytics(
+  urls: string[]
+): Promise<{ totalPageviews: number; totalUniqueVisitors: number }> {
+  return getArticleAnalyticsIncremental(urls, null);
 }
