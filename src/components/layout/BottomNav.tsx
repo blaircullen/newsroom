@@ -25,7 +25,7 @@ const tabs: { id: TabId; label: string; icon: typeof HiOutlineHome }[] = [
 
 export default function BottomNav({ activeTab, onTabChange }: BottomNavProps) {
   return (
-    <div className="fixed bottom-0 left-0 right-0 z-50 md:hidden">
+    <div className="fixed bottom-0 left-0 right-0 z-50 md:hidden pb-[env(safe-area-inset-bottom)]">
       <div className="mx-3 mb-3 rounded-2xl bg-ink-900/98 backdrop-blur-xl border border-white/15 shadow-2xl shadow-black/50">
         <div className="flex items-center justify-around p-2">
           {tabs.map((tab) => {
@@ -55,7 +55,7 @@ export default function BottomNav({ activeTab, onTabChange }: BottomNavProps) {
 // Light variant for Analytics page
 export function BottomNavLight({ activeTab, onTabChange }: BottomNavProps) {
   return (
-    <div className="fixed bottom-0 left-0 right-0 z-50 md:hidden bg-[#FAFAF8] border-t border-[#E5E5E5]">
+    <div className="fixed bottom-0 left-0 right-0 z-50 md:hidden pb-[env(safe-area-inset-bottom)] bg-[#FAFAF8] border-t border-[#E5E5E5]">
       <div className="flex items-center justify-around py-4 px-2">
         {tabs.map((tab) => {
           const isActive = activeTab === tab.id;

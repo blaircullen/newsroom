@@ -40,11 +40,7 @@ export async function GET(request: NextRequest) {
       page: result.page,
       pages: result.pages,
     });
-  } catch (error: any) {
-    console.error('Media search error:', error);
-    return NextResponse.json(
-      { error: 'Failed to search media', details: error.message },
-      { status: 500 }
-    );
+  } catch (error) {
+    return (await import('@/lib/safe-error')).safeErrorResponse(error, 'Media Search');
   }
 }

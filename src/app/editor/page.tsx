@@ -20,6 +20,7 @@ import {
   HiOutlinePencilSquare,
   HiOutlineSparkles,
   HiOutlineArrowPath,
+  HiOutlineArrowLeft,
 } from 'react-icons/hi2';
 
 type EditorMode = 'manual' | 'import';
@@ -183,9 +184,13 @@ export default function NewEditorPage() {
         {/* Header */}
         <div className="flex items-center justify-between mb-8">
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-lg bg-press-50 flex items-center justify-center">
-              <HiOutlineDocumentText className="w-5 h-5 text-press-600" />
-            </div>
+            <button
+              onClick={() => router.push('/dashboard')}
+              className="w-9 h-9 rounded-lg bg-ink-50 hover:bg-ink-100 flex items-center justify-center transition-colors"
+              title="Back to dashboard"
+            >
+              <HiOutlineArrowLeft className="w-5 h-5 text-ink-500" />
+            </button>
             <div>
               <h1 className="font-display text-xl font-semibold text-ink-900">
                 New Story

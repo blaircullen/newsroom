@@ -90,11 +90,7 @@ export async function POST(request: NextRequest) {
         height: media.height,
       },
     });
-  } catch (error: any) {
-    console.error('[Media Upload] Error:', error);
-    return NextResponse.json(
-      { error: `Upload failed: ${error.message}` },
-      { status: 500 }
-    );
+  } catch (error) {
+    return (await import('@/lib/safe-error')).safeErrorResponse(error, 'Media Upload');
   }
 }

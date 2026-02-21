@@ -3,6 +3,34 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { timingSafeCompare } from '@/lib/auth-utils';
 import prisma from '@/lib/prisma';
+import { z } from 'zod';
+
+const verificationSourceSchema = z.object({
+  sourceName: z.string(),
+  sourceUrl: z.string(),
+  corroborates: z.boolean(),
+  excerpt: z.string().nullable().optional(),
+});
+
+const storySchema = z.object({
+  headline: z.string().min(1).max(500),
+  sourceUrl: z.string().url().max(2000),
+  category: z.string().max(100).optional(),
+  relevanceScore: z.number().int().min(0).max(100).optional(),
+  velocityScore: z.number().int().min(0).max(100).optional(),
+  verificationStatus: z.enum(['UNVERIFIED', 'VERIFIED', 'PLAUSIBLE', 'DISPUTED', 'FLAGGED']).optional(),
+  verificationNotes: z.string().max(5000).optional(),
+  suggestedAngles: z.record(z.unknown()).optional(),
+  alertLevel: z.enum(['NONE', 'DASHBOARD', 'TELEGRAM']).optional(),
+  sources: z.array(z.record(z.unknown())).optional(),
+  platformSignals: z.record(z.unknown()).optional(),
+  topicClusterId: z.string().optional(),
+  verificationSources: z.array(verificationSourceSchema).optional(),
+});
+
+const ingestPayloadSchema = z.object({
+  stories: z.array(storySchema).min(1).max(100),
+});
 
 // GET — serve scored stories to the dashboard (session auth)
 export async function GET() {
@@ -57,25 +85,25 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
-  let body: { stories?: unknown[] };
+  let rawBody: unknown;
   try {
-    body = await request.json();
+    rawBody = await request.json();
   } catch {
     return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 });
   }
 
-  if (!body || !Array.isArray(body.stories)) {
-    return NextResponse.json({ error: 'Invalid payload: stories array required' }, { status: 400 });
+  const parsed = ingestPayloadSchema.safeParse(rawBody);
+  if (!parsed.success) {
+    return NextResponse.json(
+      { error: 'Invalid payload', details: parsed.error.issues.map((i) => i.message) },
+      { status: 400 }
+    );
   }
 
   let created = 0;
   let updated = 0;
 
-  for (const raw of body.stories) {
-    const s = raw as Record<string, unknown>;
-
-    if (!s.sourceUrl || typeof s.sourceUrl !== 'string') continue;
-    if (!s.headline || typeof s.headline !== 'string') continue;
+  for (const s of parsed.data.stories) {
 
     const existing = await prisma.storyIntelligence.findFirst({
       where: { sourceUrl: s.sourceUrl },
@@ -85,40 +113,30 @@ export async function POST(request: NextRequest) {
       await prisma.storyIntelligence.update({
         where: { id: existing.id },
         data: {
-          headline: typeof s.headline === 'string' ? s.headline : existing.headline,
-          category: typeof s.category === 'string' ? s.category : existing.category ?? undefined,
-          relevanceScore: typeof s.relevanceScore === 'number' ? s.relevanceScore : existing.relevanceScore,
-          velocityScore: typeof s.velocityScore === 'number' ? s.velocityScore : existing.velocityScore,
-          verificationStatus: typeof s.verificationStatus === 'string'
-            ? (s.verificationStatus as typeof existing.verificationStatus)
-            : existing.verificationStatus,
-          verificationNotes: typeof s.verificationNotes === 'string'
-            ? s.verificationNotes
-            : existing.verificationNotes ?? undefined,
-          suggestedAngles: s.suggestedAngles !== undefined ? (s.suggestedAngles as object) : existing.suggestedAngles ?? undefined,
-          alertLevel: typeof s.alertLevel === 'string'
-            ? (s.alertLevel as typeof existing.alertLevel)
-            : existing.alertLevel,
-          sources: Array.isArray(s.sources) ? s.sources : (existing.sources ?? undefined),
-          platformSignals: s.platformSignals !== undefined ? (s.platformSignals as object) : existing.platformSignals ?? undefined,
-          topicClusterId: typeof s.topicClusterId === 'string' ? s.topicClusterId : existing.topicClusterId ?? undefined,
+          headline: s.headline ?? existing.headline,
+          category: s.category ?? existing.category ?? undefined,
+          relevanceScore: s.relevanceScore ?? existing.relevanceScore,
+          velocityScore: s.velocityScore ?? existing.velocityScore,
+          verificationStatus: s.verificationStatus ?? existing.verificationStatus,
+          verificationNotes: s.verificationNotes ?? existing.verificationNotes ?? undefined,
+          suggestedAngles: s.suggestedAngles ? (s.suggestedAngles as object) : existing.suggestedAngles ?? undefined,
+          alertLevel: s.alertLevel ?? existing.alertLevel,
+          sources: s.sources ? (s.sources as object[]) : (existing.sources ?? undefined),
+          platformSignals: s.platformSignals ? (s.platformSignals as object) : existing.platformSignals ?? undefined,
+          topicClusterId: s.topicClusterId ?? existing.topicClusterId ?? undefined,
         },
       });
 
-      if (Array.isArray(s.verificationSources)) {
-        for (const vs of s.verificationSources as Record<string, unknown>[]) {
-          if (typeof vs.sourceName === 'string' && typeof vs.sourceUrl === 'string' && typeof vs.corroborates === 'boolean') {
-            await prisma.verificationSource.create({
-              data: {
-                storyId: existing.id,
-                sourceName: vs.sourceName,
-                sourceUrl: vs.sourceUrl,
-                corroborates: vs.corroborates,
-                excerpt: typeof vs.excerpt === 'string' ? vs.excerpt : null,
-              },
-            });
-          }
-        }
+      if (s.verificationSources && s.verificationSources.length > 0) {
+        await prisma.verificationSource.createMany({
+          data: s.verificationSources.map((vs) => ({
+            storyId: existing.id,
+            sourceName: vs.sourceName,
+            sourceUrl: vs.sourceUrl,
+            corroborates: vs.corroborates,
+            excerpt: vs.excerpt ?? null,
+          })),
+        });
       }
 
       updated++;
@@ -127,37 +145,29 @@ export async function POST(request: NextRequest) {
         data: {
           headline: s.headline,
           sourceUrl: s.sourceUrl,
-          category: typeof s.category === 'string' ? s.category : null,
-          relevanceScore: typeof s.relevanceScore === 'number' ? s.relevanceScore : 0,
-          velocityScore: typeof s.velocityScore === 'number' ? s.velocityScore : 0,
-          verificationStatus: typeof s.verificationStatus === 'string'
-            ? (s.verificationStatus as 'UNVERIFIED' | 'VERIFIED' | 'PLAUSIBLE' | 'DISPUTED' | 'FLAGGED')
-            : 'UNVERIFIED',
-          verificationNotes: typeof s.verificationNotes === 'string' ? s.verificationNotes : null,
-          suggestedAngles: s.suggestedAngles !== undefined ? (s.suggestedAngles as object) : undefined,
-          alertLevel: typeof s.alertLevel === 'string'
-            ? (s.alertLevel as 'NONE' | 'DASHBOARD' | 'TELEGRAM')
-            : 'NONE',
-          sources: Array.isArray(s.sources) ? s.sources : [],
-          platformSignals: s.platformSignals !== undefined ? (s.platformSignals as object) : undefined,
-          topicClusterId: typeof s.topicClusterId === 'string' ? s.topicClusterId : null,
+          category: s.category ?? null,
+          relevanceScore: s.relevanceScore ?? 0,
+          velocityScore: s.velocityScore ?? 0,
+          verificationStatus: s.verificationStatus ?? 'UNVERIFIED',
+          verificationNotes: s.verificationNotes ?? null,
+          suggestedAngles: s.suggestedAngles ? (s.suggestedAngles as object) : undefined,
+          alertLevel: s.alertLevel ?? 'NONE',
+          sources: s.sources ? (s.sources as object[]) : [],
+          platformSignals: s.platformSignals ? (s.platformSignals as object) : undefined,
+          topicClusterId: s.topicClusterId ?? null,
         },
       });
 
-      if (Array.isArray(s.verificationSources)) {
-        for (const vs of s.verificationSources as Record<string, unknown>[]) {
-          if (typeof vs.sourceName === 'string' && typeof vs.sourceUrl === 'string' && typeof vs.corroborates === 'boolean') {
-            await prisma.verificationSource.create({
-              data: {
-                storyId: story.id,
-                sourceName: vs.sourceName,
-                sourceUrl: vs.sourceUrl,
-                corroborates: vs.corroborates,
-                excerpt: typeof vs.excerpt === 'string' ? vs.excerpt : null,
-              },
-            });
-          }
-        }
+      if (s.verificationSources && s.verificationSources.length > 0) {
+        await prisma.verificationSource.createMany({
+          data: s.verificationSources.map((vs) => ({
+            storyId: story.id,
+            sourceName: vs.sourceName,
+            sourceUrl: vs.sourceUrl,
+            corroborates: vs.corroborates,
+            excerpt: vs.excerpt ?? null,
+          })),
+        });
       }
 
       created++;

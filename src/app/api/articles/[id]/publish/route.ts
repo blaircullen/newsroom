@@ -22,9 +22,9 @@ export async function GET(
       clientSecret: clientSecret ? '••••••••' : null,
     }));
     return NextResponse.json({ targets: safeTargets });
-  } catch (error: any) {
-    console.error('[Publish API] Error fetching targets:', error.message);
-    return NextResponse.json({ error: error.message, targets: [] }, { status: 500 });
+  } catch (error) {
+    console.error('[Publish API] Error fetching targets:', error);
+    return NextResponse.json({ error: 'Failed to fetch publish targets', targets: [] }, { status: 500 });
   }
 }
 
@@ -57,6 +57,19 @@ export async function POST(
       url: result.url,
       error: result.error,
     });
+  }
+
+  const { logAudit } = await import('@/lib/audit');
+  for (const r of results) {
+    if (r.success) {
+      logAudit({
+        action: 'article.publish',
+        resourceType: 'article',
+        resourceId: params.id,
+        userId: session.user.id,
+        metadata: { targetId: r.targetId, targetName: r.name, url: r.url },
+      });
+    }
   }
 
   return NextResponse.json({ results });

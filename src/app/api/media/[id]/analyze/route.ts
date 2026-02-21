@@ -17,11 +17,7 @@ export async function POST(
   try {
     await analyzeImage(params.id);
     return NextResponse.json({ success: true });
-  } catch (error: any) {
-    console.error(`[Analyze API] Error for ${params.id}:`, error.message);
-    return NextResponse.json(
-      { error: error.message },
-      { status: 500 }
-    );
+  } catch (error) {
+    return (await import('@/lib/safe-error')).safeErrorResponse(error, `Analyze ${params.id}`);
   }
 }

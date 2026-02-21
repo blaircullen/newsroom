@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter, useParams } from 'next/navigation';
 import Image from 'next/image';
@@ -20,6 +20,7 @@ import {
   HiOutlineExclamationTriangle,
   HiOutlineGlobeAlt,
   HiOutlineCheck,
+  HiOutlineArrowLeft,
 } from 'react-icons/hi2';
 
 const STATUS_CONFIG: Record<string, { label: string; class: string }> = {
@@ -205,6 +206,20 @@ export default function EditArticlePage() {
     }
   };
 
+  // Cmd/Ctrl+S keyboard shortcut
+  const saveRef = useRef(saveArticle);
+  saveRef.current = saveArticle;
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === 's') {
+        e.preventDefault();
+        saveRef.current(false);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
+
   const handleReview = async (decision: string) => {
     try {
       const res = await fetch(`/api/articles/${articleId}/review`, {
@@ -246,12 +261,22 @@ export default function EditArticlePage() {
       <div className="max-w-4xl mx-auto">
         <div className="flex items-center justify-between mb-8">
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-lg bg-press-50 flex items-center justify-center">
-              <HiOutlineDocumentText className="w-5 h-5 text-press-600" />
-            </div>
+            <button
+              onClick={() => {
+                if (hasUnsavedChanges.current && !window.confirm('You have unsaved changes. Leave anyway?')) return;
+                router.push('/dashboard');
+              }}
+              className="w-9 h-9 rounded-lg bg-ink-50 hover:bg-ink-100 flex items-center justify-center transition-colors"
+              title="Back to dashboard"
+            >
+              <HiOutlineArrowLeft className="w-5 h-5 text-ink-500" />
+            </button>
             <div>
               <div className="flex items-center gap-2">
                 <h1 className="font-display text-xl font-semibold text-ink-900">Edit Story</h1>
+                {hasUnsavedChanges.current && autoSaveStatus !== 'saved' && (
+                  <span className="w-2 h-2 rounded-full bg-amber-400" title="Unsaved changes" />
+                )}
                 <span className={`status-badge ${statusConfig.class}`}>{statusConfig.label}</span>
               </div>
               <p className="text-ink-400 text-sm">By {article.author.name}</p>
@@ -393,6 +418,7 @@ export default function EditArticlePage() {
             {autoSaveStatus === 'saving' && (<><div className="animate-spin w-3 h-3 border border-ink-300 border-t-press-500 rounded-full" /><span>Saving...</span></>)}
             {autoSaveStatus === 'saved' && (<><HiOutlineCheck className="w-3.5 h-3.5 text-emerald-500" /><span className="text-emerald-600">All changes saved</span></>)}
             {autoSaveStatus === 'error' && (<><HiOutlineExclamationTriangle className="w-3.5 h-3.5 text-red-500" /><span className="text-red-500">Auto-save failed</span></>)}
+            {autoSaveStatus === 'idle' && !hasUnsavedChanges.current && !isInitialLoad.current && (<><HiOutlineCheck className="w-3.5 h-3.5 text-ink-300" /><span>All changes saved</span></>)}
           </div>
           <span className="text-xs text-ink-400">{bodyContent.split(/\s+/).filter(Boolean).length} words</span>
         </div>

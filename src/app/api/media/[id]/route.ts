@@ -57,11 +57,8 @@ export async function PUT(
     });
 
     return NextResponse.json(media);
-  } catch (error: any) {
-    return NextResponse.json(
-      { error: error.message || 'Failed to update media' },
-      { status: 500 }
-    );
+  } catch (error) {
+    return (await import('@/lib/safe-error')).safeErrorResponse(error, 'Media Update');
   }
 }
 
@@ -83,10 +80,7 @@ export async function DELETE(
   try {
     await deleteMedia(params.id);
     return NextResponse.json({ success: true });
-  } catch (error: any) {
-    return NextResponse.json(
-      { error: error.message || 'Failed to delete media' },
-      { status: 500 }
-    );
+  } catch (error) {
+    return (await import('@/lib/safe-error')).safeErrorResponse(error, 'Media Delete');
   }
 }

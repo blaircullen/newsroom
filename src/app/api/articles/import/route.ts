@@ -188,10 +188,8 @@ ${articleText.substring(0, 12000)}`,
       bodyText: parsed.bodyText || stripHtml(parsed.bodyHtml),
       sourceUrl: url,
     });
-  } catch (error: any) {
-    console.error('Import error:', error);
-
-    if (error.name === 'TimeoutError' || error.name === 'AbortError') {
+  } catch (error) {
+    if (error instanceof Error && (error.name === 'TimeoutError' || error.name === 'AbortError')) {
       console.error('[import] Timeout:', error.message);
       return NextResponse.json(
         { error: 'Request timed out. The article URL or AI service may be slow. Please try again.' },
@@ -199,10 +197,7 @@ ${articleText.substring(0, 12000)}`,
       );
     }
 
-    return NextResponse.json(
-      { error: error.message || 'Failed to import article' },
-      { status: 500 }
-    );
+    return (await import('@/lib/safe-error')).safeErrorResponse(error, 'Article Import');
   }
 }
 

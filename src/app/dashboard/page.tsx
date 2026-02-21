@@ -17,6 +17,7 @@ import AnalyticsSection from '@/components/dashboard/AnalyticsSection';
 import ProfileSection from '@/components/dashboard/ProfileSection';
 import StoryIntelligenceFeed from '@/components/dashboard/StoryIntelligenceFeed';
 import ExemplarSubmitForm from '@/components/dashboard/ExemplarSubmitForm';
+import { SkeletonCard, SkeletonCardDark } from '@/components/ui/Skeleton';
 import { nowET } from '@/lib/date-utils';
 import {
   HiOutlineDocumentText,
@@ -326,7 +327,7 @@ export default function DashboardPage() {
             className="fixed top-0 left-0 right-0 flex items-center justify-center z-50 transition-opacity"
             style={{ height: `${pullDistance}px`, opacity: pullDistance / 100 }}
           >
-            <div className="bg-slate-800/90 backdrop-blur-xl rounded-full p-2">
+            <div className="bg-ink-800/90 backdrop-blur-xl rounded-full p-2">
               <HiOutlineArrowPath
                 className={`w-6 h-6 text-press-400 ${pullDistance > 60 ? 'animate-spin' : ''}`}
                 style={{ transform: `rotate(${pullDistance * 3.6}deg)` }}
@@ -337,9 +338,9 @@ export default function DashboardPage() {
 
         {/* Home Tab - Mobile */}
         {activeTab === 'home' && (
-          <div className="bg-slate-900">
+          <div className="bg-ink-950">
             {/* Mobile Header */}
-            <div className="sticky top-0 z-40 bg-slate-900/95 backdrop-blur-xl">
+            <div className="sticky top-0 z-40 bg-ink-950/95 backdrop-blur-xl">
               <div className="px-4 pt-3 pb-4">
                 <div className="flex items-center justify-between mb-4">
                   <div>
@@ -428,8 +429,10 @@ export default function DashboardPage() {
             {/* Article Feed */}
             <div className="px-4 space-y-3">
               {isLoading ? (
-                <div className="flex items-center justify-center py-20">
-                  <div className="animate-spin w-8 h-8 border-2 border-ink-200 border-t-press-500 rounded-full" />
+                <div className="space-y-3">
+                  {Array.from({ length: 4 }).map((_, i) => (
+                    <SkeletonCardDark key={i} />
+                  ))}
                 </div>
               ) : articles.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-20 text-center">
@@ -467,7 +470,7 @@ export default function DashboardPage() {
 
         {/* Hot Tab - Mobile */}
         {activeTab === 'hot' && (
-          <div className="bg-slate-900 min-h-screen px-4 pt-4">
+          <div className="bg-ink-950 min-h-screen px-4 pt-4">
             {intelligenceStories.length > 0 && (
               <div className="mb-4">
                 <div className="flex items-center gap-2 mb-3">
@@ -519,46 +522,14 @@ export default function DashboardPage() {
             <p className="text-ink-500 dark:text-ink-400 mt-1">
               {dateStr}
             </p>
-            <div className="flex items-center gap-3 mt-3">
-              {!showTopPerformer && topArticle && (
-                <button
-                  onClick={handleRestoreTopPerformer}
-                  className="text-sm text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 underline"
-                >
-                  Show Top Performer
-                </button>
-              )}
-              <span className="inline-flex items-center gap-1.5 text-sm text-ink-500 dark:text-ink-400">
-                <span className="font-display text-lg font-bold tabular-nums text-ink-900 dark:text-ink-100">{stats.total}</span>
-                stories
-              </span>
-              <span className="w-px h-4 bg-ink-200 dark:bg-ink-700" />
-              <span className="inline-flex items-center gap-1.5 text-sm text-ink-500 dark:text-ink-400">
-                <span className="font-display text-lg font-bold tabular-nums text-emerald-600 dark:text-emerald-400">{stats.published}</span>
-                published
-              </span>
-              <span className="w-px h-4 bg-ink-200 dark:bg-ink-700" />
-              <span className="inline-flex items-center gap-1.5 text-sm text-ink-500 dark:text-ink-400">
-                <span className="font-display text-lg font-bold tabular-nums text-amber-600 dark:text-amber-300">
-                  {(stats.totalViews || 0) > 999 ? `${((stats.totalViews || 0) / 1000).toFixed(1)}k` : (stats.totalViews || 0)}
-                </span>
-                views
-              </span>
-              {isAdmin && stats.submitted > 0 && (
-                <>
-                  <span className="w-px h-4 bg-ink-200 dark:bg-ink-700" />
-                  <button
-                    type="button"
-                    onClick={() => setActiveFilter('SUBMITTED')}
-                    className="inline-flex items-center gap-1.5 text-sm font-medium text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 transition-colors cursor-pointer"
-                  >
-                    <span className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse" />
-                    <span className="font-display text-lg font-bold tabular-nums">{stats.submitted}</span>
-                    awaiting review
-                  </button>
-                </>
-              )}
-            </div>
+            {!showTopPerformer && topArticle && (
+              <button
+                onClick={handleRestoreTopPerformer}
+                className="text-sm text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 underline mt-2"
+              >
+                Show Top Performer
+              </button>
+            )}
           </div>
           <div className="flex items-center gap-3">
             {/* Sort dropdown */}
@@ -607,6 +578,57 @@ export default function DashboardPage() {
 
         {/* Daily Recap - Desktop (temporarily disabled) */}
         {/* <DailyRecap /> */}
+
+        {/* Desktop Stat Cards */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-8">
+          <div className="bg-white dark:bg-ink-900 rounded-xl border border-ink-100 dark:border-ink-800 p-4">
+            <div className="w-9 h-9 rounded-lg bg-ink-50 dark:bg-ink-800 flex items-center justify-center mb-2">
+              <HiOutlineDocumentText className="w-5 h-5 text-ink-500 dark:text-ink-400" />
+            </div>
+            <p className="font-display text-2xl font-bold tabular-nums text-ink-900 dark:text-ink-100">{stats.total}</p>
+            <p className="text-sm text-ink-400">Total Stories</p>
+          </div>
+          <div className="bg-white dark:bg-ink-900 rounded-xl border border-ink-100 dark:border-ink-800 p-4">
+            <div className="w-9 h-9 rounded-lg bg-emerald-50 dark:bg-emerald-900/30 flex items-center justify-center mb-2">
+              <HiOutlineCheckCircle className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
+            </div>
+            <p className="font-display text-2xl font-bold tabular-nums text-emerald-600 dark:text-emerald-400">{stats.published}</p>
+            <p className="text-sm text-ink-400">Published</p>
+          </div>
+          <div className="bg-white dark:bg-ink-900 rounded-xl border border-ink-100 dark:border-ink-800 p-4">
+            <div className="w-9 h-9 rounded-lg bg-amber-50 dark:bg-amber-900/30 flex items-center justify-center mb-2">
+              <HiOutlineArrowTrendingUp className="w-5 h-5 text-amber-600 dark:text-amber-400" />
+            </div>
+            <p className="font-display text-2xl font-bold tabular-nums text-amber-600 dark:text-amber-300">
+              {(stats.totalViews || 0) > 999 ? `${((stats.totalViews || 0) / 1000).toFixed(1)}k` : (stats.totalViews || 0)}
+            </p>
+            <p className="text-sm text-ink-400">Total Views</p>
+          </div>
+          {isAdmin && stats.submitted > 0 ? (
+            <button
+              type="button"
+              onClick={() => setActiveFilter('SUBMITTED')}
+              className="bg-white dark:bg-ink-900 rounded-xl border border-blue-200 dark:border-blue-800 p-4 text-left hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors"
+            >
+              <div className="w-9 h-9 rounded-lg bg-blue-50 dark:bg-blue-900/30 flex items-center justify-center mb-2">
+                <HiOutlinePencilSquare className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+              </div>
+              <div className="flex items-center gap-2">
+                <p className="font-display text-2xl font-bold tabular-nums text-blue-600 dark:text-blue-400">{stats.submitted}</p>
+                <span className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse" />
+              </div>
+              <p className="text-sm text-blue-600 dark:text-blue-400">Awaiting Review</p>
+            </button>
+          ) : (
+            <div className="bg-white dark:bg-ink-900 rounded-xl border border-ink-100 dark:border-ink-800 p-4">
+              <div className="w-9 h-9 rounded-lg bg-ink-50 dark:bg-ink-800 flex items-center justify-center mb-2">
+                <HiOutlinePencilSquare className="w-5 h-5 text-ink-500 dark:text-ink-400" />
+              </div>
+              <p className="font-display text-2xl font-bold tabular-nums text-ink-900 dark:text-ink-100">{stats.drafts}</p>
+              <p className="text-sm text-ink-400">Drafts</p>
+            </div>
+          )}
+        </div>
 
         {/* Top Performer - Desktop (with dismiss) */}
         {showTopPerformer && topArticle && (
@@ -701,8 +723,10 @@ export default function DashboardPage() {
 
         {/* Articles List - Desktop */}
         {isLoading ? (
-          <div className="flex items-center justify-center py-20">
-            <div className="animate-spin w-8 h-8 border-2 border-ink-200 border-t-press-500 rounded-full" />
+          <div className="space-y-3">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <SkeletonCard key={i} />
+            ))}
           </div>
         ) : articles.length === 0 ? (
           <div className="text-center py-20 bg-white dark:bg-ink-900 rounded-2xl border border-ink-100 dark:border-ink-800">

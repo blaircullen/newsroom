@@ -43,23 +43,23 @@ export default function LoginPage() {
 
           {/* Large centered NR mark */}
           <div className="inline-flex items-start justify-center gap-0 mb-8">
-            <span className="font-black text-[72px] leading-none tracking-[-4px] text-[#111c30]">N</span>
+            <span className="font-black text-[72px] leading-none tracking-[-4px] text-ink-950">N</span>
             <span className="font-black text-[72px] leading-none tracking-[-4px] text-press-500">R</span>
             <svg width="24" height="24" viewBox="0 0 20 20" fill="none" className="ml-1 -mt-0.5">
               <path d="M10 0l2.5 6.9H20l-6 4.6 2.3 7L10 13.8l-6.3 4.7 2.3-7-6-4.6h7.5z" fill="#D42B2B"/>
             </svg>
           </div>
 
-          <h2 className="font-display text-[22px] font-medium text-[#111c30] mb-1.5 tracking-[-0.3px]">
+          <h2 className="font-display text-[22px] font-medium text-ink-950 mb-1.5 tracking-[-0.3px]">
             Sign into the M3 Newsroom
           </h2>
-          <p className="text-[#8892a4] text-sm mb-10">
+          <p className="text-ink-300 text-sm mb-10">
             Enter your credentials to continue
           </p>
 
           <form onSubmit={handleSubmit} className="space-y-5 text-left">
             <div>
-              <label htmlFor="email" className="block text-[11px] font-semibold uppercase tracking-[0.8px] text-[#8892a4] mb-2">
+              <label htmlFor="email" className="block text-[11px] font-semibold uppercase tracking-[0.8px] text-ink-300 mb-2">
                 Email
               </label>
               <input
@@ -68,15 +68,15 @@ export default function LoginPage() {
                 required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="w-full px-4 py-3.5 rounded-lg border-[1.5px] border-[#e8eaed] bg-white text-[#111c30]
-                          text-base md:text-[15px] placeholder-[#c4c9d2] focus:outline-none focus:border-[#111c30]
+                className="w-full px-4 py-3.5 rounded-lg border-[1.5px] border-ink-100 bg-white text-ink-950
+                          text-base md:text-[15px] placeholder-ink-200 focus:outline-none focus:border-ink-950
                           focus:shadow-[0_0_0_3px_rgba(17,28,48,0.06)] transition-all"
                 placeholder="you@m3media.com"
               />
             </div>
 
             <div>
-              <label htmlFor="password" className="block text-[11px] font-semibold uppercase tracking-[0.8px] text-[#8892a4] mb-2">
+              <label htmlFor="password" className="block text-[11px] font-semibold uppercase tracking-[0.8px] text-ink-300 mb-2">
                 Password
               </label>
               <input
@@ -85,8 +85,8 @@ export default function LoginPage() {
                 required
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="w-full px-4 py-3.5 rounded-lg border-[1.5px] border-[#e8eaed] bg-white text-[#111c30]
-                          text-base md:text-[15px] placeholder-[#c4c9d2] focus:outline-none focus:border-[#111c30]
+                className="w-full px-4 py-3.5 rounded-lg border-[1.5px] border-ink-100 bg-white text-ink-950
+                          text-base md:text-[15px] placeholder-ink-200 focus:outline-none focus:border-ink-950
                           focus:shadow-[0_0_0_3px_rgba(17,28,48,0.06)] transition-all"
                 placeholder="••••••••"
               />
@@ -95,7 +95,7 @@ export default function LoginPage() {
               <div className="flex justify-end">
                 <Link
                   href="/forgot-password"
-                  className="text-[13px] text-[#8892a4] hover:text-press-500 transition-colors"
+                  className="text-[13px] text-ink-300 hover:text-press-500 transition-colors"
                 >
                   Forgot password?
                 </Link>
@@ -104,8 +104,8 @@ export default function LoginPage() {
             <button
               type="submit"
               disabled={isLoading}
-              className="w-full py-3.5 px-4 bg-[#111c30] text-white rounded-lg font-semibold text-[15px] tracking-[0.3px]
-                        hover:bg-[#1a2a44] hover:-translate-y-px hover:shadow-[0_4px_12px_rgba(17,28,48,0.2)]
+              className="w-full py-3.5 px-4 bg-ink-950 text-white rounded-lg font-semibold text-[15px] tracking-[0.3px]
+                        hover:bg-ink-900 hover:-translate-y-px hover:shadow-[0_4px_12px_rgba(17,28,48,0.2)]
                         focus:outline-none focus:ring-2 focus:ring-press-500 focus:ring-offset-2
                         disabled:opacity-50 disabled:cursor-not-allowed
                         transition-all duration-200 active:scale-[0.98] mt-2"
@@ -124,7 +124,7 @@ export default function LoginPage() {
             </button>
           </form>
 
-          <p className="text-center text-[#c4c9d2] text-[11px] mt-10 tracking-[2px] uppercase font-medium">
+          <p className="text-center text-ink-200 text-[11px] mt-10 tracking-[2px] uppercase font-medium">
             &copy; 2026 M3 MEDIA | NEWSROOM
           </p>
         </div>
