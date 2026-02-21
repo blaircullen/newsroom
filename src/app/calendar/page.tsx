@@ -409,6 +409,17 @@ export default function CalendarPage() {
               </div>
             )}
 
+            {/* Empty state for no articles this month */}
+            {!isLoading && articles.length === 0 && (
+              <div className="mt-6 text-center py-12 bg-white dark:bg-ink-900 rounded-2xl border border-ink-100 dark:border-ink-800">
+                <div className="w-16 h-16 rounded-full bg-ink-50 dark:bg-ink-800 flex items-center justify-center mx-auto mb-4">
+                  <HiOutlineClock className="w-8 h-8 text-ink-300 dark:text-ink-600" />
+                </div>
+                <p className="text-ink-700 dark:text-ink-300 font-semibold mb-1">No articles scheduled this month</p>
+                <p className="text-sm text-ink-400 dark:text-ink-500">Published and scheduled articles will appear on the calendar</p>
+              </div>
+            )}
+
             {/* Legend */}
             <div className="flex items-center gap-6 mt-4 text-xs">
               <div className="flex items-center gap-2">
@@ -427,7 +438,7 @@ export default function CalendarPage() {
           </div>
 
           {/* Publishing Insights Sidebar */}
-          <div className="w-80 flex-shrink-0">
+          <div className="w-72 xl:w-80 flex-shrink-0">
             <PublishingInsights />
           </div>
         </div>

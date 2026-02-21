@@ -40,7 +40,7 @@ const STATUS_CONFIG: Record<string, { label: string; class: string; mobileClass:
   DRAFT: {
     label: 'Draft',
     class: 'status-draft',
-    mobileClass: 'from-slate-500/25 to-slate-600/15 border-slate-400/40 text-slate-200',
+    mobileClass: 'from-ink-500/25 to-ink-600/15 border-ink-400/40 text-ink-200',
   },
   SUBMITTED: {
     label: 'Submitted',
@@ -75,7 +75,7 @@ const STATUS_CONFIG: Record<string, { label: string; class: string; mobileClass:
 };
 
 const STATUS_DOT: Record<string, string> = {
-  DRAFT: 'bg-slate-300',
+  DRAFT: 'bg-ink-300',
   SUBMITTED: 'bg-blue-400 animate-pulse',
   IN_REVIEW: 'bg-blue-400 animate-pulse',
   REVISION_REQUESTED: 'bg-amber-400',
@@ -121,8 +121,8 @@ export default function ArticleCard({
     <div
       className={`rounded-xl md:rounded-xl border transition-all duration-200 group relative ${
         isTopPerformer
-          ? 'bg-slate-800/70 md:bg-gradient-to-br md:from-amber-50 md:to-orange-50 md:dark:from-amber-900/20 md:dark:to-orange-900/20 border-l-[3px] border-l-amber-500 border-slate-600/50 md:border-l-0 md:border-transparent md:shadow-lg md:shadow-amber-100/50 md:dark:shadow-amber-900/30 md:ring-2 md:ring-amber-400/30 md:dark:ring-amber-600/30'
-          : 'bg-slate-800/70 md:bg-white md:dark:bg-ink-900 border-slate-600/50 md:border-ink-100 md:dark:border-ink-800 hover:shadow-card-hover md:hover:border-ink-200 md:dark:hover:border-ink-700'
+          ? 'bg-ink-800/70 md:bg-gradient-to-br md:from-amber-50 md:to-orange-50 md:dark:from-amber-900/20 md:dark:to-orange-900/20 border-l-[3px] border-l-amber-500 border-ink-600/50 md:border-l-0 md:border-transparent md:shadow-lg md:shadow-amber-100/50 md:dark:shadow-amber-900/30 md:ring-2 md:ring-amber-400/30 md:dark:ring-amber-600/30'
+          : 'bg-ink-800/70 md:bg-white md:dark:bg-ink-900 border-ink-600/50 md:border-ink-100 md:dark:border-ink-800 hover:shadow-card-hover md:hover:border-ink-200 md:dark:hover:border-ink-700'
       }`}
     >
       {/* Top Performer Badge - Desktop: absolute corner badge */}
@@ -184,7 +184,7 @@ export default function ArticleCard({
               {/* Desktop Header */}
               <div className="hidden md:flex items-start justify-between gap-4">
                 <div className="min-w-0">
-                  <h3 className="font-display font-semibold text-ink-900 dark:text-ink-100 text-lg group-hover:text-press-700 dark:group-hover:text-press-400 transition-colors truncate">
+                  <h3 className="font-display font-semibold text-ink-900 dark:text-ink-100 text-lg group-hover:text-press-700 dark:group-hover:text-press-400 transition-colors line-clamp-2">
                     {article.headline}
                   </h3>
                   {article.subHeadline && (

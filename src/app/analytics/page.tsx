@@ -140,13 +140,13 @@ export default function AnalyticsPage() {
     <AppShell>
       <div className="max-w-7xl mx-auto">
         {/* Header */}
-        <div className="flex items-center justify-between mb-8">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
           <div className="flex items-center gap-4">
             <div>
               <h1 className="font-display text-display-md text-ink-950 dark:text-white">
                 Performance Hub
               </h1>
-              <p className="text-ink-400 mt-1">
+              <p className="text-ink-400 mt-1 text-sm sm:text-base">
                 {isRealtime ? 'Live analytics from M3 Analytics' : 'Analytics and insights for your content'}
               </p>
             </div>
@@ -160,7 +160,7 @@ export default function AnalyticsPage() {
               </div>
             )}
           </div>
-          <div className="flex items-center gap-2 bg-white dark:bg-ink-800 rounded-lg border border-ink-200 dark:border-ink-700 p-1">
+          <div className="flex items-center gap-2 bg-white dark:bg-ink-800 rounded-lg border border-ink-200 dark:border-ink-700 p-1 self-start sm:self-auto">
             {([
               { value: '12h', label: '12H' },
               { value: '24h', label: 'Day' },
@@ -189,7 +189,7 @@ export default function AnalyticsPage() {
         ) : (
           <>
             {/* Overview Cards */}
-            <div className="grid grid-cols-5 gap-4 mb-8">
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4 mb-8">
               {/* Active Visitors - live */}
               <div className="bg-gradient-to-br from-emerald-500 to-emerald-600 dark:from-emerald-600 dark:to-emerald-700 rounded-xl p-5 relative overflow-hidden">
                 <div className="absolute top-3 right-3">
@@ -233,10 +233,11 @@ export default function AnalyticsPage() {
               />
             </div>
 
-            <div className="grid grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
               {/* Top Articles */}
-              <div className="col-span-2">
-                <div className="bg-white dark:bg-ink-900 rounded-xl border border-ink-100 dark:border-ink-800 overflow-hidden">
+              <div className="lg:col-span-2">
+                <div className="bg-white dark:bg-ink-900 rounded-xl border border-ink-100 dark:border-ink-800 overflow-x-auto">
+                  <div className="min-w-[500px]">
                   <div className="px-5 py-4 border-b border-ink-100 dark:border-ink-800 flex items-center justify-between">
                     <div>
                       <h2 className="font-display font-semibold text-ink-900 dark:text-white">
@@ -301,12 +302,19 @@ export default function AnalyticsPage() {
                         </div>
                       ))
                     ) : (
-                      <div className="px-5 py-12 text-center">
-                        <HiOutlineChartBar className="w-8 h-8 text-ink-300 dark:text-ink-600 mx-auto mb-2" />
-                        <p className="text-ink-500 dark:text-ink-400 font-medium">No traffic in this period</p>
-                        <p className="text-xs text-ink-400 dark:text-ink-500 mt-1">Try a longer time range</p>
+                      <div className="px-5 py-16 text-center">
+                        <div className="w-16 h-16 rounded-full bg-ink-50 dark:bg-ink-800 flex items-center justify-center mx-auto mb-4">
+                          <HiOutlineChartBar className="w-8 h-8 text-ink-300 dark:text-ink-600" />
+                        </div>
+                        <p className="text-ink-700 dark:text-ink-300 font-semibold mb-1">No traffic in this period</p>
+                        <p className="text-sm text-ink-400 dark:text-ink-500 mb-4">Publish your first article to see performance data</p>
+                        <a href="/editor" className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-press-600 dark:text-press-400 bg-press-50 dark:bg-press-900/30 rounded-lg hover:bg-press-100 dark:hover:bg-press-900/50 transition-colors">
+                          <HiOutlineDocumentText className="w-4 h-4" />
+                          Write a Story
+                        </a>
                       </div>
                     )}
+                  </div>
                   </div>
                 </div>
               </div>
