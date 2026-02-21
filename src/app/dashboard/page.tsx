@@ -10,7 +10,6 @@ import toast from 'react-hot-toast';
 import AppShell from '@/components/layout/AppShell';
 import BottomNav from '@/components/layout/BottomNav';
 import ArticleCard, { Article } from '@/components/dashboard/ArticleCard';
-import StatsGrid from '@/components/dashboard/StatsGrid';
 import DailyRecap from '@/components/dashboard/DailyRecap';
 import HotSection from '@/components/dashboard/HotSection';
 import AnalyticsSection from '@/components/dashboard/AnalyticsSection';
@@ -578,57 +577,6 @@ export default function DashboardPage() {
 
         {/* Daily Recap - Desktop (temporarily disabled) */}
         {/* <DailyRecap /> */}
-
-        {/* Desktop Stat Cards */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-8">
-          <div className="bg-white dark:bg-ink-900 rounded-xl border border-ink-100 dark:border-ink-800 p-4">
-            <div className="w-9 h-9 rounded-lg bg-ink-50 dark:bg-ink-800 flex items-center justify-center mb-2">
-              <HiOutlineDocumentText className="w-5 h-5 text-ink-500 dark:text-ink-400" />
-            </div>
-            <p className="font-display text-2xl font-bold tabular-nums text-ink-900 dark:text-ink-100">{stats.total}</p>
-            <p className="text-sm text-ink-400">Total Stories</p>
-          </div>
-          <div className="bg-white dark:bg-ink-900 rounded-xl border border-ink-100 dark:border-ink-800 p-4">
-            <div className="w-9 h-9 rounded-lg bg-emerald-50 dark:bg-emerald-900/30 flex items-center justify-center mb-2">
-              <HiOutlineCheckCircle className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
-            </div>
-            <p className="font-display text-2xl font-bold tabular-nums text-emerald-600 dark:text-emerald-400">{stats.published}</p>
-            <p className="text-sm text-ink-400">Published</p>
-          </div>
-          <div className="bg-white dark:bg-ink-900 rounded-xl border border-ink-100 dark:border-ink-800 p-4">
-            <div className="w-9 h-9 rounded-lg bg-amber-50 dark:bg-amber-900/30 flex items-center justify-center mb-2">
-              <HiOutlineArrowTrendingUp className="w-5 h-5 text-amber-600 dark:text-amber-400" />
-            </div>
-            <p className="font-display text-2xl font-bold tabular-nums text-amber-600 dark:text-amber-300">
-              {(stats.totalViews || 0) > 999 ? `${((stats.totalViews || 0) / 1000).toFixed(1)}k` : (stats.totalViews || 0)}
-            </p>
-            <p className="text-sm text-ink-400">Total Views</p>
-          </div>
-          {isAdmin && stats.submitted > 0 ? (
-            <button
-              type="button"
-              onClick={() => setActiveFilter('SUBMITTED')}
-              className="bg-white dark:bg-ink-900 rounded-xl border border-blue-200 dark:border-blue-800 p-4 text-left hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors"
-            >
-              <div className="w-9 h-9 rounded-lg bg-blue-50 dark:bg-blue-900/30 flex items-center justify-center mb-2">
-                <HiOutlinePencilSquare className="w-5 h-5 text-blue-600 dark:text-blue-400" />
-              </div>
-              <div className="flex items-center gap-2">
-                <p className="font-display text-2xl font-bold tabular-nums text-blue-600 dark:text-blue-400">{stats.submitted}</p>
-                <span className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse" />
-              </div>
-              <p className="text-sm text-blue-600 dark:text-blue-400">Awaiting Review</p>
-            </button>
-          ) : (
-            <div className="bg-white dark:bg-ink-900 rounded-xl border border-ink-100 dark:border-ink-800 p-4">
-              <div className="w-9 h-9 rounded-lg bg-ink-50 dark:bg-ink-800 flex items-center justify-center mb-2">
-                <HiOutlinePencilSquare className="w-5 h-5 text-ink-500 dark:text-ink-400" />
-              </div>
-              <p className="font-display text-2xl font-bold tabular-nums text-ink-900 dark:text-ink-100">{stats.drafts}</p>
-              <p className="text-sm text-ink-400">Drafts</p>
-            </div>
-          )}
-        </div>
 
         {/* Top Performer - Desktop (with dismiss) */}
         {showTopPerformer && topArticle && (
