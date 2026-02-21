@@ -304,5 +304,15 @@ export async function DELETE(
   });
 
   await prisma.article.delete({ where: { id: params.id } });
+
+  const { logAudit } = await import('@/lib/audit');
+  logAudit({
+    action: 'article.delete',
+    resourceType: 'article',
+    resourceId: params.id,
+    userId: session.user.id,
+    metadata: { headline: article.headline, reason },
+  });
+
   return NextResponse.json({ success: true });
 }

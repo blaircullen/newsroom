@@ -18,11 +18,7 @@ export async function GET(request: NextRequest) {
   try {
     const result = await searchDriveImages(query, pageToken, pageSize);
     return NextResponse.json(result);
-  } catch (error: any) {
-    console.error('Drive API error:', error);
-    return NextResponse.json(
-      { error: 'Failed to search images', details: error.message },
-      { status: 500 }
-    );
+  } catch (error) {
+    return (await import('@/lib/safe-error')).safeErrorResponse(error, 'Drive Images');
   }
 }

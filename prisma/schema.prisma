@@ -238,6 +238,8 @@ model SocialPost {
   platformPostId       String?          @map("platform_post_id")
   status               SocialPostStatus @default(PENDING)
   errorMessage         String?          @map("error_message")
+  sendAttemptId        String?          @map("send_attempt_id")
+  sendAttempts         Int              @default(0) @map("send_attempts")
   likes                Int?
   retweets             Int?
   replies              Int?
@@ -502,4 +504,19 @@ model ArticleExemplar {
   @@index([category])
   @@index([createdAt])
   @@map("article_exemplars")
+}
+
+model AuditLog {
+  id           String   @id @default(cuid())
+  action       String
+  resourceType String   @map("resource_type")
+  resourceId   String   @map("resource_id")
+  userId       String?  @map("user_id")
+  metadata     Json?
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  @@index([userId, createdAt])
+  @@index([resourceType, resourceId])
+  @@index([createdAt])
+  @@map("audit_logs")
 }

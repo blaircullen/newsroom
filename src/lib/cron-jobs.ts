@@ -78,6 +78,41 @@ export async function runSendSocial(): Promise<{ processed: number; sent: number
   const { sendSocialPost } = await import('@/lib/social-send');
 
   const now = new Date();
+  const fiveMinutesAgo = new Date(now.getTime() - 5 * 60 * 1000);
+
+  // Recover stuck posts: SENDING for >5 minutes
+  const stuckPosts = await prisma.socialPost.findMany({
+    where: {
+      status: 'SENDING',
+      updatedAt: { lt: fiveMinutesAgo },
+    },
+    select: { id: true, platformPostId: true, sendAttempts: true },
+  });
+
+  for (const stuck of stuckPosts) {
+    if (stuck.platformPostId) {
+      // Platform accepted it — mark as SENT
+      await prisma.socialPost.update({
+        where: { id: stuck.id },
+        data: { status: 'SENT', sentAt: new Date() },
+      });
+      console.log(`[Social Sender] Recovered stuck post ${stuck.id} as SENT (had platformPostId)`);
+    } else if (stuck.sendAttempts >= 3) {
+      // Max retries exceeded — mark as FAILED
+      await prisma.socialPost.update({
+        where: { id: stuck.id },
+        data: { status: 'FAILED', errorMessage: 'Max send attempts (3) exceeded' },
+      });
+      console.log(`[Social Sender] Marked stuck post ${stuck.id} as FAILED (max retries)`);
+    } else {
+      // Reset to APPROVED for retry
+      await prisma.socialPost.update({
+        where: { id: stuck.id },
+        data: { status: 'APPROVED' },
+      });
+      console.log(`[Social Sender] Reset stuck post ${stuck.id} to APPROVED for retry (attempt ${stuck.sendAttempts})`);
+    }
+  }
 
   const claimedPosts = await prisma.$transaction(async (tx) => {
     const pending = await tx.socialPost.findMany({

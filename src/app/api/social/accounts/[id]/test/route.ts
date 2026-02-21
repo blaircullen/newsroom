@@ -134,7 +134,7 @@ export async function POST(
       console.error('[API] Error testing social connection:', error);
       return NextResponse.json({
         success: false,
-        error: error instanceof Error ? error.message : 'Failed to test connection',
+        error: 'Failed to test connection',
       });
     }
   } catch (error) {

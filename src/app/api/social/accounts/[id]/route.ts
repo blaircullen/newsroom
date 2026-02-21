@@ -201,6 +201,15 @@ export async function DELETE(
       where: { id },
     });
 
+    const { logAudit } = await import('@/lib/audit');
+    logAudit({
+      action: 'social_account.delete',
+      resourceType: 'social_account',
+      resourceId: id,
+      userId: session.user.id,
+      metadata: { platform: existingAccount.platform, handle: existingAccount.accountHandle },
+    });
+
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error('[API] Error deleting social account:', error);

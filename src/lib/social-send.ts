@@ -106,10 +106,15 @@ export async function sendSocialPost(postId: string): Promise<SendResult> {
   }
 
   try {
-    // Set status to SENDING
+    // Generate attempt ID and increment counter for idempotency
+    const attemptId = `${post.id}-${Date.now()}`;
     await prisma.socialPost.update({
       where: { id: post.id },
-      data: { status: 'SENDING' },
+      data: {
+        status: 'SENDING',
+        sendAttemptId: attemptId,
+        sendAttempts: { increment: 1 },
+      },
     });
 
     // Get a valid access token (refreshing if needed for X)
@@ -170,6 +175,14 @@ export async function sendSocialPost(postId: string): Promise<SendResult> {
       console.log(`[Social Sender] Sent Facebook post for: ${post.article.headline}`);
     } else {
       throw new Error(`Unsupported platform: ${post.socialAccount.platform}`);
+    }
+
+    // Store platformPostId immediately as breadcrumb (before full SENT update)
+    if (platformPostId) {
+      await prisma.socialPost.update({
+        where: { id: post.id },
+        data: { platformPostId },
+      });
     }
 
     // Update post as SENT
