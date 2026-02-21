@@ -445,17 +445,15 @@ export async function runIngestStories(): Promise<{ success: boolean; created: n
   const { scrapeReddit } = await import('@/lib/reddit-scraper');
   const { scrapeGoogleTrends } = await import('@/lib/google-trends-scraper');
   const { scoreStory } = await import('@/lib/story-scorer');
-  const { monitorXAccounts } = await import('@/lib/x-monitor');
+  // X monitoring disabled — twikit scraper container not running (VM 101)
+  // const { monitorXAccounts } = await import('@/lib/x-monitor');
 
-  const [storyIdeas, redditPosts, , xMonitoredStories] = await Promise.all([
+  const [storyIdeas, redditPosts] = await Promise.all([
     scrapeStoryIdeas(),
     scrapeReddit(),
     scrapeGoogleTrends(),
-    monitorXAccounts().catch((err) => {
-      console.error('[ingest] X monitoring failed (non-fatal):', err);
-      return [] as Awaited<ReturnType<typeof monitorXAccounts>>;
-    }),
   ]);
+  const xMonitoredStories: any[] = [];
 
   let created = 0;
   const updated = 0;
