@@ -16,6 +16,8 @@ import {
   HiOutlineArrowTrendingUp,
   HiOutlineArrowTrendingDown,
   HiOutlineCalendarDays,
+  HiOutlineCurrencyDollar,
+  HiOutlineBanknotes,
 } from 'react-icons/hi2';
 
 interface ArticleStats {
@@ -42,6 +44,27 @@ interface RealtimeData {
   timestamp: number;
 }
 
+interface RevenueSource {
+  daily: number;
+  monthly: number;
+}
+
+interface RevenueData {
+  sources: {
+    adsense: RevenueSource;
+    amazon: RevenueSource;
+    revcontent: RevenueSource;
+  };
+  total: {
+    daily: number;
+    monthly: number;
+    yesterdayTotal: number;
+    lastMonthTotal: number;
+  };
+  dailyHistory: { date: string; adsense: number; amazon: number; revcontent: number; total: number }[];
+  lastScraped: string;
+}
+
 export default function AnalyticsPage() {
   const { data: session } = useSession();
   const router = useRouter();
@@ -51,6 +74,7 @@ export default function AnalyticsPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [realtime, setRealtime] = useState<RealtimeData | null>(null);
   const [isRealtime, setIsRealtime] = useState(false);
+  const [revenue, setRevenue] = useState<RevenueData | null>(null);
 
   // Fetch real-time active visitors
   const fetchRealtime = useCallback(async () => {
@@ -131,6 +155,20 @@ export default function AnalyticsPage() {
 
     fetchData();
   }, [period, session]);
+
+  // Fetch revenue data (admin only)
+  useEffect(() => {
+    if (!session || session.user.email !== 'admin@m3media.com') return;
+    const fetchRevenue = async () => {
+      try {
+        const res = await fetch('/api/analytics/revenue');
+        if (res.ok) setRevenue(await res.json());
+      } catch { /* silent */ }
+    };
+    fetchRevenue();
+    const interval = setInterval(fetchRevenue, 30 * 60 * 1000);
+    return () => clearInterval(interval);
+  }, [session]);
 
   if (!session) return null;
 
@@ -353,10 +391,161 @@ export default function AnalyticsPage() {
                 </div>
               </div>
             </div>
+
+            {/* Revenue Section - admin only */}
+            {revenue && session.user.email === 'admin@m3media.com' && (
+              <RevenueSection revenue={revenue} />
+            )}
           </>
         )}
       </div>
     </AppShell>
+  );
+}
+
+function RevenueSection({ revenue }: { revenue: RevenueData }) {
+  const { sources, total, dailyHistory } = revenue;
+  const daysInMonth = new Date(new Date().getFullYear(), new Date().getMonth() + 1, 0).getDate();
+  const dayOfMonth = new Date().getDate();
+  const target = total.lastMonthTotal > 0 ? total.lastMonthTotal : 400;
+  const pct = Math.min((total.monthly / target) * 100, 100);
+  const expectedPct = (dayOfMonth / daysInMonth) * 100;
+  const onTrack = pct >= expectedPct;
+  const pace = dayOfMonth > 0 ? (total.monthly / dayOfMonth) * daysInMonth : 0;
+  const pctChange = total.yesterdayTotal > 0
+    ? ((total.daily - total.yesterdayTotal) / total.yesterdayTotal) * 100
+    : total.daily > 0 ? 100 : 0;
+  const isUp = total.daily >= total.yesterdayTotal;
+
+  const sourceCards: { key: keyof typeof sources; label: string; color: string; borderColor: string; bgColor: string; iconBg: string }[] = [
+    { key: 'adsense', label: 'AdSense', color: 'text-amber-500', borderColor: 'border-amber-200 dark:border-amber-800/40', bgColor: 'bg-amber-50 dark:bg-amber-900/20', iconBg: 'bg-amber-100 dark:bg-amber-900/40' },
+    { key: 'revcontent', label: 'RevContent', color: 'text-indigo-500', borderColor: 'border-indigo-200 dark:border-indigo-800/40', bgColor: 'bg-indigo-50 dark:bg-indigo-900/20', iconBg: 'bg-indigo-100 dark:bg-indigo-900/40' },
+    { key: 'amazon', label: 'Amazon', color: 'text-orange-500', borderColor: 'border-orange-200 dark:border-orange-800/40', bgColor: 'bg-orange-50 dark:bg-orange-900/20', iconBg: 'bg-orange-100 dark:bg-orange-900/40' },
+  ];
+
+  // Build sparkline data arrays (last 14 days)
+  const last14 = dailyHistory.slice(-14);
+  const totalSparkline = last14.map(d => d.total);
+
+  return (
+    <div className="mt-8">
+      {/* Section Header */}
+      <div className="flex items-center gap-3 mb-6">
+        <div className="w-10 h-10 rounded-lg flex items-center justify-center bg-emerald-50 dark:bg-emerald-900/30">
+          <HiOutlineBanknotes className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
+        </div>
+        <div>
+          <h2 className="font-display font-semibold text-ink-900 dark:text-white">
+            Revenue
+          </h2>
+          <p className="text-xs text-ink-400">
+            {revenue.lastScraped ? `Last updated ${revenue.lastScraped}` : 'Shawnee Digital'}
+          </p>
+        </div>
+      </div>
+
+      {/* Today's Total + Trend */}
+      <div className="bg-white dark:bg-ink-900 rounded-xl border border-ink-100 dark:border-ink-800 p-6 mb-4">
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-sm text-ink-400 mb-1">Today&apos;s Earnings</p>
+            <p className="text-3xl font-display font-bold text-ink-900 dark:text-white">
+              ${total.daily.toFixed(2)}
+            </p>
+          </div>
+          <div className="text-right">
+            <div className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-semibold ${
+              isUp
+                ? 'bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400'
+                : 'bg-red-50 dark:bg-red-900/30 text-red-600 dark:text-red-400'
+            }`}>
+              {isUp ? (
+                <HiOutlineArrowTrendingUp className="w-4 h-4" />
+              ) : (
+                <HiOutlineArrowTrendingDown className="w-4 h-4" />
+              )}
+              {Math.abs(pctChange).toFixed(0)}%
+            </div>
+            <p className="text-xs text-ink-400 mt-1">
+              {isUp ? '+' : ''}${(total.daily - total.yesterdayTotal).toFixed(2)} vs yesterday
+            </p>
+          </div>
+        </div>
+
+        {/* 14-day sparkline */}
+        {totalSparkline.length > 1 && (
+          <div className="mt-4 pt-4 border-t border-ink-100 dark:border-ink-800">
+            <p className="text-xs text-ink-400 mb-2">14-Day Trend</p>
+            <Sparkline
+              data={totalSparkline}
+              width={600}
+              height={40}
+              color="#10b981"
+              fillOpacity={0.15}
+              showDots
+              className="w-full"
+            />
+          </div>
+        )}
+      </div>
+
+      {/* Source Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
+        {sourceCards.map(({ key, label, color, borderColor, bgColor, iconBg }) => (
+          <div key={key} className={`rounded-xl border p-5 ${borderColor} ${bgColor}`}>
+            <div className="flex items-center gap-3 mb-3">
+              <div className={`w-9 h-9 rounded-lg flex items-center justify-center ${iconBg}`}>
+                <HiOutlineCurrencyDollar className={`w-5 h-5 ${color}`} />
+              </div>
+              <span className="text-sm font-semibold text-ink-600 dark:text-ink-300 uppercase tracking-wide">
+                {label}
+              </span>
+            </div>
+            <p className={`text-2xl font-display font-bold ${color}`}>
+              ${sources[key].daily.toFixed(2)}
+            </p>
+            <p className="text-xs text-ink-400 mt-1">
+              ${sources[key].monthly.toFixed(2)} this month
+            </p>
+          </div>
+        ))}
+      </div>
+
+      {/* Monthly Progress */}
+      <div className="bg-white dark:bg-ink-900 rounded-xl border border-ink-100 dark:border-ink-800 p-5">
+        <div className="flex items-center justify-between mb-3">
+          <span className="text-sm font-semibold text-ink-500 dark:text-ink-400 uppercase tracking-wide">
+            This Month
+          </span>
+          <div className="flex items-center gap-2">
+            <span className="text-xl font-display font-bold text-ink-900 dark:text-white">
+              ${total.monthly.toFixed(2)}
+            </span>
+            <span className="text-xs text-ink-400">/ ${target.toFixed(0)} last mo</span>
+          </div>
+        </div>
+        <div className="relative h-2 bg-ink-100 dark:bg-ink-800 rounded-full overflow-hidden mb-3">
+          <div
+            className="absolute h-full bg-gradient-to-r from-sky-400 to-emerald-400 rounded-full transition-all duration-1000"
+            style={{ width: `${pct.toFixed(1)}%` }}
+          />
+          <div
+            className="absolute h-full w-0.5 bg-ink-300 dark:bg-ink-600 top-0"
+            style={{ left: `${expectedPct.toFixed(1)}%` }}
+          />
+        </div>
+        <div className="flex items-center justify-between">
+          <span className={`text-xs font-bold uppercase tracking-wider px-2 py-0.5 rounded-full ${
+            onTrack
+              ? 'bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400'
+              : 'bg-amber-50 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400'
+          }`}>
+            {onTrack ? 'Ahead of Pace' : 'Behind Pace'}
+          </span>
+          <span className="text-xs text-ink-400">Projected: ${pace.toFixed(0)}</span>
+        </div>
+      </div>
+    </div>
   );
 }
 
