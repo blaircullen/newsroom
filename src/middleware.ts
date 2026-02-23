@@ -6,7 +6,7 @@ const rateLimitMap = new Map<string, { count: number; resetAt: number }>();
 
 const RATE_LIMITS: Record<string, { max: number; windowMs: number }> = {
   '/api/articles/search': { max: 30, windowMs: 60_000 },
-  '/api/auth': { max: 5, windowMs: 60_000 },
+  '/api/auth': { max: 10, windowMs: 60_000 },
   '/api/story-intelligence/ingest': { max: 30, windowMs: 60_000 },
 };
 
