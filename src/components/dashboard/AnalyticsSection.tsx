@@ -12,6 +12,26 @@ import {
 } from 'react-icons/hi2';
 import type { Article } from './ArticleCard';
 
+interface RevenueSource {
+  daily: number;
+  monthly: number;
+}
+
+interface RevenueData {
+  sources: {
+    adsense: RevenueSource;
+    amazon: RevenueSource;
+    revcontent: RevenueSource;
+  };
+  total: {
+    daily: number;
+    monthly: number;
+    yesterdayTotal: number;
+    lastMonthTotal: number;
+  };
+  lastScraped: string;
+}
+
 interface AnalyticsSectionProps {
   stats: {
     total: number;
@@ -20,6 +40,7 @@ interface AnalyticsSectionProps {
     totalViews: number;
   };
   articles: Article[];
+  userEmail?: string;
 }
 
 interface RealtimeData {
@@ -35,10 +56,11 @@ interface RealtimeData {
   timestamp: number;
 }
 
-export default function AnalyticsSection({ stats, articles }: AnalyticsSectionProps) {
+export default function AnalyticsSection({ stats, articles, userEmail }: AnalyticsSectionProps) {
   const [realtime, setRealtime] = useState<RealtimeData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [lastUpdate, setLastUpdate] = useState<Date | null>(null);
+  const [revenue, setRevenue] = useState<RevenueData | null>(null);
 
   const fetchRealtime = useCallback(async () => {
     try {
@@ -87,6 +109,20 @@ export default function AnalyticsSection({ stats, articles }: AnalyticsSectionPr
     const interval = setInterval(fetchRealtime, 15000);
     return () => clearInterval(interval);
   }, [fetchRealtime]);
+
+  // Fetch revenue data (admin only)
+  useEffect(() => {
+    if (userEmail !== 'admin@m3media.com') return;
+    const fetchRevenue = async () => {
+      try {
+        const res = await fetch('/api/analytics/revenue');
+        if (res.ok) setRevenue(await res.json());
+      } catch { /* silent */ }
+    };
+    fetchRevenue();
+    const interval = setInterval(fetchRevenue, 30 * 60 * 1000);
+    return () => clearInterval(interval);
+  }, [userEmail]);
 
   // Fallback to all-time top articles if no recent data
   const publishedArticles = articles.filter(a => a.status === 'PUBLISHED');
@@ -142,6 +178,77 @@ export default function AnalyticsSection({ stats, articles }: AnalyticsSectionPr
         </div>
       </div>
 
+
+      {/* Revenue Card - admin only */}
+      {revenue && userEmail === 'admin@m3media.com' && (
+        <div className="bg-gradient-to-br from-slate-800 to-slate-900 rounded-3xl p-5 mb-6 border border-white/10">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2">
+              <HiOutlineChartBar className="w-4 h-4 text-emerald-400" />
+              <h2 className="text-xs font-semibold text-white/60 uppercase tracking-wider">Revenue Today</h2>
+            </div>
+            {revenue.lastScraped && (
+              <span className="text-[10px] text-white/30">{revenue.lastScraped}</span>
+            )}
+          </div>
+
+          {/* Total daily */}
+          <div className="text-center mb-4">
+            <span className="text-4xl font-bold text-white tabular-nums">
+              ${revenue.total.daily.toFixed(2)}
+            </span>
+            {(() => {
+              const pctChange = revenue.total.yesterdayTotal > 0
+                ? ((revenue.total.daily - revenue.total.yesterdayTotal) / revenue.total.yesterdayTotal * 100)
+                : revenue.total.daily > 0 ? 100 : 0;
+              const isUp = revenue.total.daily >= revenue.total.yesterdayTotal;
+              return (
+                <div className="flex items-center justify-center gap-2 mt-1.5">
+                  <span className={`text-xs font-semibold ${isUp ? 'text-emerald-400' : 'text-red-400'}`}>
+                    {isUp ? '▲' : '▼'} {Math.abs(pctChange).toFixed(0)}%
+                  </span>
+                  <span className="text-xs text-white/30">vs yesterday</span>
+                </div>
+              );
+            })()}
+          </div>
+
+          {/* Source breakdown */}
+          <div className="grid grid-cols-3 gap-2">
+            {([
+              { key: 'adsense' as const, label: 'AdSense', color: 'text-amber-400', bg: 'bg-amber-500/10', border: 'border-amber-500/20' },
+              { key: 'revcontent' as const, label: 'RevContent', color: 'text-indigo-400', bg: 'bg-indigo-500/10', border: 'border-indigo-500/20' },
+              { key: 'amazon' as const, label: 'Amazon', color: 'text-orange-400', bg: 'bg-orange-500/10', border: 'border-orange-500/20' },
+            ]).map(({ key, label, color, bg, border }) => (
+              <div key={key} className={`rounded-xl p-3 ${bg} border ${border}`}>
+                <p className="text-[10px] font-semibold text-white/50 uppercase tracking-wide mb-1">{label}</p>
+                <p className={`text-base font-bold tabular-nums ${color}`}>${revenue.sources[key].daily.toFixed(2)}</p>
+                <p className="text-[10px] text-white/30 mt-0.5">${revenue.sources[key].monthly.toFixed(0)}/mo</p>
+              </div>
+            ))}
+          </div>
+
+          {/* Monthly progress */}
+          <div className="mt-4 pt-3 border-t border-white/5">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-[10px] text-white/40 uppercase tracking-wide font-semibold">This Month</span>
+              <span className="text-sm font-bold text-white">${revenue.total.monthly.toFixed(2)}</span>
+            </div>
+            {(() => {
+              const target = revenue.total.lastMonthTotal > 0 ? revenue.total.lastMonthTotal : 400;
+              const pct = Math.min((revenue.total.monthly / target) * 100, 100);
+              return (
+                <div className="relative h-1.5 bg-white/5 rounded-full overflow-hidden">
+                  <div
+                    className="absolute h-full bg-gradient-to-r from-cyan-400 to-emerald-400 rounded-full transition-all duration-1000"
+                    style={{ width: `${pct.toFixed(1)}%` }}
+                  />
+                </div>
+              );
+            })()}
+          </div>
+        </div>
+      )}
 
       {/* Hot Right Now Section */}
       <div className="mb-4">

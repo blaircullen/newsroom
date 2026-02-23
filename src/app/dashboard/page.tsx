@@ -495,7 +495,7 @@ export default function DashboardPage() {
         {/* Analytics Tab - Mobile */}
         {activeTab === 'analytics' && (
           <div className="min-h-screen">
-            <AnalyticsSection stats={stats} articles={articles} />
+            <AnalyticsSection stats={stats} articles={articles} userEmail={session?.user?.email || undefined} />
           </div>
         )}
 
