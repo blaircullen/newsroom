@@ -210,7 +210,7 @@ export default function AnalyticsSection({ stats, articles, userEmail }: Analyti
                     </span>
                     <span className="text-xs text-white/30">vs yesterday</span>
                   </div>
-                  <p className="text-xs text-white/40 mt-1">
+                  <p className="text-sm font-medium text-white/50 mt-1.5">
                     Yesterday: ${revenue.total.yesterdayTotal.toFixed(2)}
                   </p>
                 </>
