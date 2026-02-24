@@ -203,12 +203,17 @@ export default function AnalyticsSection({ stats, articles, userEmail }: Analyti
                 : revenue.total.daily > 0 ? 100 : 0;
               const isUp = revenue.total.daily >= revenue.total.yesterdayTotal;
               return (
-                <div className="flex items-center justify-center gap-2 mt-1.5">
-                  <span className={`text-xs font-semibold ${isUp ? 'text-emerald-400' : 'text-red-400'}`}>
-                    {isUp ? '▲' : '▼'} {Math.abs(pctChange).toFixed(0)}%
-                  </span>
-                  <span className="text-xs text-white/30">vs yesterday</span>
-                </div>
+                <>
+                  <div className="flex items-center justify-center gap-2 mt-1.5">
+                    <span className={`text-xs font-semibold ${isUp ? 'text-emerald-400' : 'text-red-400'}`}>
+                      {isUp ? '▲' : '▼'} {Math.abs(pctChange).toFixed(0)}%
+                    </span>
+                    <span className="text-xs text-white/30">vs yesterday</span>
+                  </div>
+                  <p className="text-xs text-white/40 mt-1">
+                    Yesterday: ${revenue.total.yesterdayTotal.toFixed(2)}
+                  </p>
+                </>
               );
             })()}
           </div>

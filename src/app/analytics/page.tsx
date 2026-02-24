@@ -469,6 +469,9 @@ function RevenueSection({ revenue }: { revenue: RevenueData }) {
             <p className="text-xs text-ink-400 mt-1">
               {isUp ? '+' : ''}${(total.daily - total.yesterdayTotal).toFixed(2)} vs yesterday
             </p>
+            <p className="text-xs text-ink-300 dark:text-ink-500 mt-0.5">
+              Yesterday: ${total.yesterdayTotal.toFixed(2)}
+            </p>
           </div>
         </div>
 
