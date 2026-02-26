@@ -14,6 +14,7 @@ import {
   HiOutlineHandThumbDown,
   HiHandThumbUp,
   HiHandThumbDown,
+  HiOutlineNewspaper,
 } from 'react-icons/hi2';
 
 export interface StoryIntelligenceItem {
@@ -60,9 +61,8 @@ function getSourceLabel(url: string): string {
   }
 }
 
-function StoryCard({ story, onRefresh }: { story: StoryIntelligenceItem; onRefresh: () => void }) {
+function StoryCard({ story, onRefresh, onPreview }: { story: StoryIntelligenceItem; onRefresh: () => void; onPreview: (story: StoryIntelligenceItem) => void }) {
   const router = useRouter();
-  const [claiming, setClaiming] = useState(false);
   const [dismissing, setDismissing] = useState(false);
   const [showFeedbackModal, setShowFeedbackModal] = useState(false);
   const [feedbackAction, setFeedbackAction] = useState<'CLAIM_FEEDBACK' | 'DISMISS_FEEDBACK' | null>(null);
@@ -119,24 +119,8 @@ function StoryCard({ story, onRefresh }: { story: StoryIntelligenceItem; onRefre
     }
   };
 
-  const handleWrite = async () => {
-    setClaiming(true);
-    try {
-      const res = await fetch(`/api/story-intelligence/${story.id}/claim`, { method: 'POST' });
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        throw new Error(data.error || 'Failed to claim story');
-      }
-      const data = await res.json();
-      toast.success('Story claimed — generating article...');
-      onRefresh();
-      setFeedbackAction('CLAIM_FEEDBACK');
-      setShowFeedbackModal(true);
-      router.push(`/editor/${data.articleId}`);
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Failed to claim story');
-      setClaiming(false);
-    }
+  const handleWrite = () => {
+    onPreview(story);
   };
 
   const handleDismiss = async () => {
@@ -262,24 +246,14 @@ function StoryCard({ story, onRefresh }: { story: StoryIntelligenceItem; onRefre
         {!isClaimed ? (
           <button
             onClick={handleWrite}
-            disabled={claiming}
-            className={`flex items-center gap-1.5 px-3 py-1.5 text-white text-xs font-semibold rounded-lg disabled:opacity-50 transition-all active:scale-95 flex-shrink-0 ${
+            className={`flex items-center gap-1.5 px-3 py-1.5 text-white text-xs font-semibold rounded-lg transition-all active:scale-95 flex-shrink-0 ${
               isMultiSource
                 ? 'bg-gradient-to-r from-press-600 to-orange-500 hover:from-press-700 hover:to-orange-600'
                 : 'bg-ink-950 dark:bg-ink-700 hover:bg-ink-800 dark:hover:bg-ink-600'
             }`}
           >
-            {claiming ? (
-              <>
-                <div className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                Creating...
-              </>
-            ) : (
-              <>
-                <HiOutlineSparkles className="w-3.5 h-3.5" />
-                Write This
-              </>
-            )}
+            <HiOutlineSparkles className="w-3.5 h-3.5" />
+            Write This
           </button>
         ) : story.article ? (
           <button
@@ -311,7 +285,31 @@ function StoryCard({ story, onRefresh }: { story: StoryIntelligenceItem; onRefre
 }
 
 export default function StoryIntelligenceFeed({ stories, onRefresh }: Props) {
+  const router = useRouter();
   const sorted = [...stories].sort((a, b) => b.relevanceScore - a.relevanceScore);
+  const [previewStory, setPreviewStory] = useState<StoryIntelligenceItem | null>(null);
+  const [isClaiming, setIsClaiming] = useState(false);
+
+  const handleClaim = async () => {
+    if (!previewStory) return;
+    setIsClaiming(true);
+    try {
+      const res = await fetch(`/api/story-intelligence/${previewStory.id}/claim`, { method: 'POST' });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || 'Failed to claim story');
+      }
+      const data = await res.json();
+      toast.success('Story claimed — generating article...');
+      setPreviewStory(null);
+      onRefresh();
+      router.push(`/editor/${data.articleId}`);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to claim story');
+    } finally {
+      setIsClaiming(false);
+    }
+  };
 
   if (sorted.length === 0) {
     return (
@@ -323,11 +321,141 @@ export default function StoryIntelligenceFeed({ stories, onRefresh }: Props) {
     );
   }
 
+  // Collect unique source URLs for a story
+  const getPreviewSources = (story: StoryIntelligenceItem) => {
+    const seen = new Set<string>();
+    const urls: string[] = [];
+    if (story.sourceUrl) {
+      seen.add(story.sourceUrl);
+      urls.push(story.sourceUrl);
+    }
+    for (const s of story.sources || []) {
+      if (s.url && !seen.has(s.url)) {
+        seen.add(s.url);
+        urls.push(s.url);
+      }
+    }
+    return urls.slice(0, 3);
+  };
+
   return (
-    <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-      {sorted.map(story => (
-        <StoryCard key={story.id} story={story} onRefresh={onRefresh} />
-      ))}
-    </div>
+    <>
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+        {sorted.map(story => (
+          <StoryCard key={story.id} story={story} onRefresh={onRefresh} onPreview={setPreviewStory} />
+        ))}
+      </div>
+
+      {/* Preview modal */}
+      {previewStory !== null && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div
+            className="bg-ink-900 border border-ink-700 rounded-2xl max-w-lg w-full mx-4 p-6 shadow-elevated"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="story-preview-title"
+          >
+            {/* Icon + headline */}
+            <div className="flex items-start gap-3 mb-4">
+              <div className="w-9 h-9 rounded-lg bg-press-900/60 flex items-center justify-center flex-shrink-0 mt-0.5">
+                <HiOutlineNewspaper className="w-5 h-5 text-press-400" />
+              </div>
+              <h3
+                id="story-preview-title"
+                className="text-white font-display font-semibold text-lg leading-snug"
+              >
+                {previewStory.headline}
+              </h3>
+            </div>
+
+            {/* Sources */}
+            {getPreviewSources(previewStory).length > 0 && (
+              <div className="flex flex-wrap gap-1.5 mb-4">
+                {getPreviewSources(previewStory).map((url, i) => (
+                  <a
+                    key={i}
+                    href={url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-1 text-[11px] text-ink-400 hover:text-ink-200 transition-colors"
+                    title={url}
+                  >
+                    <span className="truncate max-w-[200px]">{url}</span>
+                    <HiOutlineArrowTopRightOnSquare className="w-2.5 h-2.5 flex-shrink-0" />
+                  </a>
+                ))}
+              </div>
+            )}
+
+            {/* Score */}
+            {previewStory.relevanceScore > 0 && (
+              <div className="flex items-center gap-2 mb-4">
+                <span className="text-xs text-ink-500">Relevance</span>
+                <span className="text-xs font-semibold text-press-400">
+                  {Math.round(previewStory.relevanceScore)}
+                </span>
+                {previewStory.velocityScore > 0 && (
+                  <>
+                    <span className="text-xs text-ink-600">·</span>
+                    <span className="text-xs text-ink-500">Velocity</span>
+                    <span className="text-xs font-semibold text-orange-400">
+                      {Math.round(previewStory.velocityScore)}
+                    </span>
+                  </>
+                )}
+              </div>
+            )}
+
+            {/* Suggested angles as summary */}
+            {previewStory.suggestedAngles && previewStory.suggestedAngles.length > 0 && (
+              <div className="mb-5">
+                <p className="text-xs font-medium text-ink-500 mb-1.5">Suggested angles</p>
+                <ul className="space-y-1">
+                  {previewStory.suggestedAngles.slice(0, 4).map((angle, i) => (
+                    <li key={i} className="text-sm text-ink-300 line-clamp-1">
+                      <span className="text-ink-600 mr-1.5">-</span>{angle}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            {/* Verification notes as description fallback */}
+            {!previewStory.suggestedAngles?.length && previewStory.verificationNotes && (
+              <p className="text-sm text-ink-300 line-clamp-4 mb-5">
+                {previewStory.verificationNotes}
+              </p>
+            )}
+
+            {/* Action buttons */}
+            <div className="flex items-center justify-end gap-3 pt-2">
+              <button
+                onClick={() => setPreviewStory(null)}
+                className="px-4 py-2.5 text-sm font-medium text-ink-400 hover:text-ink-100 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleClaim}
+                disabled={isClaiming}
+                className="flex items-center gap-2 px-5 py-2.5 text-sm font-semibold text-white bg-press-600 hover:bg-press-700 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg transition-all active:scale-95"
+              >
+                {isClaiming ? (
+                  <>
+                    <div className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                    Generating...
+                  </>
+                ) : (
+                  <>
+                    <HiOutlineSparkles className="w-3.5 h-3.5" />
+                    Generate Article
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
   );
 }

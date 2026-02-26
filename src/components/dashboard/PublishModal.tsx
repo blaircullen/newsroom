@@ -13,7 +13,7 @@ import {
 } from 'react-icons/hi2';
 import toast from 'react-hot-toast';
 import { etDateString, etDatetimeLocalValue } from '@/lib/date-utils';
-import SocialPostCard from '@/components/social/SocialPostCard';
+import SocialScheduler from '@/components/dashboard/SocialScheduler';
 import type { PostingProfile } from '@/lib/optimal-timing';
 
 interface PublishTarget {
@@ -445,73 +445,18 @@ export default function PublishModal({ articleId, onClose, onPublished }: Publis
         <div className="px-4 md:px-5 py-5 max-h-[60vh] overflow-y-auto">
           {step === 'social' ? (
             // Social posts step
-            isLoadingSocial ? (
-              <div className="py-8 text-center">
-                <div className="animate-spin w-6 h-6 border-2 border-ink-200 border-t-press-500 rounded-full mx-auto" />
-                <p className="text-ink-400 text-sm mt-3">Loading social accounts...</p>
-              </div>
-            ) : (
-              <div className="space-y-4">
-                {/* Show posts being drafted */}
-                {Array.from(socialPostDrafts.entries()).map(([accountId, draft]) => {
-                  const account = socialAccounts.find(acc => acc.id === accountId);
-                  if (!account) return null;
-
-                  return (
-                    <SocialPostCard
-                      key={accountId}
-                      account={account}
-                      caption={draft.caption}
-                      onCaptionChange={(caption) => handleCaptionChange(accountId, caption)}
-                      scheduledAt={draft.scheduledAt}
-                      onScheduledAtChange={(time) => handleScheduledAtChange(accountId, time)}
-                      imageUrl={undefined} // Will be fetched when queueing
-                      articleUrl={draft.articleUrl}
-                      availableUrls={availableUrls}
-                      onArticleUrlChange={(url) => handleArticleUrlChange(accountId, url)}
-                      isGenerating={draft.isGenerating}
-                      onRegenerate={() => handleRegenerateCaption(accountId)}
-                      onRemove={() => handleRemovePost(accountId)}
-                      postingProfile={account.optimalHours}
-                    />
-                  );
-                })}
-
-                {/* Add account dropdown */}
-                {socialAccounts.length > socialPostDrafts.size && (
-                  <div>
-                    <label className="block text-xs font-medium text-ink-500 dark:text-ink-400 mb-2">
-                      Add another account
-                    </label>
-                    <select
-                      onChange={(e) => {
-                        if (e.target.value) {
-                          handleAddAccount(e.target.value);
-                          e.target.value = '';
-                        }
-                      }}
-                      className="w-full px-3 py-2 border border-ink-200 dark:border-ink-700 rounded-lg text-sm bg-white dark:bg-ink-800 text-ink-900 dark:text-ink-100 focus:outline-none focus:ring-2 focus:ring-press-500/20 focus:border-press-500"
-                    >
-                      <option value="">Select an account...</option>
-                      {socialAccounts
-                        .filter(acc => !socialPostDrafts.has(acc.id))
-                        .map(acc => (
-                          <option key={acc.id} value={acc.id}>
-                            {acc.platform} - {acc.accountName}
-                          </option>
-                        ))}
-                    </select>
-                  </div>
-                )}
-
-                {socialPostDrafts.size === 0 && (
-                  <div className="py-8 text-center">
-                    <p className="text-ink-400 text-sm">No social accounts linked to published sites.</p>
-                    <p className="text-ink-300 text-xs mt-1">Add accounts using the dropdown above.</p>
-                  </div>
-                )}
-              </div>
-            )
+            <SocialScheduler
+              isLoadingSocial={isLoadingSocial}
+              socialAccounts={socialAccounts}
+              socialPostDrafts={socialPostDrafts}
+              availableUrls={availableUrls}
+              onCaptionChange={handleCaptionChange}
+              onScheduledAtChange={handleScheduledAtChange}
+              onArticleUrlChange={handleArticleUrlChange}
+              onRegenerate={handleRegenerateCaption}
+              onRemove={handleRemovePost}
+              onAddAccount={handleAddAccount}
+            />
           ) : isLoading ? (
             <div className="py-8 text-center">
               <div className="animate-spin w-6 h-6 border-2 border-ink-200 border-t-press-500 rounded-full mx-auto" />

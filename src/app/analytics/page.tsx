@@ -5,6 +5,7 @@ export const dynamic = 'force-dynamic';
 import { useState, useEffect, useCallback } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import AppShell from '@/components/layout/AppShell';
 import WriterLeaderboard from '@/components/dashboard/WriterLeaderboard';
 import Sparkline from '@/components/ui/Sparkline';
@@ -18,6 +19,7 @@ import {
   HiOutlineCalendarDays,
   HiOutlineCurrencyDollar,
   HiOutlineBanknotes,
+  HiOutlineArrowTopRightOnSquare,
 } from 'react-icons/hi2';
 
 interface ArticleStats {
@@ -27,6 +29,7 @@ interface ArticleStats {
   totalUniqueVisitors: number;
   publishedAt: string;
   publishedSite: string | null;
+  publishedUrl?: string | null;
   author: { name: string };
   sparkline?: number[];
 }
@@ -158,7 +161,7 @@ export default function AnalyticsPage() {
 
   // Fetch revenue data (admin only)
   useEffect(() => {
-    if (!session || session.user.email !== 'admin@m3media.com') return;
+    if (!session || session.user.role !== 'ADMIN') return;
     const fetchRevenue = async () => {
       try {
         const res = await fetch('/api/analytics/revenue');
@@ -296,8 +299,7 @@ export default function AnalyticsPage() {
                       articles.slice(0, 10).map((article, index) => (
                         <div
                           key={article.id}
-                          className="flex items-center gap-4 px-5 py-4 hover:bg-ink-50 dark:hover:bg-ink-800 transition-colors cursor-pointer"
-                          onClick={() => router.push(`/editor/${article.id}`)}
+                          className="flex items-center gap-4 px-5 py-4 hover:bg-ink-50 dark:hover:bg-ink-800 transition-colors"
                         >
                           {/* Rank */}
                           <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold flex-shrink-0 ${
@@ -310,9 +312,26 @@ export default function AnalyticsPage() {
 
                           {/* Article info */}
                           <div className="flex-1 min-w-0">
-                            <p className="font-medium text-ink-900 dark:text-white truncate">
-                              {article.headline}
-                            </p>
+                            <div className="flex items-center gap-1.5">
+                              <Link
+                                href={`/editor/${article.id}`}
+                                className="font-medium text-ink-900 dark:text-white truncate hover:text-press-600 dark:hover:text-press-400 transition-colors"
+                              >
+                                {article.headline}
+                              </Link>
+                              {article.publishedUrl && (
+                                <a
+                                  href={article.publishedUrl}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="flex-shrink-0 text-ink-400 hover:text-press-600 dark:hover:text-press-400 transition-colors"
+                                  title="View published article"
+                                  onClick={(e) => e.stopPropagation()}
+                                >
+                                  <HiOutlineArrowTopRightOnSquare className="w-3.5 h-3.5" />
+                                </a>
+                              )}
+                            </div>
                             <p className="text-xs text-ink-400 mt-0.5">
                               by {article.author.name} · {new Date(article.publishedAt).toLocaleDateString()}
                             </p>
@@ -393,7 +412,7 @@ export default function AnalyticsPage() {
             </div>
 
             {/* Revenue Section - admin only */}
-            {revenue && session.user.email === 'admin@m3media.com' && (
+            {revenue && session.user.role === 'ADMIN' && (
               <RevenueSection revenue={revenue} />
             )}
           </>

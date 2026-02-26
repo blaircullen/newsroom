@@ -10,6 +10,7 @@ import RichEditor from '@/components/editor/RichEditor';
 import TagInput from '@/components/editor/TagInput';
 import ImagePicker from '@/components/editor/ImagePicker';
 import PublishModal from '@/components/dashboard/PublishModal';
+import StatusBadge from '@/components/ui/StatusBadge';
 import {
   HiOutlinePhoto,
   HiOutlineCloudArrowUp,
@@ -23,15 +24,6 @@ import {
   HiOutlineArrowLeft,
 } from 'react-icons/hi2';
 
-const STATUS_CONFIG: Record<string, { label: string; class: string }> = {
-  DRAFT: { label: 'Draft', class: 'status-draft' },
-  SUBMITTED: { label: 'Submitted', class: 'status-submitted' },
-  IN_REVIEW: { label: 'In Review', class: 'status-in-review' },
-  REVISION_REQUESTED: { label: 'Revision Requested', class: 'status-revision-requested' },
-  APPROVED: { label: 'Approved', class: 'status-approved' },
-  PUBLISHED: { label: 'Published', class: 'status-published' },
-  REJECTED: { label: 'Rejected', class: 'status-rejected' },
-};
 
 export default function EditArticlePage() {
   const { data: session } = useSession();
@@ -57,6 +49,7 @@ export default function EditArticlePage() {
   const [isSaving, setIsSaving] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [autoSaveStatus, setAutoSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
+  const [saveError, setSaveError] = useState(false);
   const autoSaveTimer = useRef<NodeJS.Timeout | null>(null);
   const hasUnsavedChanges = useRef(false);
   const isInitialLoad = useRef(true);
@@ -142,9 +135,13 @@ export default function EditArticlePage() {
         setTimeout(() => setAutoSaveStatus('idle'), 3000);
       } else {
         setAutoSaveStatus('error');
+        setSaveError(true);
+        setTimeout(() => setSaveError(false), 6000);
       }
     } catch {
       setAutoSaveStatus('error');
+      setSaveError(true);
+      setTimeout(() => setSaveError(false), 6000);
     }
   }, [articleId, headline, subHeadline, bodyContent, bodyHtml, featuredImage, featuredImageId, featuredMediaId, imageCredit, tags]);
 
@@ -254,7 +251,6 @@ export default function EditArticlePage() {
   }
 
   if (!article) return null;
-  const statusConfig = STATUS_CONFIG[article.status] || STATUS_CONFIG.DRAFT;
 
   return (
     <AppShell>
@@ -277,8 +273,13 @@ export default function EditArticlePage() {
                 {hasUnsavedChanges.current && autoSaveStatus !== 'saved' && (
                   <span className="w-2 h-2 rounded-full bg-amber-400" title="Unsaved changes" />
                 )}
-                <span className={`status-badge ${statusConfig.class}`}>{statusConfig.label}</span>
+                <StatusBadge status={article.status} />
               </div>
+              {saveError && (
+                <div className="flex items-center gap-2 px-3 py-2 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm dark:bg-red-900/20 dark:border-red-800 dark:text-red-400">
+                  Auto-save failed — check your connection. Press Cmd+S to retry.
+                </div>
+              )}
               <p className="text-ink-400 text-sm">By {article.author.name}</p>
             </div>
           </div>

@@ -4,7 +4,7 @@ export const dynamic = 'force-dynamic';
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useSession } from 'next-auth/react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams, usePathname } from 'next/navigation';
 import Link from 'next/link';
 import toast from 'react-hot-toast';
 import AppShell from '@/components/layout/AppShell';
@@ -49,8 +49,10 @@ const FILTERS = [
 export default function DashboardPage() {
   const { data: session, status } = useSession();
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const pathname = usePathname();
 
-  const [activeTab, setActiveTab] = useState<TabId>('home');
+  const activeTab = (searchParams.get('tab') as TabId) || 'home';
   const [articles, setArticles] = useState<Article[]>([]);
   const [hotArticles, setHotArticles] = useState<Article[]>([]);
   const [storyIdeas, setStoryIdeas] = useState<StoryIdea[]>([]);
@@ -135,13 +137,15 @@ export default function DashboardPage() {
 
   const isAdmin = session?.user?.role === 'ADMIN' || session?.user?.role === 'EDITOR';
 
-  // Handle tab change (state only - no URL update to avoid hydration issues)
+  // Handle tab change — persists active tab in URL search params
   const handleTabChange = (tab: TabId) => {
     if (tab === 'social-queue') {
       router.push('/social-queue');
       return;
     }
-    setActiveTab(tab);
+    const params = new URLSearchParams(searchParams.toString());
+    params.set('tab', tab);
+    router.replace(`${pathname}?${params.toString()}`, { scroll: false });
   };
 
   // Fetch functions
