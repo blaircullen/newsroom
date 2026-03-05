@@ -1177,6 +1177,7 @@ async function publishToShopify(
         summary_html: varied.subHeadline || undefined,
         tags: tags || undefined,
         published: true,
+        author: 'AIG Staff',
       },
     };
 
