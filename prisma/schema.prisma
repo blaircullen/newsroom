@@ -26,6 +26,7 @@ model User {
   claimedStories StoryIntelligence[] @relation("ClaimedStories")
   storyFeedback  StoryFeedback[]     @relation("StoryFeedback")
   submittedExemplars ArticleExemplar[] @relation("SubmittedExemplars")
+  scanDecisions  ScanPick[]          @relation("ScanPickDecisions")
 
   @@index([role, isActive])
   @@map("users")
@@ -504,6 +505,45 @@ model ArticleExemplar {
   @@index([category])
   @@index([createdAt])
   @@map("article_exemplars")
+}
+
+model ScanRun {
+  id          String     @id @default(cuid())
+  createdAt   DateTime   @default(now()) @map("created_at")
+  status      String     @default("PROCESSING")
+  rawCount    Int?       @map("raw_count")
+  pickedCount Int?       @map("picked_count")
+  completedAt DateTime?  @map("completed_at")
+  picks       ScanPick[]
+
+  @@index([createdAt])
+  @@map("scan_runs")
+}
+
+model ScanPick {
+  id            String    @id @default(cuid())
+  scanRunId     String    @map("scan_run_id")
+  scanRun       ScanRun   @relation(fields: [scanRunId], references: [id], onDelete: Cascade)
+  rank          Int
+  title         String
+  summary       String    @db.Text
+  url           String
+  source        String
+  category      String
+  priority      String
+  status        String    @default("PENDING")
+  skipReason    String?   @map("skip_reason")
+  feedbackNotes String?   @db.Text @map("feedback_notes")
+  processedAt   DateTime? @map("processed_at")
+  processedById String?   @map("processed_by_id")
+  processedBy   User?     @relation("ScanPickDecisions", fields: [processedById], references: [id], onDelete: SetNull, onUpdate: NoAction)
+  articleId     String?   @map("article_id")
+  createdAt     DateTime  @default(now()) @map("created_at")
+
+  @@index([scanRunId])
+  @@index([status])
+  @@index([createdAt])
+  @@map("scan_picks")
 }
 
 model AuditLog {

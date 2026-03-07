@@ -8,6 +8,7 @@ import {
   HiOutlineMegaphone,
   HiOutlineShare,
   HiOutlineChatBubbleBottomCenterText,
+  HiOutlineRss,
 } from 'react-icons/hi2';
 import { IconType } from 'react-icons';
 
@@ -73,6 +74,12 @@ export const navItems: NavItem[] = [
     label: 'Social Queue',
     icon: HiOutlineMegaphone,
     showFor: (role) => ['ADMIN', 'EDITOR'].includes(role),
+  },
+  {
+    href: '/scanner',
+    label: 'News Scanner',
+    icon: HiOutlineRss,
+    showFor: (role) => role === 'ADMIN',
   },
 ];
 
