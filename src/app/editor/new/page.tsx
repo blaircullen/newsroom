@@ -1,15 +1,16 @@
 'use client';
 
 import { useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 
 export default function NewEditorRedirect() {
   const router = useRouter();
+  const searchParams = useSearchParams();
 
   useEffect(() => {
-    router.replace('/editor');
-  }, [router]);
+    const qs = searchParams.toString();
+    router.replace(qs ? `/editor?${qs}` : '/editor');
+  }, [router, searchParams]);
 
-  // Return null while redirecting
   return null;
 }

@@ -1,9 +1,9 @@
 'use client';
 export const dynamic = 'force-dynamic';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { useSession } from 'next-auth/react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Image from 'next/image';
 import toast from 'react-hot-toast';
 import AppShell from '@/components/layout/AppShell';
@@ -28,8 +28,13 @@ type EditorMode = 'manual' | 'import';
 export default function NewEditorPage() {
   const { data: session } = useSession();
   const router = useRouter();
+  const searchParams = useSearchParams();
 
   const isAdmin = session?.user?.role === 'ADMIN';
+
+  // Scanner-prefill params (from "Draft Article" button in scanner)
+  const scanSource   = searchParams.get('sourceUrl');
+  const scanHeadline = searchParams.get('headline');
 
   // Editor mode (admin only)
   const [mode, setMode] = useState<EditorMode>('manual');
@@ -60,6 +65,49 @@ export default function NewEditorPage() {
     setBodyContent(text);
     setBodyHtml(html);
   }, []);
+
+  // Auto-import when arriving from the scanner "Draft Article" button
+  const autoImportFired = useRef(false);
+  useEffect(() => {
+    if (!scanSource || autoImportFired.current || !isAdmin) return;
+    autoImportFired.current = true;
+
+    // Pre-fill headline from scanner pick if available
+    if (scanHeadline) setHeadline(decodeURIComponent(scanHeadline));
+
+    setIsImporting(true);
+    setImportUrl(scanSource);
+
+    fetch('/api/articles/import', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ url: scanSource }),
+    })
+      .then((r) => r.json())
+      .then((data) => {
+        if (data.error) throw new Error(data.error);
+        setHeadline(data.headline);
+        setSubHeadline(data.subHeadline || '');
+        const sourceDomain = new URL(scanSource).hostname.replace(/^www\./, '');
+        const sourceLink = `<p><em>Source: <a href="${scanSource}" target="_blank" rel="noopener noreferrer">${sourceDomain}</a></em></p>`;
+        setBodyHtml(data.bodyHtml + sourceLink);
+        setBodyContent(data.bodyText || '');
+        setImportedFromUrl(scanSource);
+        setEditorKey((prev) => prev + 1);
+        toast.success('Scanner story imported! Review and edit before saving.', {
+          duration: 5000,
+          icon: '✨',
+        });
+      })
+      .catch((err: Error) => {
+        toast.error(err.message || 'Failed to import scanner story');
+        // Fall back to showing the headline so the editor isn't completely empty
+      })
+      .finally(() => {
+        setIsImporting(false);
+      });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [scanSource, isAdmin]);
 
   // AI Import handler
   const handleImport = async () => {
@@ -177,6 +225,19 @@ export default function NewEditorPage() {
       setIsSubmitting(false);
     }
   };
+
+  // Scanner auto-import loading overlay
+  if (isImporting && scanSource) {
+    return (
+      <AppShell>
+        <div className="min-h-[60vh] flex flex-col items-center justify-center gap-4">
+          <HiOutlineSparkles className="w-10 h-10 text-press-400 animate-pulse" />
+          <p className="text-ink-700 font-medium">Generating article from scanner pick...</p>
+          <p className="text-ink-400 text-sm">Claude is rewriting the story — this takes ~10 seconds</p>
+        </div>
+      </AppShell>
+    );
+  }
 
   return (
     <AppShell>
