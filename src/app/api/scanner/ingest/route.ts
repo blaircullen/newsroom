@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { broadcastNewScan } from '@/lib/scanner-sse';
+import { sendScannerAlert } from '@/lib/telegram-scanner';
 import { z } from 'zod';
 
 const PickSchema = z.object({
@@ -71,6 +72,25 @@ export async function POST(request: NextRequest) {
   });
 
   broadcastNewScan(scanRun.id, scanRun.pickedCount ?? 0);
+
+  // Fire Telegram alerts for HIGH priority picks — async, never blocks the response
+  void (async () => {
+    const highPicks = await prisma.scanPick.findMany({
+      where: { scanRunId: scanRun.id, priority: 'high' },
+      orderBy: { rank: 'asc' },
+    });
+    for (const pick of highPicks) {
+      try {
+        const msgId = await sendScannerAlert({ ...pick, scanRunId: scanRun.id });
+        await prisma.scanPick.update({
+          where: { id: pick.id },
+          data: { telegramMsgId: msgId },
+        });
+      } catch (err) {
+        console.error('[Scanner] Telegram alert failed for pick', pick.id, err);
+      }
+    }
+  })();
 
   return NextResponse.json({ scanRunId: scanRun.id, picked: scanRun.pickedCount }, { status: 201 });
 }

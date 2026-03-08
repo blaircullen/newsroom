@@ -538,6 +538,7 @@ model ScanPick {
   processedById String?   @map("processed_by_id")
   processedBy   User?     @relation("ScanPickDecisions", fields: [processedById], references: [id], onDelete: SetNull, onUpdate: NoAction)
   articleId     String?   @map("article_id")
+  telegramMsgId Int?      @map("telegram_msg_id")
   createdAt     DateTime  @default(now()) @map("created_at")
 
   @@index([scanRunId])
