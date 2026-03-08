@@ -4,9 +4,9 @@
  * inline Approve / Skip buttons and edits messages after decisions.
  */
 
-const BOT_TOKEN = '8517594649:AAFwBnwaBvUjNuxlx9XWZJNR6quKvK1S2bM';
-const CHAT_ID = '8375486668';
-const API = `https://api.telegram.org/bot${BOT_TOKEN}`;
+const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN ?? '';
+const CHAT_ID = process.env.TELEGRAM_CHAT_ID ?? '';
+const API = BOT_TOKEN ? `https://api.telegram.org/bot${BOT_TOKEN}` : '';
 
 function esc(text: string): string {
   return text
@@ -44,7 +44,11 @@ export async function sendScannerAlert(pick: {
   url: string;
   scanRunId: string;
 }): Promise<number> {
-  const categoryLabel = pick.category.replace('_', ' ');
+  if (!BOT_TOKEN || !CHAT_ID) {
+    console.warn('[TG Scanner] TELEGRAM_BOT_TOKEN or TELEGRAM_CHAT_ID not set — skipping alert');
+    return -1;
+  }
+  const categoryLabel = pick.category.replaceAll('_', ' ');
   const sourceClean = pick.source.replace(' (tweet)', '').replace('X/@', '@');
 
   const text = [

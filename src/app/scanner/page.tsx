@@ -1,7 +1,5 @@
 'use client';
 
-export const dynamic = 'force-dynamic';
-
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
@@ -195,7 +193,7 @@ function PickCard({
               {pick.source.replace('X/@', '@').replace(' (tweet)', '')}
             </span>
             <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full ${catColor}`}>
-              {pick.category.replace('_', ' ')}
+              {pick.category.replaceAll('_', ' ')}
             </span>
             {pick.priority === 'high' && (
               <span className="text-[10px] font-bold text-press-400 uppercase tracking-widest">BREAKING</span>
@@ -431,11 +429,19 @@ export default function ScannerPage() {
       if (e.key === 'j' || e.key === 'ArrowDown') {
         e.preventDefault();
         const next = pendingPicks[currentIdx + 1] ?? pendingPicks[0];
-        if (next) setActivePickId(next.id);
+        if (next) {
+          setActivePickId(next.id);
+          const idx = picks.findIndex((p) => p.id === next.id);
+          cardRefs.current[idx]?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        }
       } else if (e.key === 'k' || e.key === 'ArrowUp') {
         e.preventDefault();
         const prev = pendingPicks[currentIdx - 1] ?? pendingPicks[pendingPicks.length - 1];
-        if (prev) setActivePickId(prev.id);
+        if (prev) {
+          setActivePickId(prev.id);
+          const idx = picks.findIndex((p) => p.id === prev.id);
+          cardRefs.current[idx]?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        }
       } else if (e.key === 'a' && activePickId) {
         e.preventDefault();
         handleApprove(activePickId);
@@ -472,24 +478,36 @@ export default function ScannerPage() {
   };
 
   const handleApprove = async (pickId: string) => {
+    const snapshot = picks;
     updatePickStatus(pickId, { status: 'APPROVED', processedAt: new Date().toISOString() });
     setActivePickId(null);
-    await fetch(`/api/scanner/picks/${pickId}/decision`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ status: 'APPROVED' }),
-    });
+    try {
+      const res = await fetch(`/api/scanner/picks/${pickId}/decision`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: 'APPROVED' }),
+      });
+      if (!res.ok) throw new Error(`${res.status}`);
+    } catch {
+      setPicks(snapshot);
+    }
   };
 
   const handleSkipConfirm = async (pickId: string, reason: string) => {
+    const snapshot = picks;
     setSkipModalPickId(null);
     updatePickStatus(pickId, { status: 'SKIPPED', skipReason: reason, processedAt: new Date().toISOString() });
     setActivePickId(null);
-    await fetch(`/api/scanner/picks/${pickId}/decision`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ status: 'SKIPPED', skipReason: reason }),
-    });
+    try {
+      const res = await fetch(`/api/scanner/picks/${pickId}/decision`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: 'SKIPPED', skipReason: reason }),
+      });
+      if (!res.ok) throw new Error(`${res.status}`);
+    } catch {
+      setPicks(snapshot);
+    }
   };
 
   const handleNewScanClick = async () => {

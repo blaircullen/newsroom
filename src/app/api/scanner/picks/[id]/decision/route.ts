@@ -38,8 +38,8 @@ export async function POST(
   const { status, skipReason, feedbackNotes } = parsed.data;
   const { id } = params;
 
-  const pick = await prisma.scanPick.update({
-    where: { id },
+  const result = await prisma.scanPick.updateMany({
+    where: { id, status: 'PENDING' },
     data: {
       status,
       skipReason: status === 'SKIPPED' ? (skipReason ?? null) : null,
@@ -47,13 +47,15 @@ export async function POST(
       processedAt: new Date(),
       processedById: session.user.id,
     },
-    select: {
-      id: true,
-      status: true,
-      skipReason: true,
-      processedAt: true,
-      articleId: true,
-    },
+  });
+
+  if (result.count === 0) {
+    return NextResponse.json({ error: 'Pick not found or already processed' }, { status: 409 });
+  }
+
+  const pick = await prisma.scanPick.findUnique({
+    where: { id },
+    select: { id: true, status: true, skipReason: true, processedAt: true, articleId: true },
   });
 
   return NextResponse.json({ pick });
