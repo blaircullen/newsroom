@@ -1,4 +1,5 @@
 import Anthropic from '@anthropic-ai/sdk';
+import { CLAUDE_SONNET, CLAUDE_HAIKU } from '@/lib/ai-models';
 import { prisma } from '@/lib/prisma';
 
 const anthropic = new Anthropic(); // reads ANTHROPIC_API_KEY from env
@@ -45,8 +46,8 @@ export async function processStoryWithAI(
   useDeepVerification: boolean,
 ): Promise<AIResult> {
   const model = useDeepVerification
-    ? 'claude-sonnet-4-6'
-    : 'claude-haiku-4-5-20251001';
+    ? CLAUDE_SONNET
+    : CLAUDE_HAIKU;
 
   // Find relevant topic profile for this story's category
   const relevantProfile = story.category

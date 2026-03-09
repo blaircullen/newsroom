@@ -1,12 +1,13 @@
 import fs from 'fs/promises';
 import sharp from 'sharp';
 import Anthropic from '@anthropic-ai/sdk';
+import { CLAUDE_HAIKU } from '@/lib/ai-models';
 import prisma from './prisma';
 import { getMediaFilePath } from './media';
 
 const anthropic = new Anthropic(); // reads ANTHROPIC_API_KEY from env
 
-const VISION_MODEL = 'claude-haiku-4-5-20251001';
+const VISION_MODEL = CLAUDE_HAIKU;
 const MAX_DIMENSION = 1024;
 const MAX_BYTES = 5 * 1024 * 1024; // 5MB
 

@@ -1,4 +1,5 @@
 import prisma from './prisma';
+import { CLAUDE_HAIKU } from '@/lib/ai-models';
 import crypto from 'crypto';
 import fs from 'fs/promises';
 import path from 'path';
@@ -692,7 +693,7 @@ async function generateSeoDescription(
         'anthropic-version': '2023-06-01',
       },
       body: JSON.stringify({
-        model: 'claude-haiku-4-5-20251001',
+        model: CLAUDE_HAIKU,
         max_tokens: 250,
         messages: [{
           role: 'user',
@@ -789,7 +790,7 @@ async function generateHeadlineVariation(
         'anthropic-version': '2023-06-01',
       },
       body: JSON.stringify({
-        model: 'claude-haiku-4-5-20251001',
+        model: CLAUDE_HAIKU,
         max_tokens: 150,
         messages: [{
           role: 'user',
@@ -857,7 +858,7 @@ async function generateHannityFields(
         'anthropic-version': '2023-06-01',
       },
       body: JSON.stringify({
-        model: 'claude-haiku-4-5-20251001',
+        model: CLAUDE_HAIKU,
         max_tokens: 200,
         messages: [{
           role: 'user',

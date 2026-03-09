@@ -1,4 +1,5 @@
 import Anthropic from '@anthropic-ai/sdk';
+import { CLAUDE_SONNET, CLAUDE_HAIKU } from '@/lib/ai-models';
 
 const anthropic = new Anthropic(); // reads ANTHROPIC_API_KEY from env
 
@@ -86,7 +87,7 @@ Respond with JSON:
 }`;
 
   const response = await anthropic.messages.create({
-    model: 'claude-haiku-4-5-20251001',
+    model: CLAUDE_HAIKU,
     max_tokens: 512,
     system: systemPrompt,
     messages: [{ role: 'user', content: userPrompt }],
@@ -148,7 +149,7 @@ keyword weights must be numbers between 1.0 and 5.0.
 audienceAlignment must be an integer between 0 and 100.`;
 
   const response = await anthropic.messages.create({
-    model: 'claude-sonnet-4-6',
+    model: CLAUDE_SONNET,
     max_tokens: 1024,
     system: systemPrompt,
     messages: [{ role: 'user', content: userPrompt }],
