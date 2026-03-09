@@ -148,7 +148,7 @@ keyword weights must be numbers between 1.0 and 5.0.
 audienceAlignment must be an integer between 0 and 100.`;
 
   const response = await anthropic.messages.create({
-    model: 'claude-sonnet-4-6-20250514',
+    model: 'claude-sonnet-4-6',
     max_tokens: 1024,
     system: systemPrompt,
     messages: [{ role: 'user', content: userPrompt }],

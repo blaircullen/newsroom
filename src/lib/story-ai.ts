@@ -45,7 +45,7 @@ export async function processStoryWithAI(
   useDeepVerification: boolean,
 ): Promise<AIResult> {
   const model = useDeepVerification
-    ? 'claude-sonnet-4-6-20250514'
+    ? 'claude-sonnet-4-6'
     : 'claude-haiku-4-5-20251001';
 
   // Find relevant topic profile for this story's category
