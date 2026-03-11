@@ -3,6 +3,10 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import prisma from '@/lib/prisma';
 import { generateQuickPreview, generateDeepFingerprint } from '@/lib/exemplar-ai';
+import { autoSelectGettyImage } from '@/lib/getty-client';
+import { saveMedia } from '@/lib/media';
+import fs from 'fs/promises';
+import path from 'path';
 
 function extractArticleText(html: string): string {
   let cleaned = html
@@ -365,6 +369,55 @@ async function createExemplarFromClaim(
   }
 }
 
+// ---------------------------------------------------------------------------
+// Auto-fetch Getty image for claimed article (fire-and-forget)
+// ---------------------------------------------------------------------------
+
+async function autoFetchGettyImage(articleId: string, headline: string, bodyExcerpt: string) {
+  const STORAGE_PATH = process.env.MEDIA_STORAGE_PATH || './uploads/media';
+  try {
+    const result = await autoSelectGettyImage(headline, bodyExcerpt);
+    if (!result) {
+      console.log(`[claim] Getty auto-image: no result for "${headline.slice(0, 60)}"`);
+      return;
+    }
+
+    // Read downloaded file from shared volume
+    const tmpPath = path.join(STORAGE_PATH, result.filePath);
+    let buffer: Buffer;
+    try {
+      buffer = await fs.readFile(tmpPath);
+    } catch {
+      console.error('[claim] Getty auto-image: temp file not found:', tmpPath);
+      return;
+    }
+
+    // Save to media library
+    const media = await saveMedia(buffer, `getty-${result.assetId}.jpg`, 'image/jpeg', {
+      credit: result.credit,
+      photographer: result.credit.replace(/^Photo by /, '').replace(/\/Getty Images$/, ''),
+      source: 'Getty Images',
+      altText: result.title.substring(0, 200),
+    });
+
+    // Clean up temp file
+    await fs.unlink(tmpPath).catch(() => {});
+
+    // Set as featured image on the article
+    await prisma.article.update({
+      where: { id: articleId },
+      data: {
+        featuredMediaId: media.id,
+        imageCredit: result.credit,
+      },
+    });
+
+    console.log(`[claim] Getty auto-image set for article ${articleId}: ${result.credit} (media ${media.id})`);
+  } catch (err) {
+    console.error('[claim] Getty auto-image failed (non-blocking):', err);
+  }
+}
+
 // POST — writer claims a story, creating a draft article with AI-generated body
 export async function POST(
   _request: NextRequest,
@@ -469,6 +522,9 @@ export async function POST(
       dismissed: true,
     },
   });
+
+  // Fire-and-forget: auto-fetch Getty image for the article
+  void autoFetchGettyImage(article.id, headline, body.substring(0, 500));
 
   // Fire-and-forget: create exemplar from claimed story to train the algorithm
   // Claiming = positive signal that this topic fits our audience

@@ -8,6 +8,7 @@ import {
   HiOutlineCheck,
   HiOutlineCloudArrowUp,
   HiOutlineFolder,
+  HiOutlineGlobeAlt,
 } from 'react-icons/hi2';
 
 interface MediaImage {
@@ -32,7 +33,14 @@ interface ImagePickerProps {
   selectedImageId?: string | null;
 }
 
-type Tab = 'browse' | 'upload';
+interface GettyResult {
+  assetId: string;
+  title: string;
+  thumbnailUrl: string;
+  detailUrl: string;
+}
+
+type Tab = 'browse' | 'upload' | 'getty';
 
 export default function ImagePicker({ isOpen, onClose, onSelect, selectedImageId }: ImagePickerProps) {
   const [activeTab, setActiveTab] = useState<Tab>('browse');
@@ -51,6 +59,70 @@ export default function ImagePicker({ isOpen, onClose, onSelect, selectedImageId
   const [uploadCredit, setUploadCredit] = useState('');
   const [uploadAltText, setUploadAltText] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Getty state
+  const [gettySearch, setGettySearch] = useState('');
+  const [gettyResults, setGettyResults] = useState<GettyResult[]>([]);
+  const [isGettyLoading, setIsGettyLoading] = useState(false);
+  const [gettyError, setGettyError] = useState<string | null>(null);
+  const [isGettyDownloading, setIsGettyDownloading] = useState<string | null>(null);
+
+  const fetchGettyImages = useCallback(async (query: string, signal?: AbortSignal) => {
+    if (!query.trim()) {
+      setGettyResults([]);
+      return;
+    }
+    setIsGettyLoading(true);
+    setGettyError(null);
+    try {
+      const params = new URLSearchParams({ q: query, limit: '20' });
+      const res = await fetch(`/api/getty/search?${params}`, { signal });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || 'Getty search failed');
+      }
+      const data = await res.json();
+      setGettyResults(data.results || []);
+    } catch (error) {
+      if ((error as Error).name !== 'AbortError') {
+        setGettyError((error as Error).message || 'Getty search failed');
+        console.error('Getty search error:', error);
+      }
+    } finally {
+      setIsGettyLoading(false);
+    }
+  }, []);
+
+  async function handleGettySelect(result: GettyResult) {
+    setIsGettyDownloading(result.assetId);
+    setGettyError(null);
+    try {
+      const res = await fetch('/api/getty/download', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ assetId: result.assetId }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || 'Download failed');
+      }
+      onSelect(data.image);
+    } catch (error: any) {
+      setGettyError(error.message || 'Failed to download Getty image');
+    } finally {
+      setIsGettyDownloading(null);
+    }
+  }
+
+  // Getty search debounce
+  useEffect(() => {
+    if (!isOpen || activeTab !== 'getty') return;
+    const controller = new AbortController();
+    const timer = setTimeout(() => {
+      fetchGettyImages(gettySearch, controller.signal);
+    }, 500);
+    return () => { clearTimeout(timer); controller.abort(); };
+  }, [gettySearch, isOpen, activeTab, fetchGettyImages]);
 
   const fetchImages = useCallback(async (query?: string, pageNum: number = 1, signal?: AbortSignal) => {
     setIsLoading(true);
@@ -110,6 +182,9 @@ export default function ImagePicker({ isOpen, onClose, onSelect, selectedImageId
     if (!isOpen) {
       setActiveTab('browse');
       resetUploadState();
+      setGettySearch('');
+      setGettyResults([]);
+      setGettyError(null);
     }
   }, [isOpen]);
 
@@ -240,7 +315,7 @@ export default function ImagePicker({ isOpen, onClose, onSelect, selectedImageId
                 Featured Image
               </h3>
               <p className="text-ink-400 text-xs">
-                Browse the media library or upload your own
+                Browse library, search Getty Images, or upload your own
               </p>
             </div>
           </div>
@@ -268,6 +343,17 @@ export default function ImagePicker({ isOpen, onClose, onSelect, selectedImageId
               Browse Library
             </button>
             <button
+              onClick={() => setActiveTab('getty')}
+              className={`flex items-center gap-2 px-4 py-2.5 text-sm font-medium rounded-t-lg border-b-2 transition-all ${
+                activeTab === 'getty'
+                  ? 'border-press-500 text-press-700 bg-press-50/50'
+                  : 'border-transparent text-ink-400 hover:text-ink-600 hover:bg-ink-50'
+              }`}
+            >
+              <HiOutlineGlobeAlt className="w-4 h-4" />
+              Getty Images
+            </button>
+            <button
               onClick={() => setActiveTab('upload')}
               className={`flex items-center gap-2 px-4 py-2.5 text-sm font-medium rounded-t-lg border-b-2 transition-all ${
                 activeTab === 'upload'
@@ -282,7 +368,84 @@ export default function ImagePicker({ isOpen, onClose, onSelect, selectedImageId
         </div>
 
         {/* Tab Content */}
-        {activeTab === 'browse' ? (
+        {activeTab === 'getty' ? (
+          /* Getty Images Tab */
+          <>
+            <div className="px-5 py-3 border-b border-ink-50">
+              <div className="relative">
+                <HiOutlineMagnifyingGlass className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-ink-300" />
+                <input
+                  type="text"
+                  value={gettySearch}
+                  onChange={(e) => setGettySearch(e.target.value)}
+                  placeholder="Search Getty Images (e.g. Trump, Congress, border)..."
+                  className="w-full pl-10 pr-4 py-2.5 rounded-lg border border-ink-200 text-sm focus:outline-none focus:border-press-500 focus:ring-2 focus:ring-press-500/10"
+                  autoFocus
+                />
+              </div>
+            </div>
+            <div className="flex-1 overflow-y-auto p-5">
+              {gettyError && (
+                <div className="mb-4 px-4 py-3 rounded-lg bg-red-50 border border-red-100">
+                  <p className="text-sm text-red-700">{gettyError}</p>
+                </div>
+              )}
+              {isGettyLoading ? (
+                <div className="flex items-center justify-center py-20">
+                  <div className="text-center">
+                    <div className="animate-spin w-8 h-8 border-2 border-ink-200 border-t-press-500 rounded-full mx-auto mb-3" />
+                    <p className="text-ink-400 text-sm">Searching Getty Images...</p>
+                  </div>
+                </div>
+              ) : gettyResults.length === 0 ? (
+                <div className="flex items-center justify-center py-20">
+                  <div className="text-center">
+                    <HiOutlineGlobeAlt className="w-12 h-12 text-ink-200 mx-auto mb-3" />
+                    <p className="text-ink-500 text-sm">
+                      {gettySearch ? 'No Getty images found' : 'Type a keyword to search Getty Images'}
+                    </p>
+                    <p className="text-ink-300 text-xs mt-1">
+                      Licensed images will be downloaded to your media library
+                    </p>
+                  </div>
+                </div>
+              ) : (
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 md:gap-3">
+                  {gettyResults.map((result) => (
+                    <button
+                      key={result.assetId}
+                      onClick={() => handleGettySelect(result)}
+                      disabled={isGettyDownloading !== null}
+                      className="relative group rounded-lg overflow-hidden border-2 border-transparent hover:border-ink-200 transition-all duration-150 aspect-[4/3] disabled:opacity-50"
+                    >
+                      <img
+                        src={result.thumbnailUrl}
+                        alt={result.title}
+                        className="w-full h-full object-cover"
+                        loading="lazy"
+                      />
+                      {/* Hover overlay */}
+                      <div className="absolute inset-0 bg-ink-950/0 group-hover:bg-ink-950/40 transition-all duration-150 flex items-end">
+                        <div className="w-full p-2 bg-gradient-to-t from-ink-950/80 to-transparent opacity-0 group-hover:opacity-100 transition-opacity">
+                          <p className="text-paper-100 text-xs truncate">{result.title}</p>
+                        </div>
+                      </div>
+                      {/* Downloading indicator */}
+                      {isGettyDownloading === result.assetId && (
+                        <div className="absolute inset-0 bg-ink-950/60 flex items-center justify-center">
+                          <div className="text-center">
+                            <div className="animate-spin w-6 h-6 border-2 border-paper-200 border-t-paper-100 rounded-full mx-auto mb-1" />
+                            <span className="text-paper-100 text-xs font-medium">Downloading...</span>
+                          </div>
+                        </div>
+                      )}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          </>
+        ) : activeTab === 'browse' ? (
           <>
             {/* Search */}
             <div className="px-5 py-3 border-b border-ink-50">

@@ -76,10 +76,31 @@ services:
       SCANNER_TELEGRAM_SECRET: ${SCANNER_TELEGRAM_SECRET:-}
       TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
       TELEGRAM_CHAT_ID: ${TELEGRAM_CHAT_ID:-}
+      GETTY_WORKER_URL: http://getty-worker:3001
+      GETTY_WORKER_API_KEY: ${GETTY_WORKER_API_KEY:-newsroom-getty-2026}
+
+  getty-worker:
+    build:
+      context: ./getty-worker
+      dockerfile: Dockerfile
+    container_name: newsroom-getty-worker
+    restart: unless-stopped
+    volumes:
+      - media_data:/data/media
+      - getty_state:/data/getty-state
+    environment:
+      GETTY_EMAIL: ${GETTY_EMAIL:-NickRizzuto@iheartmedia.com}
+      GETTY_PASSWORD: ${GETTY_PASSWORD:-}
+      GETTY_CUSTOMER_ID: ${GETTY_CUSTOMER_ID:-9871544}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      GETTY_WORKER_API_KEY: ${GETTY_WORKER_API_KEY:-newsroom-getty-2026}
+      GETTY_STATE_DIR: /data/getty-state
+      MEDIA_TMP_DIR: /data/media/tmp
 
 volumes:
   postgres_data:
   media_data:
+  getty_state:
 
 networks:
   caddy-net:
