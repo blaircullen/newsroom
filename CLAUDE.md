@@ -82,12 +82,14 @@ docker exec newsroom-db-1 psql -U newsroom -d m3newsroom -c "YOUR_QUERY"
 > **AUTO-DEPLOY IS UNRELIABLE.** After `git push origin main`, always manually deploy:
 
 ```bash
-ssh root@178.156.143.87 "cd /opt/newsroom && git pull origin main && docker compose up -d --build"
+# Production is on BuyVM (migrated from Hetzner):
+ssh -p 65222 root@198.98.58.109 "cd /opt/newsroom && git pull origin main && docker compose up -d --build"
 # Verify:
-ssh root@178.156.143.87 "cd /opt/newsroom && git log --oneline -1 && docker compose ps"
+ssh -p 65222 root@198.98.58.109 "cd /opt/newsroom && git log --oneline -1 && docker compose ps"
 ```
 
-**Production:** https://newsroom.m3media.com | Hetzner 178.156.143.87 | `/opt/newsroom/`
+**Production:** https://newsroom.m3media.com | **BuyVM 198.98.58.109** | `/opt/newsroom/`
+**User can flip newsroom between BuyVM and Hetzner via a HA toggle** (both environments exist)
 
 ## Key Components
 
@@ -107,3 +109,51 @@ DISABLED on main (2026-02-21). `monitorXAccounts()` commented out in `cron-jobs.
 ## Publish Targets
 
 - **Matt's Leaderboard:** WP user `sunygxc` (ID 6), app password `newsroom-claude`, target CUID `cuid_mattsleaderboard_1771633132`
+
+## File Ownership Map
+
+| Feature | Key Files |
+|---------|-----------|
+| Auth / session | `src/lib/auth.ts`, `src/app/api/auth/[...nextauth]/route.ts` |
+| Article CRUD | `src/app/api/articles/`, `src/app/editor/[id]/` |
+| AI article generation | `src/lib/cron-jobs.ts` (`runScanner*`), `src/app/api/scanner/` |
+| Scanner SSE (live progress) | `src/lib/scanner-sse.ts` — in-memory registry, not persisted |
+| Scanner Telegram alerts | `src/lib/telegram-scanner.ts` |
+| Social queue | `src/app/social-queue/`, `src/app/api/social/`, `src/components/social/` |
+| Publishing (WP/Shopify) | `src/lib/publish.ts` (45KB — largest file in repo) |
+| Analytics sync | `src/lib/cron-jobs.ts` (`runAnalyticsSync`), `src/app/analytics/` |
+| Umami integration | `src/lib/umami.ts` — incremental sync via `getArticleAnalyticsIncremental()` |
+| Email | `src/lib/email.ts` → `wrapInTemplate()` |
+| Cron infrastructure | `src/lib/cron-jobs.ts` (7 exported `run*` functions), `src/instrumentation.ts` |
+| Getty image worker | `newsroom-getty-worker` container (Playwright, separate from app) |
+| Revenue analytics | `src/app/api/analytics/revenue/` — reads HA sensors, needs `HA_TOKEN` env var |
+| Design tokens | `src/app/globals.css` — `ink-*` / `press-*` / `paper-*` mapped to shadcn CSS vars |
+
+## Pitfalls (Things That Have Burned Time)
+
+- **bcrypt hash generation:** `bcryptjs` is NOT available inside `newsroom-app` container (compiled into bundle). Generate from **BuyVM host**: `cd /opt/newsroom && node -e "const b = require('./node_modules/bcryptjs'); b.hash('pwd', 12).then(h => console.log(h));"` — then update via psql.
+
+- **Zsh glob quoting in `git add`:** Zsh expands `[id]` in paths. Always quote: `git add "src/app/api/scanner/picks/[id]/decision/route.ts"` — unquoted will silently fail or expand wrong.
+
+- **`pg` module not available** in the newsroom dir — don't use `node -e "require('pg')"`. Use Prisma client or query via `docker exec newsroom-db-1 psql`.
+
+- **Env var staleness:** `docker compose up -d --build` does NOT pick up `.env` changes. Must `--force-recreate` to inject new env vars into running containers.
+
+- **Prisma migrations are gitignored** — run SQL manually on production before pushing. Auto-deploy starts immediately; missing schema = crash.
+
+- **DB is on BuyVM, not Hetzner** (migrated). The production DB container is `newsroom-db-1` on BuyVM `198.98.58.109`.
+
+- **Shopify publish target credentials** live in `publish_targets` table on prod DB — not in any `.env` file. Get fresh token via `POST https://<myshopify>/admin/oauth/access_token`.
+
+- **`export const dynamic` is a no-op** in client components (`'use client'`). Never add it there.
+
+## Decision Boundaries
+
+| Decision | When |
+|----------|------|
+| Prisma client | All app queries — type safety, automatic escaping |
+| Raw SQL (`docker exec psql`) | Schema ops, bulk updates, debugging, perf-critical queries |
+| `docker compose up -d --build` | Code changes |
+| `docker compose up -d --force-recreate` | Env var changes (`.env` was updated) |
+| `docker compose restart` | Process-level restart only (env stays the same) |
+| Rebuild DB indexes | After bulk inserts — `REINDEX TABLE` on prod |
