@@ -13,17 +13,17 @@ npx prisma generate  # Regenerate client after schema changes
 
 ## Architecture
 
-**Stack:** Next.js 14, TypeScript, Tailwind CSS, Prisma ORM, TipTap editor
+**Stack:** Next.js 14, TypeScript, Tailwind CSS v3, shadcn/ui, Prisma ORM, TipTap editor
 **Auth:** NextAuth credentials provider (bcrypt, cost factor 12)
 **Analytics:** Umami (self-hosted) via API
 **AI:** Anthropic Claude (claude-sonnet-4-20250514) — assistant prefill (`{`) forces JSON output
 
-**Pages:** `/dashboard`, `/editor/[id]`, `/analytics`, `/calendar`, `/social-queue`, `/login`
-**API routes:** `/api/articles/*`, `/api/analytics/*`, `/api/social/*`, `/api/cron/*`, `/api/sites/*`, `/api/trending/*`
-**Key libs:** `src/lib/auth.ts`, `src/lib/prisma.ts`, `src/lib/email.ts`, `src/lib/publish.ts` (45K, largest), `src/lib/cron-jobs.ts` (20K, 7 exported run* functions)
+**Pages:** `/dashboard`, `/editor/[id]`, `/analytics`, `/calendar`, `/social-queue`, `/scanner`, `/login`
+**API routes:** `/api/articles/*`, `/api/analytics/*`, `/api/social/*`, `/api/cron/*`, `/api/sites/*`, `/api/trending/*`, `/api/scanner/*`
+**Key libs:** `src/lib/auth.ts`, `src/lib/prisma.ts`, `src/lib/email.ts`, `src/lib/publish.ts` (45K, largest), `src/lib/cron-jobs.ts` (20K, 7 exported run* functions), `src/lib/scanner-sse.ts` (in-memory SSE registry), `src/lib/telegram-scanner.ts` (bot alerts)
 
 **Patterns:**
-- All pages `'use client'` — use `layout.tsx` for metadata, `loading.tsx` for loading states
+- All pages `'use client'` — use `layout.tsx` for metadata, `loading.tsx` for loading states. `export const dynamic` is a no-op in client components — never add it there.
 - Article search: PG full-text search (tsvector/tsquery + GIN index) for 3+ chars, ILIKE fallback
 - Prisma migrations dir is gitignored — run SQL manually on production
 - AI article prompts: no `<strong>`/`<b>` bold, no em dashes (—), no header tags in body
@@ -91,6 +91,8 @@ ssh root@178.156.143.87 "cd /opt/newsroom && git log --oneline -1 && docker comp
 
 ## Key Components
 
+- **shadcn/ui components:** `src/components/ui/` (lowercase) — badge, card, dialog, dropdown-menu, input, label, select, separator, sheet, switch, tabs, tooltip. Add more: `npx shadcn@latest add <name>`. `.npmrc` has `legacy-peer-deps=true` to work around next-auth/nodemailer peer conflict.
+- **Design tokens:** `ink-*` / `press-*` / `paper-*` mapped to shadcn CSS vars in `globals.css`. shadcn components pick up the palette automatically. Use `ink-*` tokens in custom code, `bg-primary`/`text-muted-foreground` etc. in shadcn components.
 - **Skeleton:** `src/components/ui/Skeleton.tsx` — `Skeleton`, `SkeletonText`, `SkeletonCard`, `SkeletonCardDark`
 - **StatusBadge:** `src/components/ui/StatusBadge.tsx` — STATUS_CONFIG, STATUS_DOT, desktop/mobile variants
 - **Button:** `src/components/ui/Button.tsx` — primary/secondary/danger, sm/md/lg, loading state

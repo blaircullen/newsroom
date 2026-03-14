@@ -5,6 +5,54 @@
 @tailwind utilities;
 
 @layer base {
+  /* shadcn CSS variables — mapped to ink/press/paper palette */
+  :root {
+    --background: 218 35% 98%;
+    --foreground: 218 45% 18%;
+    --card: 30 33% 99%;
+    --card-foreground: 218 45% 18%;
+    --popover: 30 33% 99%;
+    --popover-foreground: 218 45% 18%;
+    --primary: 0 67% 50%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 218 36% 90%;
+    --secondary-foreground: 218 45% 18%;
+    --muted: 210 13% 95%;
+    --muted-foreground: 222 36% 43%;
+    --accent: 218 36% 90%;
+    --accent-foreground: 218 45% 18%;
+    --destructive: 0 67% 50%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 210 14% 89%;
+    --input: 210 14% 89%;
+    --ring: 0 67% 50%;
+    --radius: 0.5rem;
+  }
+
+  .dark {
+    --background: 218 47% 13%;
+    --foreground: 218 36% 90%;
+    --card: 218 45% 18%;
+    --card-foreground: 218 36% 90%;
+    --popover: 218 45% 18%;
+    --popover-foreground: 218 36% 90%;
+    --primary: 0 91% 71%;
+    --primary-foreground: 218 47% 13%;
+    --secondary: 220 42% 22%;
+    --secondary-foreground: 218 36% 90%;
+    --muted: 220 42% 22%;
+    --muted-foreground: 222 30% 55%;
+    --accent: 222 37% 28%;
+    --accent-foreground: 218 36% 90%;
+    --destructive: 0 67% 50%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 222 37% 28%;
+    --input: 222 37% 28%;
+    --ring: 0 91% 71%;
+  }
+}
+
+@layer base {
   html {
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
