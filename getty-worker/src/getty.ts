@@ -101,7 +101,7 @@ export async function searchGetty(
   try {
     await ensureLoggedIn(page);
 
-    const searchUrl = `https://www.gettyimages.com/search/2/image?phrase=${encodeURIComponent(keywords)}&sort=best`;
+    const searchUrl = `https://www.gettyimages.com/search/2/image?phrase=${encodeURIComponent(keywords)}&sort=best&family_name=editorial`;
     await page.goto(searchUrl, { waitUntil: 'domcontentloaded', timeout: 30000 });
     await page.waitForTimeout(1500);
 
