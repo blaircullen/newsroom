@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
+import { isPrivateUrl } from '@/lib/url-validation';
 
 // POST /api/articles/import - Import and rewrite an article from a URL
 export async function POST(request: NextRequest) {
@@ -33,6 +34,14 @@ export async function POST(request: NextRequest) {
   } catch {
     return NextResponse.json(
       { error: 'Invalid URL format' },
+      { status: 400 }
+    );
+  }
+
+  // Block SSRF — prevent fetching internal/private network resources
+  if (isPrivateUrl(url)) {
+    return NextResponse.json(
+      { error: 'URLs pointing to private or internal networks are not allowed' },
       { status: 400 }
     );
   }

@@ -24,7 +24,7 @@ async function fetchHaSensor(entityId: string): Promise<Record<string, unknown> 
 
 export async function GET() {
   const session = await getServerSession(authOptions);
-  if (!session || session.user.email !== 'admin@m3media.com') {
+  if (!session || session.user.role !== 'ADMIN') {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 

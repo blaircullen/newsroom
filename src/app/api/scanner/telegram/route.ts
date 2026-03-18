@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { editScannerAlert, answerCallback } from '@/lib/telegram-scanner';
+import { timingSafeCompare } from '@/lib/auth-utils';
 
 export const dynamic = 'force-dynamic';
 
@@ -16,7 +17,7 @@ const WEBHOOK_SECRET = process.env.SCANNER_TELEGRAM_SECRET ?? '';
 export async function POST(request: NextRequest) {
   // Verify the request is from Telegram
   const secret = request.headers.get('x-telegram-bot-api-secret-token') ?? '';
-  if (!WEBHOOK_SECRET || secret !== WEBHOOK_SECRET) {
+  if (!timingSafeCompare(secret, WEBHOOK_SECRET)) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 

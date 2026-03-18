@@ -37,8 +37,14 @@ export async function POST(
     );
   }
 
-  const body = await request.json();
-  const { decision, notes } = body;
+  let body: Record<string, unknown>;
+  try {
+    body = await request.json();
+  } catch {
+    return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 });
+  }
+  const decision = typeof body.decision === 'string' ? body.decision : '';
+  const notes = typeof body.notes === 'string' ? body.notes : null;
 
   if (!['approved', 'revision_requested', 'rejected'].includes(decision)) {
     return NextResponse.json(
@@ -59,15 +65,15 @@ export async function POST(
     data: {
       articleId: params.id,
       reviewerId: session.user.id,
-      decision,
-      notes: notes || null,
+      decision: decision as string,
+      notes,
     },
   });
 
   // Update article status
   const updated = await prisma.article.update({
     where: { id: params.id },
-    data: { status: statusMap[decision] },
+    data: { status: statusMap[decision as string] },
     include: {
       author: { select: { id: true, name: true, email: true, avatarUrl: true } },
       tags: { include: { tag: true } },
@@ -80,7 +86,7 @@ export async function POST(
     article.author.name,
     article.headline,
     decision as 'approved' | 'revision_requested' | 'rejected',
-    notes
+    notes ?? undefined
   ).catch(console.error);
 
   return NextResponse.json(updated);

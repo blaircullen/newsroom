@@ -244,7 +244,9 @@ export async function POST(request: NextRequest) {
         update: { credit: article.imageCredit },
         create: { driveFileId: article.featuredImageId, credit: article.imageCredit },
       });
-    } catch {}
+    } catch (err) {
+      console.error('[Articles POST] imageCredit upsert failed:', err);
+    }
   }
 
   return NextResponse.json(article, { status: 201 });

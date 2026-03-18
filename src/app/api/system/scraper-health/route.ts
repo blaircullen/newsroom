@@ -2,6 +2,7 @@ export const dynamic = 'force-dynamic';
 
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
+import { timingSafeCompare } from '@/lib/auth-utils';
 
 /**
  * GET /api/system/scraper-health
@@ -12,7 +13,7 @@ export async function GET(request: NextRequest) {
   const apiKey = request.headers.get('x-api-key');
   const expectedKey = process.env.TRENDING_API_KEY;
 
-  if (!apiKey || apiKey !== expectedKey) {
+  if (!timingSafeCompare(apiKey, expectedKey)) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 

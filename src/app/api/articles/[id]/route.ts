@@ -5,6 +5,7 @@ import prisma from '@/lib/prisma';
 import slugify from 'slugify';
 import { sendDeletionNotification } from '@/lib/email';
 import { incrementUsageCount, decrementUsageCount } from '@/lib/media';
+import { z } from 'zod';
 
 // Input validation constants (same as POST endpoint)
 const MAX_HEADLINE_LENGTH = 500;
@@ -12,6 +13,20 @@ const MAX_SUBHEADLINE_LENGTH = 1000;
 const MAX_BODY_LENGTH = 500000; // 500KB
 const MAX_TAGS = 20;
 const MAX_TAG_NAME_LENGTH = 100;
+
+const UpdateArticleSchema = z.object({
+  headline: z.string().trim().max(MAX_HEADLINE_LENGTH).optional(),
+  subHeadline: z.string().trim().max(MAX_SUBHEADLINE_LENGTH).nullish(),
+  bodyContent: z.string().trim().max(MAX_BODY_LENGTH).optional(),
+  bodyHtml: z.string().nullish(),
+  featuredImage: z.string().nullish(),
+  featuredImageId: z.string().nullish(),
+  featuredMediaId: z.string().nullish(),
+  imageCredit: z.string().trim().nullish(),
+  tags: z.array(z.string().max(MAX_TAG_NAME_LENGTH)).max(MAX_TAGS).optional(),
+  scheduledPublishAt: z.string().nullish(),
+  scheduledPublishTargetId: z.string().nullish(),
+});
 
 // GET /api/articles/[id]
 export async function GET(
@@ -89,65 +104,39 @@ export async function PUT(
     }
   }
 
-  let body: Record<string, unknown>;
+  let rawBody: unknown;
   try {
-    body = await request.json();
+    rawBody = await request.json();
   } catch {
     return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 });
   }
 
-  const { headline, subHeadline, bodyContent, bodyHtml, featuredImage, featuredImageId, featuredMediaId, imageCredit, tags, scheduledPublishAt, scheduledPublishTargetId } = body;
-
-  // Validate field types and lengths (consistent with POST endpoint)
-  if (headline !== undefined) {
-    if (typeof headline !== 'string') {
-      return NextResponse.json({ error: 'Headline must be a string' }, { status: 400 });
-    }
-    if (headline.length > MAX_HEADLINE_LENGTH) {
-      return NextResponse.json({ error: `Headline must be under ${MAX_HEADLINE_LENGTH} characters` }, { status: 400 });
-    }
+  const parseResult = UpdateArticleSchema.safeParse(rawBody);
+  if (!parseResult.success) {
+    const firstError = parseResult.error.errors[0];
+    return NextResponse.json({ error: firstError.message }, { status: 400 });
   }
 
-  if (subHeadline !== undefined && subHeadline !== null) {
-    if (typeof subHeadline !== 'string') {
-      return NextResponse.json({ error: 'Subheadline must be a string' }, { status: 400 });
-    }
-    if (subHeadline.length > MAX_SUBHEADLINE_LENGTH) {
-      return NextResponse.json({ error: `Subheadline must be under ${MAX_SUBHEADLINE_LENGTH} characters` }, { status: 400 });
-    }
-  }
-
-  if (bodyContent !== undefined) {
-    if (typeof bodyContent !== 'string') {
-      return NextResponse.json({ error: 'Body content must be a string' }, { status: 400 });
-    }
-    if (bodyContent.length > MAX_BODY_LENGTH) {
-      return NextResponse.json({ error: 'Article body is too long' }, { status: 400 });
-    }
-  }
-
-  if (tags !== undefined && !Array.isArray(tags)) {
-    return NextResponse.json({ error: 'Tags must be an array' }, { status: 400 });
-  }
+  const { headline, subHeadline, bodyContent, bodyHtml, featuredImage, featuredImageId, featuredMediaId, imageCredit, tags, scheduledPublishAt, scheduledPublishTargetId } = parseResult.data;
 
   const updateData: Record<string, unknown> = {};
 
-  if (headline !== undefined && typeof headline === 'string') {
+  if (headline !== undefined) {
     updateData.headline = headline.trim();
     updateData.slug = slugify(headline.trim(), { lower: true, strict: true });
   }
-  if (subHeadline !== undefined) updateData.subHeadline = typeof subHeadline === 'string' ? subHeadline.trim() || null : null;
-  if (bodyContent !== undefined) updateData.body = typeof bodyContent === 'string' ? bodyContent.trim() : bodyContent;
-  if (bodyHtml !== undefined) updateData.bodyHtml = typeof bodyHtml === 'string' ? bodyHtml : null;
-  if (featuredImage !== undefined) updateData.featuredImage = typeof featuredImage === 'string' ? featuredImage : null;
-  if (featuredImageId !== undefined) updateData.featuredImageId = typeof featuredImageId === 'string' ? featuredImageId : null;
-  if (featuredMediaId !== undefined) updateData.featuredMediaId = typeof featuredMediaId === 'string' ? featuredMediaId : null;
-  if (imageCredit !== undefined) updateData.imageCredit = typeof imageCredit === 'string' ? imageCredit.trim() || null : null;
+  if (subHeadline !== undefined) updateData.subHeadline = subHeadline?.trim() || null;
+  if (bodyContent !== undefined) updateData.body = bodyContent.trim();
+  if (bodyHtml !== undefined) updateData.bodyHtml = bodyHtml || null;
+  if (featuredImage !== undefined) updateData.featuredImage = featuredImage || null;
+  if (featuredImageId !== undefined) updateData.featuredImageId = featuredImageId || null;
+  if (featuredMediaId !== undefined) updateData.featuredMediaId = featuredMediaId || null;
+  if (imageCredit !== undefined) updateData.imageCredit = imageCredit?.trim() || null;
 
   // Manage media usage counts when featuredMediaId changes
   if (featuredMediaId !== undefined) {
     const oldMediaId = article.featuredMediaId;
-    const newMediaId = typeof featuredMediaId === 'string' ? featuredMediaId : null;
+    const newMediaId = featuredMediaId || null;
     if (oldMediaId !== newMediaId) {
       if (oldMediaId) decrementUsageCount(oldMediaId).catch(() => {});
       if (newMediaId) incrementUsageCount(newMediaId).catch(() => {});
@@ -155,7 +144,7 @@ export async function PUT(
   }
   if (scheduledPublishAt !== undefined) {
     if (scheduledPublishAt) {
-      const parsedDate = new Date(scheduledPublishAt as string);
+      const parsedDate = new Date(scheduledPublishAt);
       if (isNaN(parsedDate.getTime())) {
         return NextResponse.json({ error: 'Invalid scheduledPublishAt date' }, { status: 400 });
       }
@@ -168,16 +157,15 @@ export async function PUT(
     }
   }
   if (scheduledPublishTargetId !== undefined) {
-    updateData.scheduledPublishTargetId = typeof scheduledPublishTargetId === 'string' ? scheduledPublishTargetId : null;
+    updateData.scheduledPublishTargetId = scheduledPublishTargetId || null;
   }
 
   // Update tags if provided (with validation consistent with POST)
   // Optimized to reduce N+1 queries by batching operations
-  if (tags && Array.isArray(tags)) {
-    // Validate and dedupe tags, prepare slugs
+  if (tags) {
+    // Dedupe tags, prepare slugs (Zod already validated types and limits)
     const uniqueTags = Array.from(new Set(
-      tags.slice(0, MAX_TAGS)
-        .filter((t): t is string => typeof t === 'string' && Boolean(t.trim()) && t.length <= MAX_TAG_NAME_LENGTH)
+      tags.filter(t => Boolean(t.trim()))
     ));
 
     const tagData = uniqueTags
@@ -239,7 +227,9 @@ export async function PUT(
         update: { credit: updated.imageCredit },
         create: { driveFileId: updated.featuredImageId, credit: updated.imageCredit },
       });
-    } catch {}
+    } catch (err) {
+      console.error('[Articles PUT] imageCredit upsert failed:', err);
+    }
   }
 
   return NextResponse.json(updated);

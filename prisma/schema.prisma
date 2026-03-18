@@ -38,7 +38,7 @@ model Article {
   subHeadline         String?          @map("sub_headline")
   body                String
   bodyHtml            String?          @map("body_html")
-  slug                String?
+  slug                String?          @unique
   featuredImage       String?          @map("featured_image")
   featuredImageId     String?          @map("featured_image_id")
   imageCredit         String?          @map("image_credit")

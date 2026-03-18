@@ -2,13 +2,14 @@ import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { Prisma } from '@prisma/client';
 import { getArticleAnalyticsIncremental } from '@/lib/umami';
+import { timingSafeCompare } from '@/lib/auth-utils';
 
 export async function POST(request: NextRequest) {
   try {
     // Check for cron secret in header
     const cronSecret = request.headers.get('x-cron-secret');
-    
-    if (!cronSecret || cronSecret !== process.env.CRON_SECRET) {
+
+    if (!timingSafeCompare(cronSecret, process.env.CRON_SECRET)) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 

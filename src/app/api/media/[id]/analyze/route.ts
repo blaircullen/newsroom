@@ -10,7 +10,7 @@ export async function POST(
   { params }: { params: { id: string } }
 ) {
   const authHeader = request.headers.get('x-internal-secret');
-  if (authHeader !== process.env.NEXTAUTH_SECRET) {
+  if (!authHeader || authHeader !== process.env.INTERNAL_API_SECRET) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 

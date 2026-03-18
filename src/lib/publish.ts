@@ -6,6 +6,7 @@ import path from 'path';
 import { processImage, OptimizeOptions } from './imageOptimization';
 import { decrypt } from './encryption';
 import { getMediaFilePath } from './media';
+import { isPrivateUrl } from './url-validation';
 
 interface PublishResult {
   success: boolean;
@@ -182,6 +183,10 @@ async function downloadImage(imageUrl: string): Promise<ImageData | null> {
     const url = new URL(absoluteUrl);
     if (!['http:', 'https:'].includes(url.protocol)) {
       console.error(`[Image Download] Invalid protocol: ${url.protocol}`);
+      return null;
+    }
+    if (isPrivateUrl(absoluteUrl)) {
+      console.error(`[Image Download] Blocked private/internal URL: ${url.hostname}`);
       return null;
     }
 

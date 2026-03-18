@@ -537,13 +537,19 @@ export default function NewEditorPage() {
           setShowImagePicker(false);
           // Auto-fill credit from stored image credit if field is empty
           if (!imageCredit.trim()) {
-            try {
-              const res = await fetch(`/api/image-credits/${image.id}`);
-              if (res.ok) {
-                const data = await res.json();
-                if (data.credit) setImageCredit(data.credit);
+            if (image.credit) {
+              setImageCredit(image.credit);
+            } else {
+              try {
+                const res = await fetch(`/api/image-credits/${image.id}`);
+                if (res.ok) {
+                  const data = await res.json();
+                  if (data.credit) setImageCredit(data.credit);
+                }
+              } catch (err) {
+                console.error('[Editor] imageCredit fetch failed:', err);
               }
-            } catch {}
+            }
           }
         }}
         selectedImageId={featuredImageId}

@@ -68,7 +68,7 @@ export async function POST(request: NextRequest) {
     fetch(`${baseUrl}/api/media/${media.id}/analyze`, {
       method: 'POST',
       headers: {
-        'x-internal-secret': process.env.NEXTAUTH_SECRET || '',
+        'x-internal-secret': process.env.INTERNAL_API_SECRET || '',
       },
     }).catch((err) => {
       console.error('[Media Upload] Failed to trigger analysis:', err.message);
