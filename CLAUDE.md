@@ -125,7 +125,7 @@ DISABLED on main (2026-02-21). `monitorXAccounts()` commented out in `cron-jobs.
 | Umami integration | `src/lib/umami.ts` — incremental sync via `getArticleAnalyticsIncremental()` |
 | Email | `src/lib/email.ts` → `wrapInTemplate()` |
 | Cron infrastructure | `src/lib/cron-jobs.ts` (7 exported `run*` functions), `src/instrumentation.ts` |
-| Getty image worker | `newsroom-getty-worker` container (Playwright, separate from app) |
+| Getty image worker | `newsroom-getty-worker` container (Playwright, separate from app) — compose service name is `getty-worker` (use `docker compose up -d --build getty-worker`) |
 | Revenue analytics | `src/app/api/analytics/revenue/` — reads HA sensors, needs `HA_TOKEN` env var |
 | Design tokens | `src/app/globals.css` — `ink-*` / `press-*` / `paper-*` mapped to shadcn CSS vars |
 
