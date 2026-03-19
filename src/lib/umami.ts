@@ -41,6 +41,11 @@ function getWebsiteConfigs(): Record<string, WebsiteConfig> {
       username: process.env.UMAMI_USERNAME || '',
       password: process.env.UMAMI_PASSWORD || '',
     },
+    'mattsleaderboard.com': {
+      websiteId: process.env.UMAMI_MATTSLEADERBOARD_WEBSITE_ID || '',
+      username: process.env.UMAMI_USERNAME || '',
+      password: process.env.UMAMI_PASSWORD || '',
+    },
   };
 }
 
