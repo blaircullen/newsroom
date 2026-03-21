@@ -1,0 +1,7 @@
+# ai-session scrub-patterns — Custom secret patterns (sed ERE syntax, one per line)
+# These are applied IN ADDITION to built-in patterns during transcript scrubbing.
+# Each pattern is used as: sed -E "s/<pattern>/[REDACTED]/g"
+#
+# Examples:
+# my-service-key-[A-Za-z0-9]{32}
+# PRIVATE-[0-9a-f]{64}
