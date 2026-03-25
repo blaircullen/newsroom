@@ -3,9 +3,46 @@ import path from 'path';
 import sharp from 'sharp';
 import prisma from './prisma';
 import { createId } from '@paralleldrive/cuid2';
+import { S3Client, PutObjectCommand, DeleteObjectCommand } from '@aws-sdk/client-s3';
 
 const STORAGE_PATH = process.env.MEDIA_STORAGE_PATH || './uploads/media';
 const BASE_URL = process.env.MEDIA_BASE_URL || '/api/media';
+
+// R2 config — only active when all three env vars are set
+const R2_ACCOUNT_ID = process.env.R2_ACCOUNT_ID || '';
+const R2_ACCESS_KEY_ID = process.env.R2_ACCESS_KEY_ID || '';
+const R2_SECRET_ACCESS_KEY = process.env.R2_SECRET_ACCESS_KEY || '';
+const R2_BUCKET = process.env.R2_BUCKET || 'm3-media';
+const R2_KEY_PREFIX = process.env.R2_KEY_PREFIX || 'newsroom';
+
+function getR2Client(): S3Client | null {
+  if (!R2_ACCOUNT_ID || !R2_ACCESS_KEY_ID || !R2_SECRET_ACCESS_KEY) return null;
+  return new S3Client({
+    region: 'auto',
+    endpoint: `https://${R2_ACCOUNT_ID}.r2.cloudflarestorage.com`,
+    credentials: {
+      accessKeyId: R2_ACCESS_KEY_ID,
+      secretAccessKey: R2_SECRET_ACCESS_KEY,
+    },
+  });
+}
+
+async function uploadToR2(buffer: Buffer, key: string, contentType: string): Promise<void> {
+  const client = getR2Client();
+  if (!client) return;
+  await client.send(new PutObjectCommand({
+    Bucket: R2_BUCKET,
+    Key: key,
+    Body: buffer,
+    ContentType: contentType,
+  }));
+}
+
+async function deleteFromR2(key: string): Promise<void> {
+  const client = getR2Client();
+  if (!client) return;
+  await client.send(new DeleteObjectCommand({ Bucket: R2_BUCKET, Key: key })).catch(() => {});
+}
 
 const ALLOWED_MIME_TYPES = new Set([
   'image/jpeg',
@@ -104,6 +141,10 @@ export async function saveMedia(
 
   // Store relative path from STORAGE_PATH root for DB
   const storedFilename = `${yearMonth}/${filename}`;
+
+  // Upload to R2 if configured
+  const r2Key = `${R2_KEY_PREFIX}/${storedFilename}`;
+  await uploadToR2(outputBuffer, r2Key, outputMime);
 
   const media = await prisma.media.create({
     data: {
@@ -225,6 +266,9 @@ export async function deleteMedia(id: string) {
   await fs.unlink(filePath).catch(() => {
     console.warn(`[Media] File not found on disk: ${filePath}`);
   });
+
+  // Delete from R2 if configured
+  await deleteFromR2(`${R2_KEY_PREFIX}/${media.filename}`);
 
   await prisma.media.delete({ where: { id } });
 }

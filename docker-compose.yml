@@ -81,6 +81,11 @@ services:
       HA_TOKEN: ${HA_TOKEN:-}
       GETTY_WORKER_URL: http://getty-worker:3001
       GETTY_WORKER_API_KEY: ${GETTY_WORKER_API_KEY:-newsroom-getty-2026}
+      R2_ACCOUNT_ID: ${R2_ACCOUNT_ID:-}
+      R2_ACCESS_KEY_ID: ${R2_ACCESS_KEY_ID:-}
+      R2_SECRET_ACCESS_KEY: ${R2_SECRET_ACCESS_KEY:-}
+      R2_BUCKET: ${R2_BUCKET:-m3-media}
+      R2_KEY_PREFIX: ${R2_KEY_PREFIX:-newsroom}
 
   getty-worker:
     build:
