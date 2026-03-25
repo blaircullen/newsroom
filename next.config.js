@@ -10,6 +10,7 @@ const nextConfig = {
       { protocol: 'https', hostname: 'pbs.twimg.com' },
       { protocol: 'https', hostname: '*.fbcdn.net' },
       { protocol: 'https', hostname: 'newsroom.m3media.com' },
+      { protocol: 'https', hostname: 'media.m3media.com' },
     ],
     formats: ['image/avif', 'image/webp'],
     minimumCacheTTL: 60 * 60 * 24 * 30,
