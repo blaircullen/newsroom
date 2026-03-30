@@ -14,8 +14,6 @@ import DailyRecap from '@/components/dashboard/DailyRecap';
 import HotSection from '@/components/dashboard/HotSection';
 import AnalyticsSection from '@/components/dashboard/AnalyticsSection';
 import ProfileSection from '@/components/dashboard/ProfileSection';
-import StoryIntelligenceFeed from '@/components/dashboard/StoryIntelligenceFeed';
-import ExemplarSubmitForm from '@/components/dashboard/ExemplarSubmitForm';
 import { SkeletonCard, SkeletonCardDark } from '@/components/ui/Skeleton';
 import { nowET } from '@/lib/date-utils';
 import {
@@ -56,7 +54,6 @@ export default function DashboardPage() {
   const [activeTab, setActiveTab] = useState<TabId>('home');
   const [articles, setArticles] = useState<Article[]>([]);
   const [hotArticles, setHotArticles] = useState<Article[]>([]);
-  const [intelligenceStories, setIntelligenceStories] = useState<any[]>([]);
   const [stats, setStats] = useState({ total: 0, submitted: 0, approved: 0, published: 0, drafts: 0, totalViews: 0 });
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
@@ -157,18 +154,6 @@ export default function DashboardPage() {
     }
   }, []);
 
-  const fetchIntelligence = useCallback(async () => {
-    try {
-      const res = await fetch('/api/story-intelligence');
-      if (res.ok) {
-        const data = await res.json();
-        setIntelligenceStories(data.stories || []);
-      }
-    } catch (error) {
-      console.error('Failed to fetch story intelligence:', error);
-    }
-  }, []);
-
   // Redirect if not authenticated
   useEffect(() => {
     if (status === 'unauthenticated') {
@@ -182,7 +167,6 @@ export default function DashboardPage() {
       setIsLoading(true);
       fetchArticles();
       fetchHotArticles();
-      fetchIntelligence();
 
       // Auto-refresh every 30 seconds
       const interval = setInterval(() => {
@@ -190,19 +174,16 @@ export default function DashboardPage() {
         fetchArticles();
       }, 30000);
 
-      const intelligenceInterval = setInterval(fetchIntelligence, 5 * 60 * 1000);
-
       return () => {
         clearInterval(interval);
-        clearInterval(intelligenceInterval);
       };
     }
-  }, [session, fetchArticles, fetchHotArticles, fetchIntelligence]);
+  }, [session, fetchArticles, fetchHotArticles]);
 
   // Pull-to-refresh handlers
   const handlePullToRefresh = async () => {
     setIsRefreshing(true);
-    await Promise.all([fetchArticles(), fetchHotArticles(), fetchIntelligence()]);
+    await Promise.all([fetchArticles(), fetchHotArticles()]);
     setTimeout(() => setIsRefreshing(false), 600);
   };
 
@@ -470,19 +451,6 @@ export default function DashboardPage() {
         {/* Hot Tab - Mobile */}
         {activeTab === 'hot' && (
           <div className="bg-ink-950 min-h-screen px-4 pt-4">
-            {intelligenceStories.length > 0 && (
-              <div className="mb-4">
-                <div className="flex items-center gap-2 mb-3">
-                  <HiOutlineSparkles className="w-5 h-5 text-blue-400" />
-                  <h3 className="font-display font-semibold text-white">Story Intelligence</h3>
-                  <span className="text-xs text-white/50">{intelligenceStories.length} stories</span>
-                </div>
-                <StoryIntelligenceFeed
-                  stories={intelligenceStories}
-                  onRefresh={fetchIntelligence}
-                />
-              </div>
-            )}
             <HotSection
               hotArticles={hotArticles}
               storyIdeas={[]}
@@ -622,32 +590,6 @@ export default function DashboardPage() {
                 View Article
                 <HiOutlineArrowTopRightOnSquare className="w-4 h-4" />
               </Link>
-            </div>
-          </div>
-        )}
-
-        {/* Story Intelligence Panel - Desktop (Admin only) */}
-        {isAdmin && intelligenceStories.length > 0 && (
-          <div className="mb-8 bg-gradient-to-r from-amber-50 to-yellow-50 dark:from-amber-900/20 dark:to-yellow-900/20 rounded-xl border border-amber-200 dark:border-amber-800 overflow-hidden">
-            <div className="px-5 py-4 flex items-center gap-3">
-              <div className="w-9 h-9 rounded-lg bg-amber-100 dark:bg-amber-800 flex items-center justify-center">
-                <HiOutlineSparkles className="w-5 h-5 text-amber-600 dark:text-amber-400" />
-              </div>
-              <div>
-                <h3 className="font-display font-semibold text-ink-900 dark:text-ink-100">Story Intelligence</h3>
-                <p className="text-xs text-ink-500 dark:text-ink-400">{intelligenceStories.length} AI-scored stories from around the web</p>
-              </div>
-            </div>
-            <div className="px-5 pb-5">
-              <StoryIntelligenceFeed stories={intelligenceStories} onRefresh={fetchIntelligence} />
-            </div>
-            <div className="px-5 pb-5 border-t border-amber-200 dark:border-amber-800 pt-4">
-              <div className="flex items-center gap-2 mb-3">
-                <HiOutlineStar className="w-4 h-4 text-amber-600 dark:text-amber-400" />
-                <h4 className="text-sm font-semibold text-ink-700 dark:text-ink-300">Train AI with Exemplar Stories</h4>
-              </div>
-              <p className="text-xs text-ink-500 dark:text-ink-400 mb-3">Submit URLs of excellent articles to improve story scoring</p>
-              <ExemplarSubmitForm onSubmitted={fetchIntelligence} />
             </div>
           </div>
         )}
