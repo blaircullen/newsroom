@@ -106,6 +106,8 @@ export async function sendSubmissionConfirmation(
   headline: string,
   articleId: string
 ) {
+  // Writer notifications disabled
+  return { success: true };
   const safeWriterName = escapeHtml(writerName);
   const safeHeadline = escapeHtml(headline);
   const safeArticleId = escapeHtml(articleId);
@@ -172,6 +174,8 @@ export async function sendReviewDecision(
   decision: 'approved' | 'revision_requested' | 'rejected',
   notes?: string
 ) {
+  // Writer notifications disabled
+  return { success: true };
   const safeWriterName = escapeHtml(writerName);
   const safeHeadline = escapeHtml(headline);
   const safeNotes = notes ? escapeHtml(notes) : '';
@@ -224,6 +228,8 @@ export async function sendDeletionNotification(
   headline: string,
   reason?: string
 ) {
+  // Writer notifications disabled
+  return { success: true };
   const safeWriterName = escapeHtml(writerName);
   const safeHeadline = escapeHtml(headline);
   const safeReason = reason ? escapeHtml(reason) : '';
