@@ -101,40 +101,13 @@ function wrapInTemplate(title: string, content: string): string {
 
 // Specific email templates
 export async function sendSubmissionConfirmation(
-  writerEmail: string,
-  writerName: string,
-  headline: string,
-  articleId: string
+  _writerEmail: string,
+  _writerName: string,
+  _headline: string,
+  _articleId: string
 ) {
   // Writer notifications disabled
   return { success: true };
-  const safeWriterName = escapeHtml(writerName);
-  const safeHeadline = escapeHtml(headline);
-  const safeArticleId = escapeHtml(articleId);
-  const dashboardUrl = `${process.env.NEXTAUTH_URL || ''}/dashboard`;
-
-  return sendEmail({
-    to: writerEmail,
-    subject: `Story Submitted: "${headline}"`,
-    html: `
-      <p style="color:#192842;font-size:15px;line-height:1.6;">
-        Hi ${safeWriterName},
-      </p>
-      <p style="color:#192842;font-size:15px;line-height:1.6;">
-        Your story <strong>"${safeHeadline}"</strong> has been successfully submitted for review.
-        Our editorial team will review it shortly.
-      </p>
-      <p style="color:#192842;font-size:15px;line-height:1.6;">
-        You can track the status of your story in the
-        <a href="${dashboardUrl}" style="color:#D42B2B;">newsroom dashboard</a>.
-      </p>
-      <div style="margin:24px 0;padding:16px;background:#fef2f2;border-left:4px solid #D42B2B;border-radius:0 4px 4px 0;">
-        <p style="margin:0;color:#465f94;font-size:13px;">
-          Article ID: ${safeArticleId}
-        </p>
-      </div>
-    `,
-  });
 }
 
 export async function sendEditorNotification(
@@ -168,93 +141,24 @@ export async function sendEditorNotification(
 }
 
 export async function sendReviewDecision(
-  writerEmail: string,
-  writerName: string,
-  headline: string,
-  decision: 'approved' | 'revision_requested' | 'rejected',
-  notes?: string
+  _writerEmail: string,
+  _writerName: string,
+  _headline: string,
+  _decision: 'approved' | 'revision_requested' | 'rejected',
+  _notes?: string
 ) {
   // Writer notifications disabled
   return { success: true };
-  const safeWriterName = escapeHtml(writerName);
-  const safeHeadline = escapeHtml(headline);
-  const safeNotes = notes ? escapeHtml(notes) : '';
-  const dashboardUrl = `${process.env.NEXTAUTH_URL || ''}/dashboard`;
-
-  const decisionText: Record<typeof decision, string> = {
-    approved: 'Your story has been approved!',
-    revision_requested: 'Your story needs some revisions.',
-    rejected: 'Your story was not approved at this time.',
-  };
-
-  const decisionColor: Record<typeof decision, string> = {
-    approved: '#16a34a',
-    revision_requested: '#D42B2B',
-    rejected: '#dc2626',
-  };
-
-  return sendEmail({
-    to: writerEmail,
-    subject: `Review Decision: "${headline}"`,
-    html: `
-      <p style="color:#192842;font-size:15px;line-height:1.6;">
-        Hi ${safeWriterName},
-      </p>
-      <div style="margin:20px 0;padding:16px;background:#f0f3f8;border-left:4px solid ${decisionColor[decision]};border-radius:0 4px 4px 0;">
-        <p style="margin:0;color:#111c30;font-size:15px;font-weight:600;">
-          ${decisionText[decision]}
-        </p>
-      </div>
-      <p style="color:#192842;font-size:15px;line-height:1.6;">
-        Story: <strong>"${safeHeadline}"</strong>
-      </p>
-      ${safeNotes ? `
-        <div style="margin:20px 0;padding:16px;background:#f0f3f8;border-radius:6px;">
-          <p style="margin:0 0 8px;color:#465f94;font-size:13px;text-transform:uppercase;letter-spacing:0.5px;">Editor Notes</p>
-          <p style="margin:0;color:#192842;font-size:14px;line-height:1.6;">${safeNotes}</p>
-        </div>
-      ` : ''}
-      <a href="${dashboardUrl}"
-         style="display:inline-block;padding:12px 24px;background:#111c30;color:#ffffff;text-decoration:none;border-radius:6px;font-size:14px;font-weight:600;">
-        View in Dashboard →
-      </a>
-    `,
-  });
 }
 
 export async function sendDeletionNotification(
-  writerEmail: string,
-  writerName: string,
-  headline: string,
-  reason?: string
+  _writerEmail: string,
+  _writerName: string,
+  _headline: string,
+  _reason?: string
 ) {
   // Writer notifications disabled
   return { success: true };
-  const safeWriterName = escapeHtml(writerName);
-  const safeHeadline = escapeHtml(headline);
-  const safeReason = reason ? escapeHtml(reason) : '';
-
-  return sendEmail({
-    to: writerEmail,
-    subject: `Story Removed: "${headline}"`,
-    html: `
-      <p style="color:#192842;font-size:15px;line-height:1.6;">
-        Hi ${safeWriterName},
-      </p>
-      <p style="color:#192842;font-size:15px;line-height:1.6;">
-        Your story <strong>"${safeHeadline}"</strong> has been removed by an editor.
-      </p>
-      ${safeReason ? `
-        <div style="margin:20px 0;padding:16px;background:#f0f3f8;border-radius:6px;">
-          <p style="margin:0 0 8px;color:#465f94;font-size:13px;text-transform:uppercase;letter-spacing:0.5px;">Reason</p>
-          <p style="margin:0;color:#192842;font-size:14px;line-height:1.6;">${safeReason}</p>
-        </div>
-      ` : ''}
-      <p style="color:#6580b0;font-size:13px;line-height:1.6;">
-        If you have questions, please reach out to your editor.
-      </p>
-    `,
-  });
 }
 
 export async function sendPasswordResetEmail(
