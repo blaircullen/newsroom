@@ -35,6 +35,9 @@ function log(msg: string) {
 
 let _context: BrowserContext | null = null;
 
+// Login mutex — prevents concurrent authentication attempts
+let _loginLock: Promise<void> | null = null;
+
 async function getContext(): Promise<BrowserContext> {
   if (_context) return _context;
 
@@ -49,6 +52,41 @@ async function getContext(): Promise<BrowserContext> {
   return _context;
 }
 
+async function doLogin(page: Page, label: string): Promise<void> {
+  // Serialize login attempts — if one is already in progress, wait for it
+  if (_loginLock) {
+    log(`${label}: waiting for in-progress login to complete...`);
+    await _loginLock;
+    return;
+  }
+
+  let resolveLock!: () => void;
+  _loginLock = new Promise<void>((resolve) => { resolveLock = resolve; });
+
+  try {
+    log(`${label}`);
+    await page.goto('https://www.gettyimages.com/sign-in', {
+      waitUntil: 'networkidle',
+      timeout: 45000,
+    });
+
+    // Wait for the form to be interactive before filling
+    await page.waitForSelector('input[type="text"], input[type="email"], input[name]', {
+      timeout: 15000,
+    });
+    await page.waitForTimeout(500);
+
+    await page.getByRole('textbox', { name: 'Username or email' }).fill(GETTY_EMAIL);
+    await page.getByRole('textbox', { name: 'Password' }).fill(GETTY_PASSWORD);
+    await page.locator('#sign_in').click();
+    await page.waitForURL('https://www.gettyimages.com/', { timeout: 20000 });
+    log('Authenticated successfully');
+  } finally {
+    _loginLock = null;
+    resolveLock();
+  }
+}
+
 async function ensureLoggedIn(page: Page): Promise<void> {
   await page.goto('https://www.gettyimages.com', {
     waitUntil: 'domcontentloaded',
@@ -56,35 +94,22 @@ async function ensureLoggedIn(page: Page): Promise<void> {
   });
   await page.waitForTimeout(1500);
 
-  const loggedIn = await page.evaluate(() =>
-    Array.from(document.querySelectorAll('button')).some((b) =>
-      b.textContent?.trim() === 'Nicholas'
-    )
-  );
+  // Check for any nav-level "SIGN IN" text — if present, we're logged out
+  const loggedIn = await page.evaluate(() => {
+    const navEls = Array.from(document.querySelectorAll('header a, header button, nav a, nav button'));
+    const hasSignInNav = navEls.some((el) =>
+      el.textContent?.trim().toUpperCase() === 'SIGN IN'
+    );
+    return !hasSignInNav;
+  });
 
   if (!loggedIn) {
-    log('Not logged in — authenticating...');
-    await page.goto('https://www.gettyimages.com/sign-in', {
-      waitUntil: 'domcontentloaded',
-    });
-    await page.getByRole('textbox', { name: 'Username or email' }).fill(GETTY_EMAIL);
-    await page.getByRole('textbox', { name: 'Password' }).fill(GETTY_PASSWORD);
-    await page.locator('#sign_in').click();
-    await page.waitForURL('https://www.gettyimages.com/', { timeout: 15000 });
-    log('Logged in successfully');
+    await doLogin(page, 'Not logged in — authenticating...');
   }
 }
 
 async function reAuthenticate(page: Page): Promise<void> {
-  log('Session expired — re-authenticating...');
-  await page.goto('https://www.gettyimages.com/sign-in', {
-    waitUntil: 'domcontentloaded',
-  });
-  await page.getByRole('textbox', { name: 'Username or email' }).fill(GETTY_EMAIL);
-  await page.getByRole('textbox', { name: 'Password' }).fill(GETTY_PASSWORD);
-  await page.locator('#sign_in').click();
-  await page.waitForURL('https://www.gettyimages.com/', { timeout: 15000 });
-  log('Re-authenticated successfully');
+  await doLogin(page, 'Session expired — re-authenticating...');
 }
 
 // ─── Search ──────────────────────────────────────────────────────────────────
