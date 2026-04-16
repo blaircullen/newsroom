@@ -35,7 +35,8 @@ function log(msg: string) {
 
 let _context: BrowserContext | null = null;
 
-// Login mutex — prevents concurrent authentication attempts
+// Login mutex — prevents concurrent authentication attempts.
+// Stores the login promise so waiters get the same success/failure result.
 let _loginLock: Promise<void> | null = null;
 
 async function getContext(): Promise<BrowserContext> {
@@ -53,24 +54,30 @@ async function getContext(): Promise<BrowserContext> {
 }
 
 async function doLogin(page: Page, label: string): Promise<void> {
-  // Serialize login attempts — if one is already in progress, wait for it
+  // Serialize login attempts — if one is in progress, wait for the same result
+  // (success or failure) rather than launching a parallel attempt.
   if (_loginLock) {
     log(`${label}: waiting for in-progress login to complete...`);
-    await _loginLock;
+    await _loginLock; // throws if the leader failed, propagating the error to waiter
     return;
   }
 
   let resolveLock!: () => void;
-  _loginLock = new Promise<void>((resolve) => { resolveLock = resolve; });
+  let rejectLock!: (err: unknown) => void;
+  _loginLock = new Promise<void>((resolve, reject) => {
+    resolveLock = resolve;
+    rejectLock = reject;
+  });
 
   try {
     log(`${label}`);
+    // domcontentloaded is fast enough — waitForSelector below handles the rest
     await page.goto('https://www.gettyimages.com/sign-in', {
-      waitUntil: 'networkidle',
-      timeout: 45000,
+      waitUntil: 'domcontentloaded',
+      timeout: 30000,
     });
 
-    // Wait for the form to be interactive before filling
+    // Wait explicitly for the form to be interactive (handles JS-rendered form)
     await page.waitForSelector('input[type="text"], input[type="email"], input[name]', {
       timeout: 15000,
     });
@@ -81,9 +88,12 @@ async function doLogin(page: Page, label: string): Promise<void> {
     await page.locator('#sign_in').click();
     await page.waitForURL('https://www.gettyimages.com/', { timeout: 20000 });
     log('Authenticated successfully');
+    resolveLock();
+  } catch (err) {
+    rejectLock(err);
+    throw err;
   } finally {
     _loginLock = null;
-    resolveLock();
   }
 }
 
@@ -94,13 +104,14 @@ async function ensureLoggedIn(page: Page): Promise<void> {
   });
   await page.waitForTimeout(1500);
 
-  // Check for any nav-level "SIGN IN" text — if present, we're logged out
+  // A sign-in href in the nav is the reliable logged-out indicator.
+  // Avoids text matching (brittle: hidden mobile menus, i18n variants, etc.)
   const loggedIn = await page.evaluate(() => {
-    const navEls = Array.from(document.querySelectorAll('header a, header button, nav a, nav button'));
-    const hasSignInNav = navEls.some((el) =>
-      el.textContent?.trim().toUpperCase() === 'SIGN IN'
+    const links = Array.from(document.querySelectorAll('a[href]')) as HTMLAnchorElement[];
+    const hasSignInLink = links.some((a) =>
+      /\/sign-in($|\?|#)/.test(a.getAttribute('href') || '')
     );
-    return !hasSignInNav;
+    return !hasSignInLink;
   });
 
   if (!loggedIn) {
