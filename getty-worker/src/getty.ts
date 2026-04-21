@@ -78,7 +78,10 @@ async function doLogin(page: Page, label: string): Promise<void> {
     });
 
     // Wait explicitly for the form to be interactive (handles JS-rendered form)
-    await page.waitForSelector('input[type="text"], input[type="email"], input[name]', {
+    // Must exclude input[name] — it matches hidden fields (e.g. authenticity_token) which
+    // are never visible, causing waitForSelector to time out permanently.
+    await page.waitForSelector('input[type="text"], input[type="email"]', {
+      state: 'visible',
       timeout: 15000,
     });
     await page.waitForTimeout(500);
