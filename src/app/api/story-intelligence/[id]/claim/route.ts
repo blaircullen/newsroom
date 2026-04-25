@@ -190,7 +190,7 @@ EDITORIAL STANCE:
 - Use assertive, engaging language that captures reader attention
 
 REQUIREMENTS:
-1. Write a compelling, clickable HEADLINE — bold, direct, assertive.
+1. Write a compelling, clickable HEADLINE — bold, direct, assertive. Do NOT write in ALL CAPS — use title case.
 2. Write a punchy SUB-HEADLINE that adds context and urgency.
 3. Rewrite the body in 4 to 5 paragraphs:
    - Direct and conversational tone

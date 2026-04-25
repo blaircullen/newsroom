@@ -799,7 +799,7 @@ async function generateHeadlineVariation(
         max_tokens: 150,
         messages: [{
           role: 'user',
-          content: `Rewrite this news headline and subheadline for ${siteName}. Keep the same meaning and tone but vary the wording so it's not identical to other versions. Do not change the meaning, do not sensationalize, and keep a similar length.
+          content: `Rewrite this news headline and subheadline for ${siteName}. Keep the same meaning and tone but vary the wording so it's not identical to other versions. Do not change the meaning, do not sensationalize, keep a similar length, and do NOT use ALL CAPS.
 
 Headline: ${headline}${subHeadline ? `\nSubheadline: ${subHeadline}` : ''}
 
