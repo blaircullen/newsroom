@@ -42,6 +42,7 @@ interface WordPressTarget {
 interface ShopifyTarget {
   url: string;
   name: string;
+  apiKey?: string | null;
   blogId?: string | null;
   clientId?: string | null;
   clientSecret?: string | null;
@@ -1122,16 +1123,23 @@ async function publishToShopify(
   target: ShopifyTarget
 ): Promise<PublishResult> {
   try {
-    if (!target.clientId || !target.clientSecret || !target.myshopifyDomain) {
-      return { success: false, error: 'Shopify OAuth credentials not configured' };
+    if (!target.myshopifyDomain) {
+      return { success: false, error: 'Shopify domain not configured' };
     }
 
-    // Get fresh access token (tokens expire every 24 hours)
-    const accessToken = await getShopifyAccessToken(
-      target.clientId,
-      target.clientSecret,
-      target.myshopifyDomain
-    );
+    // Prefer direct access token (api_key) over OAuth client credentials
+    let accessToken: string | null = target.apiKey || null;
+
+    if (!accessToken) {
+      if (!target.clientId || !target.clientSecret) {
+        return { success: false, error: 'Shopify credentials not configured — add Admin API access token to api_key field' };
+      }
+      accessToken = await getShopifyAccessToken(
+        target.clientId,
+        target.clientSecret,
+        target.myshopifyDomain
+      );
+    }
 
     if (!accessToken) {
       return { success: false, error: 'Failed to obtain Shopify access token' };
