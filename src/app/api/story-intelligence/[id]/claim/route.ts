@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import prisma from '@/lib/prisma';
 import { generateQuickPreview, generateDeepFingerprint } from '@/lib/exemplar-ai';
+import { fixAllCapsHeadline } from '@/lib/utils';
 import { autoSelectGettyImage } from '@/lib/getty-client';
 import { saveMedia } from '@/lib/media';
 import fs from 'fs/promises';
@@ -245,6 +246,8 @@ ${sourceContentBlocks}`,
     }
 
     const parsed = JSON.parse(fullJson);
+    parsed.headline = fixAllCapsHeadline(parsed.headline || '');
+    parsed.subHeadline = fixAllCapsHeadline(parsed.subHeadline || '');
 
     if (!parsed.headline || !parsed.bodyHtml) {
       console.error('[claim] AI response missing headline or bodyHtml');

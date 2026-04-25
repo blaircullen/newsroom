@@ -1,5 +1,6 @@
 import prisma from './prisma';
 import { CLAUDE_HAIKU } from '@/lib/ai-models';
+import { fixAllCapsHeadline } from '@/lib/utils';
 import crypto from 'crypto';
 import fs from 'fs/promises';
 import path from 'path';
@@ -821,8 +822,8 @@ Respond with ONLY valid JSON: {"headline":"...","subheadline":"..."}`
       const parsed = JSON.parse(jsonMatch[0]);
       console.log(`[Headline AI] ${siteName}: "${parsed.headline}"`);
       return {
-        headline: parsed.headline || headline,
-        subHeadline: parsed.subheadline || subHeadline || '',
+        headline: fixAllCapsHeadline(parsed.headline || headline),
+        subHeadline: fixAllCapsHeadline(parsed.subheadline || subHeadline || ''),
       };
     }
   } catch (error: any) {
@@ -874,10 +875,10 @@ Headline: ${headline}${subHeadline ? `\nSubheadline: ${subHeadline}` : ''}
 Generate these fields:
 1. MANTLE (homepage display):
    - "subhead": Short punchy phrase, ALL CAPS, max 30 chars. A quoted word, reaction, or key theme. Examples: "INAPPROPRIATE", "WITCH HUNT!", "BREAKING", "83% OF CONTRACTS CANCELED!"
-   - "head": Descriptive headline for the mantle. Remove any prefix that became the subhead.
+   - "head": Descriptive headline for the mantle. Remove any prefix that became the subhead. Do NOT write in ALL CAPS — use title case.
 
 2. PAGE HEADLINE (article page display):
-   - "page_headline": Rewritten headline, MAX 75 CHARACTERS. Must be concise but capture the story. This is strictly enforced — do not exceed 75 chars.
+   - "page_headline": Rewritten headline, MAX 75 CHARACTERS. Must be concise but capture the story. This is strictly enforced — do not exceed 75 chars. Do NOT write in ALL CAPS — use title case.
    - "page_sub_headline": A subtitle that provides additional context or detail not in the headline. 1 sentence, conversational.
 
 3. CATEGORY:
@@ -904,9 +905,9 @@ Respond with ONLY valid JSON: {"subhead":"...","head":"...","page_headline":"...
         ? parsed.category_id
         : null;
       return {
-        head: parsed.head || headline,
+        head: fixAllCapsHeadline(parsed.head || headline),
         subhead: (parsed.subhead || '').slice(0, 30),
-        pageHeadline: (parsed.page_headline || headline).slice(0, 75),
+        pageHeadline: fixAllCapsHeadline((parsed.page_headline || headline)).slice(0, 75),
         pageSubHeadline: parsed.page_sub_headline || '',
         categoryId,
       };

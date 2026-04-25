@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { isPrivateUrl } from '@/lib/url-validation';
+import { fixAllCapsHeadline } from '@/lib/utils';
 
 // POST /api/articles/import - Import and rewrite an article from a URL
 export async function POST(request: NextRequest) {
@@ -191,8 +192,8 @@ ${articleText.substring(0, 12000)}`,
     }
 
     return NextResponse.json({
-      headline: parsed.headline,
-      subHeadline: parsed.subHeadline || '',
+      headline: fixAllCapsHeadline(parsed.headline),
+      subHeadline: fixAllCapsHeadline(parsed.subHeadline || ''),
       bodyHtml: parsed.bodyHtml,
       bodyText: parsed.bodyText || stripHtml(parsed.bodyHtml),
       sourceUrl: url,
