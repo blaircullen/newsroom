@@ -5,7 +5,12 @@
  * The worker handles browser automation (Playwright) for Getty's customer portal.
  */
 
-const GETTY_WORKER_URL = process.env.GETTY_WORKER_URL || 'http://getty-worker:3001';
+const DEFAULT_GETTY_WORKER_URL =
+  process.env.NODE_ENV === 'production'
+    ? 'http://getty-worker:3001'
+    : 'http://localhost:3001';
+
+const GETTY_WORKER_URL = (process.env.GETTY_WORKER_URL || DEFAULT_GETTY_WORKER_URL).replace(/\/+$/, '');
 const GETTY_WORKER_API_KEY = process.env.GETTY_WORKER_API_KEY || '';
 
 interface GettySearchResult {
@@ -22,6 +27,16 @@ interface GettyDownloadResult {
   assetId: string;
 }
 
+export class GettyWorkerError extends Error {
+  constructor(
+    message: string,
+    readonly status?: number
+  ) {
+    super(message);
+    this.name = 'GettyWorkerError';
+  }
+}
+
 async function gettyFetch(endpoint: string, body: object): Promise<any> {
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
@@ -30,16 +45,29 @@ async function gettyFetch(endpoint: string, body: object): Promise<any> {
     headers['x-api-key'] = GETTY_WORKER_API_KEY;
   }
 
-  const res = await fetch(`${GETTY_WORKER_URL}${endpoint}`, {
-    method: 'POST',
-    headers,
-    body: JSON.stringify(body),
-    signal: AbortSignal.timeout(90000), // Getty operations can be slow
-  });
+  let res: Response;
+  try {
+    res = await fetch(`${GETTY_WORKER_URL}${endpoint}`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(body),
+      signal: AbortSignal.timeout(90000), // Getty operations can be slow
+    });
+  } catch (error) {
+    const detail = error instanceof Error ? error.message : String(error);
+    throw new GettyWorkerError(`Getty worker is unreachable at ${GETTY_WORKER_URL}: ${detail}`);
+  }
 
   if (!res.ok) {
     const errBody = await res.text().catch(() => '');
-    throw new Error(`Getty worker ${endpoint} failed: ${res.status} ${errBody.slice(0, 200)}`);
+    let message = errBody.slice(0, 300);
+    try {
+      const data = JSON.parse(errBody) as { error?: string };
+      if (data.error) message = data.error;
+    } catch {
+      // Keep raw response text.
+    }
+    throw new GettyWorkerError(`Getty worker ${endpoint} failed: ${message || res.statusText}`, res.status);
   }
 
   return res.json();

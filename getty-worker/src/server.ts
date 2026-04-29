@@ -1,5 +1,11 @@
 import express from 'express';
-import { searchGetty, downloadGettyImage, closeContext } from './getty';
+import {
+  searchGetty,
+  downloadGettyImage,
+  closeContext,
+  GettyConfigurationError,
+  getGettyConfigurationError,
+} from './getty';
 
 const app = express();
 app.use(express.json());
@@ -22,7 +28,12 @@ app.use(authMiddleware);
 
 // Health check
 app.get('/health', (_req, res) => {
-  res.json({ status: 'ok', service: 'getty-worker' });
+  const configError = getGettyConfigurationError();
+  res.status(configError ? 503 : 200).json({
+    status: configError ? 'misconfigured' : 'ok',
+    service: 'getty-worker',
+    error: configError || undefined,
+  });
 });
 
 // POST /search — search Getty Images, return results with thumbnails
@@ -39,7 +50,7 @@ app.post('/search', async (req, res) => {
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
     console.error('[search] Error:', msg);
-    res.status(500).json({ error: msg });
+    res.status(err instanceof GettyConfigurationError ? 503 : 500).json({ error: msg });
   }
 });
 
@@ -60,7 +71,7 @@ app.post('/download', async (req, res) => {
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
     console.error('[download] Error:', msg);
-    res.status(500).json({ error: msg });
+    res.status(err instanceof GettyConfigurationError ? 503 : 500).json({ error: msg });
   }
 });
 
@@ -126,7 +137,7 @@ app.post('/auto-image', async (req, res) => {
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
     console.error('[auto-image] Error:', msg);
-    res.status(500).json({ error: msg });
+    res.status(err instanceof GettyConfigurationError ? 503 : 500).json({ error: msg });
   }
 });
 
@@ -146,5 +157,6 @@ process.on('SIGINT', async () => {
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`Getty worker listening on port ${PORT}`);
   console.log(`Getty email: ${process.env.GETTY_EMAIL ? '***' : '(not set)'}`);
+  console.log(`Getty password: ${process.env.GETTY_PASSWORD ? '***' : '(not set)'}`);
   console.log(`Anthropic API: ${process.env.ANTHROPIC_API_KEY ? '***' : '(not set)'}`);
 });

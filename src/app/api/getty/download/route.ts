@@ -20,14 +20,15 @@ export async function POST(request: NextRequest) {
 
   const body = await request.json();
   const { assetId } = body as { assetId?: string };
+  const trimmedAssetId = assetId?.trim();
 
-  if (!assetId) {
+  if (!trimmedAssetId) {
     return NextResponse.json({ error: 'assetId is required' }, { status: 400 });
   }
 
   try {
     // Ask Getty worker to download the image
-    const result = await downloadGettyImage(assetId);
+    const result = await downloadGettyImage(trimmedAssetId);
     if (!result) {
       return NextResponse.json(
         { error: 'Could not download image from Getty' },
@@ -36,7 +37,15 @@ export async function POST(request: NextRequest) {
     }
 
     // Read the downloaded file from shared volume
-    const tmpPath = path.join(STORAGE_PATH, result.filePath);
+    const storageRoot = path.resolve(STORAGE_PATH);
+    const tmpPath = path.resolve(storageRoot, result.filePath);
+    if (!tmpPath.startsWith(`${storageRoot}${path.sep}`)) {
+      return NextResponse.json(
+        { error: 'Getty worker returned an invalid file path' },
+        { status: 502 }
+      );
+    }
+
     let buffer: Buffer;
     try {
       buffer = await fs.readFile(tmpPath);
@@ -86,7 +95,7 @@ export async function POST(request: NextRequest) {
     const msg = error instanceof Error ? error.message : String(error);
     console.error('[Getty Download] Error:', msg);
     return NextResponse.json(
-      { error: 'Getty download failed. The service may be unavailable.' },
+      { error: msg || 'Getty download failed. The service may be unavailable.' },
       { status: 502 }
     );
   }

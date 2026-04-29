@@ -12,6 +12,13 @@ const GETTY_CUSTOMER_ID = Number(process.env.GETTY_CUSTOMER_ID || '9871544');
 const GETTY_STATE_DIR = process.env.GETTY_STATE_DIR || '/data/getty-state';
 const MEDIA_TMP_DIR = process.env.MEDIA_TMP_DIR || '/data/media/tmp';
 
+export class GettyConfigurationError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'GettyConfigurationError';
+  }
+}
+
 export interface GettySearchResult {
   assetId: string;
   title: string;
@@ -29,6 +36,30 @@ export interface GettyDownloadResult {
 function log(msg: string) {
   const ts = new Date().toISOString();
   console.log(`[Getty ${ts}] ${msg}`);
+}
+
+export function getGettyConfigurationError(): string | null {
+  const missing = [
+    !GETTY_EMAIL.trim() ? 'GETTY_EMAIL' : null,
+    !GETTY_PASSWORD.trim() ? 'GETTY_PASSWORD' : null,
+  ].filter(Boolean);
+
+  if (missing.length > 0) {
+    return `Getty worker is missing required environment variables: ${missing.join(', ')}`;
+  }
+
+  if (!Number.isFinite(GETTY_CUSTOMER_ID) || GETTY_CUSTOMER_ID <= 0) {
+    return 'Getty worker has an invalid GETTY_CUSTOMER_ID';
+  }
+
+  return null;
+}
+
+function assertGettyConfigured(): void {
+  const error = getGettyConfigurationError();
+  if (error) {
+    throw new GettyConfigurationError(error);
+  }
 }
 
 // ─── Browser Context Management ──────────────────────────────────────────────
@@ -132,6 +163,7 @@ export async function searchGetty(
   keywords: string,
   limit: number = 20
 ): Promise<GettySearchResult[]> {
+  assertGettyConfigured();
   log(`Searching for: "${keywords}" (limit: ${limit})`);
 
   const context = await getContext();
@@ -220,6 +252,7 @@ function downloadFile(url: string, destPath: string): Promise<void> {
 }
 
 export async function downloadGettyImage(assetId: string): Promise<GettyDownloadResult | null> {
+  assertGettyConfigured();
   log(`Downloading asset: ${assetId}`);
 
   const context = await getContext();

@@ -14,23 +14,24 @@ export async function GET(request: NextRequest) {
   }
 
   const q = request.nextUrl.searchParams.get('q');
-  if (!q) {
+  const query = q?.trim();
+  if (!query) {
     return NextResponse.json({ error: 'q parameter is required' }, { status: 400 });
   }
 
-  const limit = Math.min(
-    Number(request.nextUrl.searchParams.get('limit') || '20'),
-    40
-  );
+  const requestedLimit = Number(request.nextUrl.searchParams.get('limit') || '20');
+  const limit = Number.isFinite(requestedLimit)
+    ? Math.min(Math.max(requestedLimit, 1), 40)
+    : 20;
 
   try {
-    const results = await searchGettyImages(q, limit);
+    const results = await searchGettyImages(query, limit);
     return NextResponse.json({ results });
   } catch (error) {
     const msg = error instanceof Error ? error.message : String(error);
     console.error('[Getty Search] Error:', msg);
     return NextResponse.json(
-      { error: 'Getty search failed. The service may be unavailable.' },
+      { error: msg || 'Getty search failed. The service may be unavailable.' },
       { status: 502 }
     );
   }

@@ -42,6 +42,8 @@ interface GettyResult {
 
 type Tab = 'browse' | 'upload' | 'getty';
 
+const DEFAULT_GETTY_SEARCH = 'news';
+
 export default function ImagePicker({ isOpen, onClose, onSelect, selectedImageId }: ImagePickerProps) {
   const [activeTab, setActiveTab] = useState<Tab>('browse');
   const [images, setImages] = useState<MediaImage[]>([]);
@@ -61,7 +63,7 @@ export default function ImagePicker({ isOpen, onClose, onSelect, selectedImageId
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Getty state
-  const [gettySearch, setGettySearch] = useState('');
+  const [gettySearch, setGettySearch] = useState(DEFAULT_GETTY_SEARCH);
   const [gettyResults, setGettyResults] = useState<GettyResult[]>([]);
   const [isGettyLoading, setIsGettyLoading] = useState(false);
   const [gettyError, setGettyError] = useState<string | null>(null);
@@ -82,7 +84,7 @@ export default function ImagePicker({ isOpen, onClose, onSelect, selectedImageId
         throw new Error(data.error || 'Getty search failed');
       }
       const data = await res.json();
-      setGettyResults(data.results || []);
+      setGettyResults(Array.isArray(data.results) ? data.results : []);
     } catch (error) {
       if ((error as Error).name !== 'AbortError') {
         setGettyError((error as Error).message || 'Getty search failed');
@@ -182,7 +184,7 @@ export default function ImagePicker({ isOpen, onClose, onSelect, selectedImageId
     if (!isOpen) {
       setActiveTab('browse');
       resetUploadState();
-      setGettySearch('');
+      setGettySearch(DEFAULT_GETTY_SEARCH);
       setGettyResults([]);
       setGettyError(null);
     }
