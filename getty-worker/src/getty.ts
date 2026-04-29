@@ -134,7 +134,7 @@ async function getContext(): Promise<BrowserContext> {
     timezoneId: 'America/New_York',
   });
 
-  await _context.addInitScript(() => {
+  await _context!.addInitScript(() => {
     Object.defineProperty(navigator, 'webdriver', { get: () => undefined });
     Object.defineProperty(navigator, 'plugins', { get: () => [1, 2, 3] });
     Object.defineProperty(navigator, 'languages', { get: () => ['en-US', 'en'] });
@@ -143,11 +143,11 @@ async function getContext(): Promise<BrowserContext> {
   // Inject saved session cookies so we skip the login/bot-wall entirely
   const cookies = loadCookiesFromFile();
   if (cookies.length > 0) {
-    await _context.addCookies(cookies);
+    await _context!.addCookies(cookies);
     log(`Loaded ${cookies.length} cookies from ${COOKIES_PATH}`);
   }
 
-  return _context;
+  return _context!;
 }
 
 async function doLogin(page: Page, label: string): Promise<void> {
