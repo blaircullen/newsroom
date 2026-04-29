@@ -44,12 +44,12 @@ async function deleteFromR2(key: string): Promise<void> {
   await client.send(new DeleteObjectCommand({ Bucket: R2_BUCKET, Key: key })).catch(() => {});
 }
 
+// SVG intentionally excluded — same-origin stored XSS risk.
 const ALLOWED_MIME_TYPES = new Set([
   'image/jpeg',
   'image/png',
   'image/gif',
   'image/webp',
-  'image/svg+xml',
 ]);
 
 const MAX_FILE_SIZE = 20 * 1024 * 1024; // 20MB
@@ -87,43 +87,39 @@ export async function saveMedia(
     throw new Error(`File too large: ${buffer.length} bytes`);
   }
 
-  // Determine output format and optimize
-  const isSvg = mimeType === 'image/svg+xml';
   let outputBuffer = buffer;
   let width: number | null = null;
   let height: number | null = null;
   let format = mimeType.split('/')[1];
   let outputMime = mimeType;
 
-  if (!isSvg) {
-    const metadata = await sharp(buffer).metadata();
-    width = metadata.width || null;
-    height = metadata.height || null;
+  const metadata = await sharp(buffer).metadata();
+  width = metadata.width || null;
+  height = metadata.height || null;
 
-    // Optimize: resize if too wide, convert to webp (except gif)
-    const isGif = mimeType === 'image/gif';
-    let sharpInstance = sharp(buffer, isGif ? { animated: true } : undefined);
+  // Optimize: resize if too wide, convert to webp (except gif which keeps animation)
+  const isGif = mimeType === 'image/gif';
+  let sharpInstance = sharp(buffer, isGif ? { animated: true } : undefined);
 
-    if (width && width > OPTIMIZE_MAX_WIDTH) {
-      sharpInstance = sharpInstance.resize(OPTIMIZE_MAX_WIDTH, null, {
-        withoutEnlargement: true,
-        fit: 'inside',
-      });
-    }
-
-    if (!isGif) {
-      outputBuffer = await sharpInstance.webp({ quality: OPTIMIZE_QUALITY, effort: 4 }).toBuffer();
-      format = 'webp';
-      outputMime = 'image/webp';
-    } else {
-      outputBuffer = await sharpInstance.toBuffer();
-    }
-
-    // Get final dimensions
-    const finalMeta = await sharp(outputBuffer).metadata();
-    width = finalMeta.width || width;
-    height = finalMeta.height || height;
+  if (width && width > OPTIMIZE_MAX_WIDTH) {
+    sharpInstance = sharpInstance.resize(OPTIMIZE_MAX_WIDTH, null, {
+      withoutEnlargement: true,
+      fit: 'inside',
+    });
   }
+
+  if (!isGif) {
+    outputBuffer = await sharpInstance.webp({ quality: OPTIMIZE_QUALITY, effort: 4 }).toBuffer();
+    format = 'webp';
+    outputMime = 'image/webp';
+  } else {
+    outputBuffer = await sharpInstance.toBuffer();
+  }
+
+  // Get final dimensions
+  const finalMeta = await sharp(outputBuffer).metadata();
+  width = finalMeta.width || width;
+  height = finalMeta.height || height;
 
   // Build storage path: YYYY/MM/
   const now = new Date();
@@ -133,7 +129,7 @@ export async function saveMedia(
 
   // Generate unique filename
   const id = createId();
-  const ext = format === 'svg+xml' ? 'svg' : format;
+  const ext = format;
   const filename = `${id}.${ext}`;
   const filePath = path.join(dirPath, filename);
 
@@ -181,7 +177,25 @@ export function getMediaUrl(media: { filename: string }): string {
 }
 
 export function getMediaFilePath(filename: string): string {
-  return path.join(STORAGE_PATH, filename);
+  // Path containment: refuse anything that would escape STORAGE_PATH.
+  // Without this, `/media/../../.env` style filenames in publish image URLs
+  // can read arbitrary files (path traversal).
+  //
+  // Lexical resolve catches `..` and absolute paths. Symlink resolution would
+  // require the file to exist (it doesn't yet for new uploads); STORAGE_PATH
+  // is admin-controlled config and not user-writable, so a malicious symlink
+  // inside it is out of scope for the threat model. Defense in depth: validate
+  // STORAGE_PATH does not contain user content and reject `\0`, leading `/`,
+  // and `..` segments explicitly before resolution.
+  if (filename.includes('\0') || filename.startsWith('/') || filename.startsWith('\\')) {
+    throw new Error(`Invalid media path: ${filename}`);
+  }
+  const root = path.resolve(STORAGE_PATH);
+  const resolved = path.resolve(root, filename);
+  if (resolved !== root && !resolved.startsWith(root + path.sep)) {
+    throw new Error(`Invalid media path: ${filename}`);
+  }
+  return resolved;
 }
 
 export async function searchMedia({
@@ -200,6 +214,9 @@ export async function searchMedia({
   if (query) {
     where.OR = [
       { originalName: { contains: query, mode: 'insensitive' } },
+      { altText: { contains: query, mode: 'insensitive' } },
+      { photographer: { contains: query, mode: 'insensitive' } },
+      { source: { contains: query, mode: 'insensitive' } },
       { credit: { contains: query, mode: 'insensitive' } },
       { description: { contains: query, mode: 'insensitive' } },
       { tags: { has: query } },
@@ -281,8 +298,9 @@ export async function incrementUsageCount(id: string) {
 }
 
 export async function decrementUsageCount(id: string) {
-  await prisma.media.update({
-    where: { id },
+  // Conditional update prevents negative counts under concurrent unlinks.
+  await prisma.media.updateMany({
+    where: { id, usageCount: { gt: 0 } },
     data: { usageCount: { decrement: 1 } },
   });
 }
