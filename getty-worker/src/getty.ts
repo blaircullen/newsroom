@@ -1,4 +1,8 @@
-import { chromium, BrowserContext, Page } from 'playwright';
+import { chromium as chromiumExtra } from 'playwright-extra';
+import StealthPlugin from 'puppeteer-extra-plugin-stealth';
+import type { BrowserContext, Page } from 'playwright';
+
+chromiumExtra.use(StealthPlugin());
 import fs from 'fs';
 import path from 'path';
 import https from 'https';
@@ -71,8 +75,14 @@ let _context: BrowserContext | null = null;
 // Stores the login promise so waiters get the same success/failure result.
 let _loginLock: Promise<void> | null = null;
 
+interface PlaywrightCookie {
+  name: string; value: string; domain: string; path: string;
+  expires: number; httpOnly: boolean; secure: boolean;
+  sameSite: 'Strict' | 'Lax' | 'None';
+}
+
 // Convert Cookie Editor JSON format → Playwright cookie format
-function loadCookiesFromFile(): Parameters<BrowserContext['addCookies']>[0] {
+function loadCookiesFromFile(): PlaywrightCookie[] {
   if (!fs.existsSync(COOKIES_PATH)) return [];
   try {
     const raw = JSON.parse(fs.readFileSync(COOKIES_PATH, 'utf8'));
@@ -105,7 +115,7 @@ async function getContext(): Promise<BrowserContext> {
 
   fs.mkdirSync(GETTY_STATE_DIR, { recursive: true });
 
-  _context = await chromium.launchPersistentContext(GETTY_STATE_DIR, {
+  _context = await chromiumExtra.launchPersistentContext(GETTY_STATE_DIR, {
     headless: true,
     args: [
       '--no-sandbox',
@@ -188,34 +198,33 @@ async function doLogin(page: Page, label: string): Promise<void> {
 }
 
 async function ensureLoggedIn(page: Page): Promise<void> {
+  // When a cookie file exists, trust the injected session and skip the homepage
+  // login-check navigation — that nav itself triggers Getty's bot-wall detection.
+  // The search/download routes will surface a clear error if cookies have expired.
+  if (fs.existsSync(COOKIES_PATH)) {
+    log('Cookie file present — skipping login check, trusting injected session');
+    return;
+  }
+
   await page.goto('https://www.gettyimages.com', {
     waitUntil: 'domcontentloaded',
     timeout: 30000,
   });
   await page.waitForTimeout(1500);
 
-  // Bot-wall check — if triggered, cookies are expired or IP-blocked
   if (page.url().includes('/bot-wall')) {
-    throw new Error('Getty bot-wall encountered — session cookies may have expired. Re-export cookies from your browser and update cookies.json.');
+    throw new Error('Getty bot-wall — no cookie file present and IP is blocked. Export cookies from your browser and place at GETTY_STATE_DIR/cookies.json.');
   }
 
   const loggedIn = await page.evaluate(() => {
     const links = Array.from(document.querySelectorAll('a[href]')) as HTMLAnchorElement[];
-    const hasSignInLink = links.some((a) =>
-      /\/sign-in($|\?|#)/.test(a.getAttribute('href') || '')
-    );
-    return !hasSignInLink;
+    return !links.some((a) => /\/sign-in($|\?|#)/.test(a.getAttribute('href') || ''));
   });
 
   if (!loggedIn) {
-    // Only attempt login if no cookies file — bot-wall will block this on Hetzner
-    const hasCookieFile = fs.existsSync(COOKIES_PATH);
-    if (hasCookieFile) {
-      throw new Error('Getty session cookies expired — re-export cookies from your browser and update cookies.json.');
-    }
     await doLogin(page, 'Not logged in — authenticating...');
   } else {
-    log('Session valid via cookies');
+    log('Session valid');
   }
 }
 
@@ -240,7 +249,11 @@ export async function searchGetty(
 
     const searchUrl = `https://www.gettyimages.com/search/2/image?phrase=${encodeURIComponent(keywords)}&sort=best&family_name=editorial`;
     await page.goto(searchUrl, { waitUntil: 'domcontentloaded', timeout: 30000 });
-    await page.waitForTimeout(1500);
+    await page.waitForTimeout(2000);
+
+    if (page.url().includes('/bot-wall')) {
+      throw new Error('Getty bot-wall on search page — session cookies expired. Re-export cookies from your browser and update cookies.json.');
+    }
 
     const results = await page.evaluate((maxResults: number) => {
       const items = Array.from(document.querySelectorAll('[data-asset-id]'));
