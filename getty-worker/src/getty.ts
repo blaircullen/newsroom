@@ -1,8 +1,10 @@
-import { chromium as chromiumExtra } from 'playwright-extra';
-import StealthPlugin from 'puppeteer-extra-plugin-stealth';
 import type { BrowserContext, Page } from 'playwright';
-
-chromiumExtra.use(StealthPlugin());
+/* eslint-disable @typescript-eslint/no-require-imports */
+// playwright-extra doesn't ship TypeScript declarations; require() bypasses module resolution
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const chromiumExtra: any = require('playwright-extra').chromium;
+chromiumExtra.use(require('puppeteer-extra-plugin-stealth')());
+/* eslint-enable @typescript-eslint/no-require-imports */
 import fs from 'fs';
 import path from 'path';
 import https from 'https';
