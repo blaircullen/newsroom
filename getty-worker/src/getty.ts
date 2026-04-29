@@ -11,6 +11,7 @@ const GETTY_PASSWORD = process.env.GETTY_PASSWORD || '';
 const GETTY_CUSTOMER_ID = Number(process.env.GETTY_CUSTOMER_ID || '9871544');
 const GETTY_STATE_DIR = process.env.GETTY_STATE_DIR || '/data/getty-state';
 const MEDIA_TMP_DIR = process.env.MEDIA_TMP_DIR || '/data/media/tmp';
+const COOKIES_PATH = path.join(GETTY_STATE_DIR, 'cookies.json');
 
 export class GettyConfigurationError extends Error {
   constructor(message: string) {
@@ -70,26 +71,77 @@ let _context: BrowserContext | null = null;
 // Stores the login promise so waiters get the same success/failure result.
 let _loginLock: Promise<void> | null = null;
 
+// Convert Cookie Editor JSON format → Playwright cookie format
+function loadCookiesFromFile(): Parameters<BrowserContext['addCookies']>[0] {
+  if (!fs.existsSync(COOKIES_PATH)) return [];
+  try {
+    const raw = JSON.parse(fs.readFileSync(COOKIES_PATH, 'utf8'));
+    return raw.map((c: Record<string, unknown>) => {
+      const sameSiteMap: Record<string, 'Strict' | 'Lax' | 'None'> = {
+        strict: 'Strict',
+        lax: 'Lax',
+        no_restriction: 'None',
+      };
+      const sameSiteRaw = typeof c.sameSite === 'string' ? c.sameSite.toLowerCase() : '';
+      return {
+        name: c.name as string,
+        value: c.value as string,
+        domain: c.domain as string,
+        path: (c.path as string) || '/',
+        expires: c.session ? -1 : Math.floor((c.expirationDate as number) ?? -1),
+        httpOnly: Boolean(c.httpOnly),
+        secure: Boolean(c.secure),
+        sameSite: sameSiteMap[sameSiteRaw] ?? 'None',
+      };
+    });
+  } catch (err) {
+    log(`Failed to load cookies from ${COOKIES_PATH}: ${err}`);
+    return [];
+  }
+}
+
 async function getContext(): Promise<BrowserContext> {
   if (_context) return _context;
 
-  // Ensure state directory exists
   fs.mkdirSync(GETTY_STATE_DIR, { recursive: true });
 
   _context = await chromium.launchPersistentContext(GETTY_STATE_DIR, {
     headless: true,
-    args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage'],
+    args: [
+      '--no-sandbox',
+      '--disable-setuid-sandbox',
+      '--disable-dev-shm-usage',
+      '--disable-blink-features=AutomationControlled',
+      '--disable-infobars',
+      '--no-first-run',
+    ],
+    userAgent:
+      'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+    viewport: { width: 1280, height: 800 },
+    locale: 'en-US',
+    timezoneId: 'America/New_York',
   });
+
+  await _context.addInitScript(() => {
+    Object.defineProperty(navigator, 'webdriver', { get: () => undefined });
+    Object.defineProperty(navigator, 'plugins', { get: () => [1, 2, 3] });
+    Object.defineProperty(navigator, 'languages', { get: () => ['en-US', 'en'] });
+  });
+
+  // Inject saved session cookies so we skip the login/bot-wall entirely
+  const cookies = loadCookiesFromFile();
+  if (cookies.length > 0) {
+    await _context.addCookies(cookies);
+    log(`Loaded ${cookies.length} cookies from ${COOKIES_PATH}`);
+  }
 
   return _context;
 }
 
 async function doLogin(page: Page, label: string): Promise<void> {
-  // Serialize login attempts — if one is in progress, wait for the same result
-  // (success or failure) rather than launching a parallel attempt.
   if (_loginLock) {
     log(`${label}: waiting for in-progress login to complete...`);
-    await _loginLock; // throws if the leader failed, propagating the error to waiter
+    await _loginLock;
     return;
   }
 
@@ -101,16 +153,18 @@ async function doLogin(page: Page, label: string): Promise<void> {
   });
 
   try {
-    log(`${label}`);
-    // domcontentloaded is fast enough — waitForSelector below handles the rest
+    log(label);
     await page.goto('https://www.gettyimages.com/sign-in', {
       waitUntil: 'domcontentloaded',
       timeout: 30000,
     });
+    await page.waitForTimeout(1500);
 
-    // Wait explicitly for the form to be interactive (handles JS-rendered form)
-    // Must exclude input[name] — it matches hidden fields (e.g. authenticity_token) which
-    // are never visible, causing waitForSelector to time out permanently.
+    // Getty redirects headless browsers to /bot-wall — check for it
+    if (page.url().includes('/bot-wall')) {
+      throw new Error('Getty bot-wall detected — headless browser blocked by reCAPTCHA');
+    }
+
     await page.waitForSelector('input[type="text"], input[type="email"]', {
       state: 'visible',
       timeout: 15000,
@@ -118,7 +172,9 @@ async function doLogin(page: Page, label: string): Promise<void> {
     await page.waitForTimeout(500);
 
     await page.getByRole('textbox', { name: 'Username or email' }).fill(GETTY_EMAIL);
+    await page.waitForTimeout(300);
     await page.getByRole('textbox', { name: 'Password' }).fill(GETTY_PASSWORD);
+    await page.waitForTimeout(300);
     await page.locator('#sign_in').click();
     await page.waitForURL('https://www.gettyimages.com/', { timeout: 20000 });
     log('Authenticated successfully');
@@ -138,8 +194,11 @@ async function ensureLoggedIn(page: Page): Promise<void> {
   });
   await page.waitForTimeout(1500);
 
-  // A sign-in href in the nav is the reliable logged-out indicator.
-  // Avoids text matching (brittle: hidden mobile menus, i18n variants, etc.)
+  // Bot-wall check — if triggered, cookies are expired or IP-blocked
+  if (page.url().includes('/bot-wall')) {
+    throw new Error('Getty bot-wall encountered — session cookies may have expired. Re-export cookies from your browser and update cookies.json.');
+  }
+
   const loggedIn = await page.evaluate(() => {
     const links = Array.from(document.querySelectorAll('a[href]')) as HTMLAnchorElement[];
     const hasSignInLink = links.some((a) =>
@@ -149,7 +208,14 @@ async function ensureLoggedIn(page: Page): Promise<void> {
   });
 
   if (!loggedIn) {
+    // Only attempt login if no cookies file — bot-wall will block this on Hetzner
+    const hasCookieFile = fs.existsSync(COOKIES_PATH);
+    if (hasCookieFile) {
+      throw new Error('Getty session cookies expired — re-export cookies from your browser and update cookies.json.');
+    }
     await doLogin(page, 'Not logged in — authenticating...');
+  } else {
+    log('Session valid via cookies');
   }
 }
 
