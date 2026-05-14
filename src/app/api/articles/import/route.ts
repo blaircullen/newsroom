@@ -3,6 +3,8 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { isPrivateUrl } from '@/lib/url-validation';
 import { fixAllCapsHeadline } from '@/lib/utils';
+import { sanitizeArticleHtml } from '@/lib/html-sanitize';
+import { extractArticle, isTrafilaturaAvailable } from '@/lib/trafilatura-client';
 
 // POST /api/articles/import - Import and rewrite an article from a URL
 export async function POST(request: NextRequest) {
@@ -75,7 +77,24 @@ export async function POST(request: NextRequest) {
     const html = await articleResponse.text();
 
     // Step 2: Extract meaningful text from the HTML
-    const articleText = extractArticleText(html);
+    let articleText: string;
+    let metadata: { title?: string; author?: string; date?: string } = {};
+
+    try {
+      const result = await extractArticle({ html, outputFormat: 'text' });
+      if (result.success && result.text) {
+        articleText = result.text;
+        metadata = {
+          title: result.title ?? undefined,
+          author: result.author ?? undefined,
+          date: result.date ?? undefined,
+        };
+      } else {
+        articleText = extractArticleText(html); // fallback
+      }
+    } catch {
+      articleText = extractArticleText(html); // fallback if service down
+    }
 
     if (articleText.length < 100) {
       return NextResponse.json(
@@ -191,11 +210,15 @@ ${articleText.substring(0, 12000)}`,
       );
     }
 
+    // Sanitize AI-returned HTML before sending to client.
+    // Source articles can prompt-inject the AI to emit malicious markup; the
+    // editor will paste this into bodyHtml which goes straight into preview/render.
+    const safeBodyHtml = sanitizeArticleHtml(parsed.bodyHtml);
     return NextResponse.json({
       headline: fixAllCapsHeadline(parsed.headline),
       subHeadline: fixAllCapsHeadline(parsed.subHeadline || ''),
-      bodyHtml: parsed.bodyHtml,
-      bodyText: parsed.bodyText || stripHtml(parsed.bodyHtml),
+      bodyHtml: safeBodyHtml,
+      bodyText: parsed.bodyText || stripHtml(safeBodyHtml),
       sourceUrl: url,
     });
   } catch (error) {
@@ -289,4 +312,3 @@ function stripHtml(html: string): string {
     .replace(/\n{3,}/g, '\n\n')
     .trim();
 }
-

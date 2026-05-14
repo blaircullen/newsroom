@@ -81,6 +81,8 @@ services:
       HA_TOKEN: ${HA_TOKEN:-}
       GETTY_WORKER_URL: http://getty-worker:3001
       GETTY_WORKER_API_KEY: ${GETTY_WORKER_API_KEY:-newsroom-getty-2026}
+      TRAFILATURA_URL: ${TRAFILATURA_URL:-http://trafilatura:8000}
+      TRAFILATURA_API_KEY: ${TRAFILATURA_API_KEY:-newsroom-trafilatura-2026}
       R2_ACCOUNT_ID: ${R2_ACCOUNT_ID:-}
       R2_ACCESS_KEY_ID: ${R2_ACCESS_KEY_ID:-}
       R2_SECRET_ACCESS_KEY: ${R2_SECRET_ACCESS_KEY:-}
@@ -104,6 +106,15 @@ services:
       GETTY_WORKER_API_KEY: ${GETTY_WORKER_API_KEY:-newsroom-getty-2026}
       GETTY_STATE_DIR: /data/getty-state
       MEDIA_TMP_DIR: /data/media/tmp
+
+  trafilatura:
+    build:
+      context: ./trafilatura-worker
+      dockerfile: Dockerfile
+    container_name: newsroom-trafilatura
+    restart: unless-stopped
+    environment:
+      TRAFILATURA_API_KEY: ${TRAFILATURA_API_KEY:-newsroom-trafilatura-2026}
 
 volumes:
   postgres_data:

@@ -6,6 +6,7 @@ import { generateQuickPreview, generateDeepFingerprint } from '@/lib/exemplar-ai
 import { fixAllCapsHeadline } from '@/lib/utils';
 import { autoSelectGettyImage } from '@/lib/getty-client';
 import { saveMedia } from '@/lib/media';
+import { extractArticle } from '@/lib/trafilatura-client';
 import fs from 'fs/promises';
 import path from 'path';
 
@@ -109,7 +110,13 @@ async function fetchSourceContent(url: string): Promise<{ url: string; label: st
       return null;
     }
     const html = await res.text();
-    const text = extractArticleText(html);
+    let text: string;
+    try {
+      const result = await extractArticle({ html, outputFormat: 'text' });
+      text = (result.success && result.text) ? result.text : extractArticleText(html);
+    } catch {
+      text = extractArticleText(html);
+    }
     if (text.length < 100) {
       console.warn(`[claim] Extracted text too short from ${url} (${text.length} chars)`);
       return null;
@@ -538,7 +545,13 @@ export async function POST(
         signal: AbortSignal.timeout(10000),
       });
       const html = await res.text();
-      const text = extractArticleText(html);
+      let text: string;
+      try {
+        const result = await extractArticle({ html, outputFormat: 'text' });
+        text = (result.success && result.text) ? result.text : extractArticleText(html);
+      } catch {
+        text = extractArticleText(html);
+      }
       if (text.length >= 100) {
         await createExemplarFromClaim(story.sourceUrl, story.headline, text, session.user.id);
       }
