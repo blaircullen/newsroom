@@ -45,7 +45,6 @@ export async function POST(request: NextRequest) {
 
       const input: StoryScoreInput = {
         headline: idea.headline,
-        sourceUrl: idea.sourceUrl,
         sources,
       };
 
@@ -81,7 +80,6 @@ export async function POST(request: NextRequest) {
 
       const input: StoryScoreInput = {
         headline: post.title,
-        sourceUrl: post.redditUrl,
         sources: [{ name: `r/${post.subreddit}`, url: post.redditUrl }],
         platformSignals: {
           reddit: {
@@ -124,7 +122,6 @@ export async function POST(request: NextRequest) {
 
       const input: StoryScoreInput = {
         headline: xStory.headline,
-        sourceUrl: xStory.sourceUrl,
         sources: xStory.sources,
         platformSignals: xStory.platformSignals,
       };

@@ -55,6 +55,11 @@ interface ImageData {
   ext: string;
 }
 
+interface UploadedImage {
+  url: string;
+  id?: number;
+}
+
 // Safely decrypt a value — handles both encrypted and legacy plaintext values
 function safeDecrypt(value: string | null | undefined): string | null {
   if (!value) return null;
@@ -107,8 +112,8 @@ function transformTweetEmbeds(html: string): string {
   if (!html) return html;
 
   return html.replace(
-    /<(?:figure|div)[^>]*data-tweet-id="([^"]*)"[^>]*data-tweet-url="([^"]*)"[^>]*>(?:.*?)<\/(?:figure|div)>/gi,
-    (match, tweetId, tweetUrl) => {
+    /<(?:figure|div)[^>]*data-tweet-id="[^"]*"[^>]*data-tweet-url="([^"]*)"[^>]*>(?:.*?)<\/(?:figure|div)>/gi,
+    (_match, tweetUrl) => {
       return `<blockquote class="twitter-tweet"><a href="${tweetUrl}">${tweetUrl}</a></blockquote>\n<script async src="https://platform.twitter.com/widgets.js" charset="utf-8"></script>`;
     }
   );
@@ -221,6 +226,30 @@ async function downloadImage(imageUrl: string): Promise<ImageData | null> {
   }
 }
 
+async function prepareImageForUpload(
+  imageUrl: string,
+  filename?: string,
+  optimizeOptions?: OptimizeOptions
+): Promise<{ image: ImageData; name: string } | null> {
+  const image = await downloadImage(imageUrl);
+  if (!image) return null;
+
+  const options: OptimizeOptions = {
+    maxWidth: FEATURED_IMAGE_MAX_WIDTH,
+    quality: IMAGE_QUALITY,
+    format: 'webp',
+    ...optimizeOptions,
+  };
+  const optimizedImage = await processImage(image, options);
+
+  let name = filename || `featured-image.${optimizedImage.ext}`;
+  if (filename && optimizedImage.ext !== image.ext) {
+    name = filename.replace(/\.[^.]+$/, `.${optimizedImage.ext}`);
+  }
+
+  return { image: optimizedImage, name };
+}
+
 // Lazy-load googleapis to improve cold start performance
 let googleApis: typeof import('googleapis') | null = null;
 
@@ -274,43 +303,28 @@ async function downloadFromDrive(fileId: string): Promise<ImageData | null> {
   }
 }
 
-// Upload an image to Ghost and return the hosted URL
+// Upload an image to Ghost and return hosted media metadata.
 async function uploadImageToGhost(
   imageUrl: string,
   token: string,
   ghostUrl: string,
   filename?: string,
   optimizeOptions?: OptimizeOptions
-): Promise<string | null> {
+): Promise<UploadedImage | null> {
   try {
-    const image = await downloadImage(imageUrl);
-    if (!image) return null;
-
-    // Optimize image before upload (converts to WebP by default)
-    const options: OptimizeOptions = {
-      maxWidth: FEATURED_IMAGE_MAX_WIDTH,
-      quality: IMAGE_QUALITY,
-      format: 'webp',
-      ...optimizeOptions,
-    };
-    const optimizedImage = await processImage(image, options);
-
-    // Update filename extension to match optimized format
-    let name = filename || `featured-image.${optimizedImage.ext}`;
-    // If filename was provided, replace extension with optimized format
-    if (filename && optimizedImage.ext !== image.ext) {
-      name = filename.replace(/\.[^.]+$/, `.${optimizedImage.ext}`);
-    }
+    const prepared = await prepareImageForUpload(imageUrl, filename, optimizeOptions);
+    if (!prepared) return null;
+    const { image, name } = prepared;
 
     const boundary = '----FormBoundary' + crypto.randomUUID().replace(/-/g, '');
 
     const headerPart = Buffer.from(
-      `--${boundary}\r\nContent-Disposition: form-data; name="file"; filename="${name}"\r\nContent-Type: ${optimizedImage.contentType}\r\n\r\n`
+      `--${boundary}\r\nContent-Disposition: form-data; name="file"; filename="${name}"\r\nContent-Type: ${image.contentType}\r\n\r\n`
     );
     const footerPart = Buffer.from(`\r\n--${boundary}--\r\n`);
-    const bodyBuffer = Buffer.concat([headerPart, optimizedImage.buffer, footerPart]);
+    const bodyBuffer = Buffer.concat([headerPart, image.buffer, footerPart]);
 
-    console.log(`[Ghost Image Upload] Uploading ${name} (${optimizedImage.buffer.length} bytes, ${optimizedImage.contentType})`);
+    console.log(`[Ghost Image Upload] Uploading ${name} (${image.buffer.length} bytes, ${image.contentType})`);
 
     const uploadResponse = await fetch(`${ghostUrl}/ghost/api/admin/images/upload/`, {
       method: 'POST',
@@ -332,14 +346,14 @@ async function uploadImageToGhost(
     const data = await uploadResponse.json();
     const hostedUrl = data.images?.[0]?.url || null;
     console.log(`[Ghost Image Upload] Success: ${hostedUrl}`);
-    return hostedUrl;
+    return hostedUrl ? { url: hostedUrl } : null;
   } catch (error: any) {
     console.error(`[Ghost Image Upload] Error:`, error.message);
     return null;
   }
 }
 
-// Upload an image to WordPress media library and return the media ID
+// Upload an image to WordPress media library and return hosted media metadata.
 async function uploadImageToWordPress(
   imageUrl: string,
   auth: string,
@@ -347,37 +361,22 @@ async function uploadImageToWordPress(
   filename?: string,
   caption?: string,
   optimizeOptions?: OptimizeOptions
-): Promise<number | null> {
+): Promise<UploadedImage | null> {
   try {
-    const image = await downloadImage(imageUrl);
-    if (!image) return null;
+    const prepared = await prepareImageForUpload(imageUrl, filename, optimizeOptions);
+    if (!prepared) return null;
+    const { image, name } = prepared;
 
-    // Optimize image before upload (converts to WebP by default)
-    const options: OptimizeOptions = {
-      maxWidth: FEATURED_IMAGE_MAX_WIDTH,
-      quality: IMAGE_QUALITY,
-      format: 'webp',
-      ...optimizeOptions,
-    };
-    const optimizedImage = await processImage(image, options);
-
-    // Update filename extension to match optimized format
-    let name = filename || `featured-image.${optimizedImage.ext}`;
-    // If filename was provided, replace extension with optimized format
-    if (filename && optimizedImage.ext !== image.ext) {
-      name = filename.replace(/\.[^.]+$/, `.${optimizedImage.ext}`);
-    }
-
-    console.log(`[WP Image Upload] Uploading ${name} (${optimizedImage.buffer.length} bytes, ${optimizedImage.contentType})`);
+    console.log(`[WP Image Upload] Uploading ${name} (${image.buffer.length} bytes, ${image.contentType})`);
 
     const uploadResponse = await fetch(`${wpUrl}/wp-json/wp/v2/media`, {
       method: 'POST',
       headers: {
         Authorization: `Basic ${auth}`,
-        'Content-Type': optimizedImage.contentType,
+        'Content-Type': image.contentType,
         'Content-Disposition': `attachment; filename="${name}"`,
       },
-      body: new Uint8Array(optimizedImage.buffer),
+      body: new Uint8Array(image.buffer),
       signal: AbortSignal.timeout(API_TIMEOUT),
     });
 
@@ -389,7 +388,8 @@ async function uploadImageToWordPress(
 
     const mediaData = await uploadResponse.json();
     const mediaId = mediaData.id;
-    console.log(`[WP Image Upload] Success: media ID ${mediaId}, URL: ${mediaData.source_url}`);
+    const mediaUrl = mediaData.source_url || mediaData.guid?.rendered || '';
+    console.log(`[WP Image Upload] Success: media ID ${mediaId}, URL: ${mediaUrl}`);
 
     // Set caption on the media item if provided
     if (caption && mediaId) {
@@ -404,7 +404,7 @@ async function uploadImageToWordPress(
       }).catch((err) => console.error('[WP Image Caption] Error:', err.message));
     }
 
-    return mediaId;
+    return mediaId || mediaUrl ? { url: mediaUrl, id: mediaId } : null;
   } catch (error: any) {
     console.error(`[WP Image Upload] Error:`, error.message);
     return null;
@@ -469,10 +469,10 @@ async function processBodyImages(
       format: 'webp',
     };
 
-    let newUrl: string | null = null;
+    let uploaded: UploadedImage | null = null;
 
     if (config.type === 'ghost' && config.token) {
-      newUrl = await uploadImageToGhost(
+      uploaded = await uploadImageToGhost(
         originalSrc,
         config.token,
         config.targetUrl,
@@ -480,8 +480,7 @@ async function processBodyImages(
         optimizeOptions
       );
     } else if (config.type === 'wordpress' && config.auth) {
-      // For WordPress, we need to get the media URL after upload
-      const mediaId = await uploadImageToWordPress(
+      uploaded = await uploadImageToWordPress(
         originalSrc,
         config.auth,
         config.targetUrl,
@@ -489,29 +488,13 @@ async function processBodyImages(
         undefined,
         optimizeOptions
       );
-
-      if (mediaId) {
-        // Fetch the media item to get its URL
-        try {
-          const mediaResponse = await fetch(`${config.targetUrl}/wp-json/wp/v2/media/${mediaId}`, {
-            headers: { Authorization: `Basic ${config.auth}` },
-            signal: AbortSignal.timeout(API_TIMEOUT),
-          });
-          if (mediaResponse.ok) {
-            const mediaData = await mediaResponse.json();
-            newUrl = mediaData.source_url;
-          }
-        } catch (err) {
-          console.error(`[Body Images] Failed to get media URL for ID ${mediaId}`);
-        }
-      }
     }
 
-    if (newUrl) {
+    if (uploaded?.url) {
       // Replace the src in the img tag
-      const newTag = fullTag.replace(originalSrc, newUrl);
+      const newTag = fullTag.replace(originalSrc, uploaded.url);
       processedHtml = processedHtml.replace(fullTag, newTag);
-      console.log(`[Body Images] Replaced image ${imageNum} with: ${newUrl}`);
+      console.log(`[Body Images] Replaced image ${imageNum} with: ${uploaded.url}`);
     } else {
       console.log(`[Body Images] Failed to process image ${imageNum}, keeping original`);
     }
@@ -520,27 +503,9 @@ async function processBodyImages(
   return processedHtml;
 }
 
-// Prepare article HTML for Ghost publishing
-// Subheadline goes in custom_excerpt only
-// Image credit goes in feature_image_caption only (NOT in body)
-function prepareGhostHtml(
+function preparePublishHtml(
   bodyHtml: string | null | undefined,
-  body: string,
-  imageCredit: string | null | undefined
-): string {
-  let html = bodyHtml || body;
-  html = transformHtmlEmbeds(html);
-  html = transformTweetEmbeds(html);
-  return html;
-}
-
-// Prepare article HTML for WordPress publishing
-// Subheadline goes in meta field, image goes as featured_media
-// Image credit is set as the media caption — NOT included in body
-function prepareWordPressHtml(
-  bodyHtml: string | null | undefined,
-  body: string,
-  imageCredit: string | null | undefined
+  body: string
 ): string {
   let html = bodyHtml || body;
   html = transformHtmlEmbeds(html);
@@ -563,14 +528,14 @@ async function publishToGhost(
     // Upload featured image to Ghost if present
     let featureImageUrl: string | undefined;
     if (article.featuredImage) {
-      const ghostImageUrl = await uploadImageToGhost(
+      const ghostImage = await uploadImageToGhost(
         article.featuredImage,
         token,
         target.url,
         article.slug ? `${article.slug}.jpg` : undefined
       );
-      if (ghostImageUrl) {
-        featureImageUrl = ghostImageUrl;
+      if (ghostImage) {
+        featureImageUrl = ghostImage.url;
       } else {
         // Fallback: try the original URL directly
         console.log('[Publish Ghost] Image upload failed, trying original URL as fallback');
@@ -578,7 +543,7 @@ async function publishToGhost(
       }
     }
 
-    let processedHtml = prepareGhostHtml(article.bodyHtml, article.body, article.imageCredit);
+    let processedHtml = preparePublishHtml(article.bodyHtml, article.body);
 
     // Process inline body images - download, optimize, and re-upload to Ghost
     processedHtml = await processBodyImages(processedHtml, {
@@ -674,24 +639,26 @@ async function getHannityCategories(auth: string, wpUrl: string): Promise<Array<
   }
 }
 
-// Generate an SEO meta description for a published article using Claude Haiku
-// Returns a 150-155 character description optimized for search engine snippets
-async function generateSeoDescription(
-  headline: string,
-  subHeadline: string | null | undefined,
-  bodyText: string,
-  siteName: string
-): Promise<{ description: string; keywords: string[] }> {
+async function generateWithAI<T>({
+  label,
+  prompt,
+  maxTokens,
+  fallback,
+  parse,
+}: {
+  label: string;
+  prompt: string;
+  maxTokens: number;
+  fallback: T;
+  parse: (parsed: any) => T;
+}): Promise<T> {
   const anthropicApiKey = process.env.ANTHROPIC_API_KEY;
   if (!anthropicApiKey) {
-    console.log(`[SEO AI] No API key, skipping SEO description for ${siteName}`);
-    return { description: '', keywords: [] };
+    console.log(`[${label}] No API key, using fallback`);
+    return fallback;
   }
 
   try {
-    // Use first ~500 chars of body for context
-    const bodyPreview = bodyText.replace(/<[^>]+>/g, '').slice(0, 500);
-
     const response = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: {
@@ -701,10 +668,44 @@ async function generateSeoDescription(
       },
       body: JSON.stringify({
         model: CLAUDE_HAIKU,
-        max_tokens: 250,
-        messages: [{
-          role: 'user',
-          content: `Generate an SEO meta description and keywords for this news article.
+        max_tokens: maxTokens,
+        messages: [{ role: 'user', content: prompt }],
+      }),
+      signal: AbortSignal.timeout(15000),
+    });
+
+    if (!response.ok) {
+      console.error(`[${label}] API error: ${response.status}`);
+      return fallback;
+    }
+
+    const data = await response.json();
+    const text = data.content?.[0]?.text || '';
+    const jsonMatch = text.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) return fallback;
+
+    return parse(JSON.parse(jsonMatch[0]));
+  } catch (error: any) {
+    console.error(`[${label}] Error:`, error.message);
+    return fallback;
+  }
+}
+
+// Generate an SEO meta description for a published article using Claude Haiku
+// Returns a 150-155 character description optimized for search engine snippets
+async function generateSeoDescription(
+  headline: string,
+  subHeadline: string | null | undefined,
+  bodyText: string,
+  siteName: string
+): Promise<{ description: string; keywords: string[] }> {
+  const bodyPreview = bodyText.replace(/<[^>]+>/g, '').slice(0, 500);
+
+  return generateWithAI({
+    label: `SEO AI ${siteName}`,
+    maxTokens: 250,
+    fallback: { description: '', keywords: [] },
+    prompt: `Generate an SEO meta description and keywords for this news article.
 
 Headline: ${headline}${subHeadline ? `\nSubheadline: ${subHeadline}` : ''}
 Body preview: ${bodyPreview}
@@ -714,32 +715,14 @@ Requirements:
 2. Keywords: 5-8 relevant SEO keywords/phrases separated by commas.
 3. Do NOT repeat the headline verbatim. Summarize the key information that would make someone click.
 
-Respond with ONLY valid JSON: {"description":"...","keywords":["keyword1","keyword2",...]}`
-        }],
-      }),
-      signal: AbortSignal.timeout(15000),
-    });
-
-    if (!response.ok) {
-      console.error(`[SEO AI] API error for ${siteName}: ${response.status}`);
-      return { description: '', keywords: [] };
-    }
-
-    const data = await response.json();
-    const text = data.content?.[0]?.text || '';
-    const jsonMatch = text.match(/\{[\s\S]*\}/);
-    if (jsonMatch) {
-      const parsed = JSON.parse(jsonMatch[0]);
+Respond with ONLY valid JSON: {"description":"...","keywords":["keyword1","keyword2",...]}`,
+    parse: (parsed) => {
       const desc = (parsed.description || '').slice(0, 160);
       const kw = Array.isArray(parsed.keywords) ? parsed.keywords : [];
       console.log(`[SEO AI] ${siteName}: "${desc.slice(0, 60)}..." (${kw.length} keywords)`);
       return { description: desc, keywords: kw };
-    }
-  } catch (error: any) {
-    console.error(`[SEO AI] Error for ${siteName}:`, error.message);
-  }
-
-  return { description: '', keywords: [] };
+    },
+  });
 }
 
 // Set SEO fields on a WordPress post via ACF v3 endpoint (for sites using ACF SEO fields like JoePags)
@@ -782,56 +765,23 @@ async function generateHeadlineVariation(
   subHeadline: string | null | undefined,
   siteName: string
 ): Promise<{ headline: string; subHeadline: string }> {
-  const anthropicApiKey = process.env.ANTHROPIC_API_KEY;
-  if (!anthropicApiKey) {
-    console.log(`[Headline AI] No API key, using original headline for ${siteName}`);
-    return { headline, subHeadline: subHeadline || '' };
-  }
-
-  try {
-    const response = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': anthropicApiKey,
-        'anthropic-version': '2023-06-01',
-      },
-      body: JSON.stringify({
-        model: CLAUDE_HAIKU,
-        max_tokens: 150,
-        messages: [{
-          role: 'user',
-          content: `Rewrite this news headline and subheadline for ${siteName}. Keep the same meaning and tone but vary the wording so it's not identical to other versions. Do not change the meaning, do not sensationalize, keep a similar length, and do NOT use ALL CAPS.
+  return generateWithAI({
+    label: `Headline AI ${siteName}`,
+    maxTokens: 150,
+    fallback: { headline, subHeadline: subHeadline || '' },
+    prompt: `Rewrite this news headline and subheadline for ${siteName}. Keep the same meaning and tone but vary the wording so it's not identical to other versions. Do not change the meaning, do not sensationalize, keep a similar length, and do NOT use ALL CAPS.
 
 Headline: ${headline}${subHeadline ? `\nSubheadline: ${subHeadline}` : ''}
 
-Respond with ONLY valid JSON: {"headline":"...","subheadline":"..."}`
-        }],
-      }),
-      signal: AbortSignal.timeout(15000),
-    });
-
-    if (!response.ok) {
-      console.error(`[Headline AI] API error for ${siteName}: ${response.status}`);
-      return { headline, subHeadline: subHeadline || '' };
-    }
-
-    const data = await response.json();
-    const text = data.content?.[0]?.text || '';
-    const jsonMatch = text.match(/\{[\s\S]*\}/);
-    if (jsonMatch) {
-      const parsed = JSON.parse(jsonMatch[0]);
+Respond with ONLY valid JSON: {"headline":"...","subheadline":"..."}`,
+    parse: (parsed) => {
       console.log(`[Headline AI] ${siteName}: "${parsed.headline}"`);
       return {
         headline: fixAllCapsHeadline(parsed.headline || headline),
         subHeadline: fixAllCapsHeadline(parsed.subheadline || subHeadline || ''),
       };
-    }
-  } catch (error: any) {
-    console.error(`[Headline AI] Error for ${siteName}:`, error.message);
-  }
-
-  return { headline, subHeadline: subHeadline || '' };
+    },
+  });
 }
 
 // Generate Hannity mantle fields and pick category using a single AI call
@@ -848,28 +798,20 @@ async function generateHannityFields(
   subHeadline: string | null | undefined,
   categories: Array<{ id: number; name: string }>
 ): Promise<HannityAIResult> {
-  const anthropicApiKey = process.env.ANTHROPIC_API_KEY;
-  if (!anthropicApiKey) {
-    console.log('[Hannity AI] No API key, using defaults');
-    return { head: headline, subhead: subHeadline?.toUpperCase().slice(0, 30) || '', pageHeadline: headline.slice(0, 75), pageSubHeadline: subHeadline || '', categoryId: null };
-  }
-
   const categoryList = categories.map(c => `${c.id}: ${c.name}`).join('\n');
+  const fallback = {
+    head: headline,
+    subhead: subHeadline?.toUpperCase().slice(0, 30) || '',
+    pageHeadline: headline.slice(0, 75),
+    pageSubHeadline: subHeadline || '',
+    categoryId: null,
+  };
 
-  try {
-    const response = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': anthropicApiKey,
-        'anthropic-version': '2023-06-01',
-      },
-      body: JSON.stringify({
-        model: CLAUDE_HAIKU,
-        max_tokens: 200,
-        messages: [{
-          role: 'user',
-          content: `You are formatting a news article for hannity.com. Given the headline, generate all display fields and pick a category.
+  return generateWithAI<HannityAIResult>({
+    label: 'Hannity AI',
+    maxTokens: 200,
+    fallback,
+    prompt: `You are formatting a news article for hannity.com. Given the headline, generate all display fields and pick a category.
 
 Headline: ${headline}${subHeadline ? `\nSubheadline: ${subHeadline}` : ''}
 
@@ -886,22 +828,8 @@ Generate these fields:
 Pick the single most relevant category_id from this list. If none fit, use 1.
 ${categoryList}
 
-Respond with ONLY valid JSON: {"subhead":"...","head":"...","page_headline":"...","page_sub_headline":"...","category_id":123}`
-        }],
-      }),
-      signal: AbortSignal.timeout(15000),
-    });
-
-    if (!response.ok) {
-      console.error(`[Hannity AI] API error: ${response.status}`);
-      return { head: headline, subhead: '', pageHeadline: headline.slice(0, 75), pageSubHeadline: '', categoryId: null };
-    }
-
-    const data = await response.json();
-    const text = data.content?.[0]?.text || '';
-    const jsonMatch = text.match(/\{[\s\S]*\}/);
-    if (jsonMatch) {
-      const parsed = JSON.parse(jsonMatch[0]);
+Respond with ONLY valid JSON: {"subhead":"...","head":"...","page_headline":"...","page_sub_headline":"...","category_id":123}`,
+    parse: (parsed) => {
       const categoryId = parsed.category_id && categories.some(c => c.id === parsed.category_id)
         ? parsed.category_id
         : null;
@@ -912,12 +840,8 @@ Respond with ONLY valid JSON: {"subhead":"...","head":"...","page_headline":"...
         pageSubHeadline: parsed.page_sub_headline || '',
         categoryId,
       };
-    }
-  } catch (error: any) {
-    console.error(`[Hannity AI] Error:`, error.message);
-  }
-
-  return { head: headline, subhead: '', pageHeadline: headline.slice(0, 75), pageSubHeadline: '', categoryId: null };
+    },
+  });
 }
 
 // WordPress REST API Publishing
@@ -963,19 +887,19 @@ async function publishToWordPress(
     // Upload featured image to WordPress media library
     let featuredMediaId: number | undefined;
     if (article.featuredImage) {
-      const mediaId = await uploadImageToWordPress(
+      const uploadedImage = await uploadImageToWordPress(
         article.featuredImage,
         auth,
         target.url,
         article.slug ? `${article.slug}.jpg` : undefined,
         article.imageCredit || undefined
       );
-      if (mediaId) {
-        featuredMediaId = mediaId;
+      if (uploadedImage?.id) {
+        featuredMediaId = uploadedImage.id;
       }
     }
 
-    let processedHtml = prepareWordPressHtml(article.bodyHtml, article.body, article.imageCredit);
+    let processedHtml = preparePublishHtml(article.bodyHtml, article.body);
 
     // Process inline body images - download, optimize, and re-upload to WordPress
     processedHtml = await processBodyImages(processedHtml, {
@@ -1377,4 +1301,3 @@ export async function getPublishTargets() {
     clientSecret: safeDecrypt(t.clientSecret),
   }));
 }
-

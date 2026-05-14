@@ -29,7 +29,6 @@ export async function register() {
         runRefreshTokens,
         runUpdateOptimalHours,
         runFetchSocialMetrics,
-        runScrapeCompetitors,
         runIngestStories,
       } = await import('@/lib/cron-jobs');
 
@@ -100,17 +99,7 @@ export async function register() {
         }
       }, 6 * 3600 * 1000);
 
-      // 6. Competitor scraper (every 12 hours)
-      console.log('[Scheduler] - Competitor scraper (every 12h)');
-      setInterval(async () => {
-        try {
-          await runScrapeCompetitors();
-        } catch (err) {
-          console.error('[Scheduler] Competitor scrape error:', err instanceof Error ? err.message : err);
-        }
-      }, 12 * 3600 * 1000);
-
-      // 7. Story ingestion (every 60 seconds)
+      // 6. Story ingestion (every 60 seconds)
       console.log('[Scheduler] - Story ingestion (every 60s)');
       setInterval(async () => {
         try {
@@ -123,7 +112,7 @@ export async function register() {
         }
       }, 60 * 1000);
 
-      // 8. Daily recaps — temporarily disabled
+      // 7. Daily recaps — temporarily disabled
       // console.log('[Scheduler] - Daily recaps (every 12h)');
     }, 10000);
   }

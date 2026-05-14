@@ -4,7 +4,6 @@ import { prisma } from '@/lib/prisma';
 
 export interface StoryScoreInput {
   headline: string;
-  sourceUrl: string;
   sources: Array<{ name: string; url: string }>;
   platformSignals?: {
     x?: { tweetVolume?: number; heat?: number; velocity?: string };
@@ -79,7 +78,6 @@ async function getTopicProfiles(): Promise<TopicProfileCached[]> {
 
 interface ExemplarCached {
   category: string | null;
-  detectedTopics: string[];
   fingerprint: {
     topics: string[];
     keywords: Record<string, number>;
@@ -98,12 +96,11 @@ async function getAnalyzedExemplars(): Promise<ExemplarCached[]> {
 
   const exemplars = await prisma.articleExemplar.findMany({
     where: { status: 'ANALYZED' },
-    select: { category: true, detectedTopics: true, fingerprint: true },
+    select: { category: true, fingerprint: true },
   });
 
   exemplarCache = exemplars.map((e) => ({
     category: e.category,
-    detectedTopics: (e.detectedTopics ?? []) as string[],
     fingerprint: e.fingerprint as ExemplarCached['fingerprint'],
   }));
   exemplarCacheTimestamp = Date.now();
@@ -309,9 +306,11 @@ function computeEditorialStanceAdjustment(headline: string): number {
 
 // ─── Main scoring functions ───────────────────────────────────────────────────
 
-export async function scoreStory(input: StoryScoreInput): Promise<StoryScoreResult> {
-  const profiles = await getTopicProfiles();
-  const exemplars = await getAnalyzedExemplars();
+function scoreStoryWithContext(
+  input: StoryScoreInput,
+  profiles: TopicProfileCached[],
+  exemplars: ExemplarCached[]
+): StoryScoreResult {
   const keywords = extractKeywords(input.headline);
 
   const { score: categoryScore, category, topicClusterId } = computeCategoryScore(keywords, profiles);
@@ -343,40 +342,15 @@ export async function scoreStory(input: StoryScoreInput): Promise<StoryScoreResu
   };
 }
 
+export async function scoreStory(input: StoryScoreInput): Promise<StoryScoreResult> {
+  const profiles = await getTopicProfiles();
+  const exemplars = await getAnalyzedExemplars();
+  return scoreStoryWithContext(input, profiles, exemplars);
+}
+
 export async function scoreStories(inputs: StoryScoreInput[]): Promise<StoryScoreResult[]> {
   // Load profiles and exemplars once, then score all
   const profiles = await getTopicProfiles();
   const exemplars = await getAnalyzedExemplars();
-  return Promise.all(
-    inputs.map(async (input) => {
-      const keywords = extractKeywords(input.headline);
-
-      const { score: categoryScore, category, topicClusterId } = computeCategoryScore(keywords, profiles);
-      const keywordMatchScore = computeKeywordMatchScore(keywords, profiles);
-      const sourceScore = computeSourceScore(input.sources);
-      const { score: velocityScore, isHighVelocity } = computeVelocityScore(input.platformSignals);
-      const recencyScore = computeRecencyScore(input.firstSeenAt);
-      const editorialAdj = computeEditorialStanceAdjustment(input.headline);
-      const exemplarBonus = computeExemplarSimilarityBonus(keywords, category, exemplars);
-
-      const relevanceScore = Math.max(0, Math.min(100, categoryScore + keywordMatchScore + sourceScore + recencyScore + editorialAdj + exemplarBonus));
-      const totalScore = Math.max(0, Math.min(100, relevanceScore + velocityScore));
-
-      let alertLevel: 'NONE' | 'DASHBOARD' | 'TELEGRAM' = 'NONE';
-      if (totalScore >= 85 && isHighVelocity) {
-        alertLevel = 'TELEGRAM';
-      } else if (totalScore >= 40) {
-        alertLevel = 'DASHBOARD';
-      }
-
-      return {
-        relevanceScore,
-        velocityScore,
-        totalScore,
-        alertLevel,
-        matchedCategory: category,
-        topicClusterId,
-      };
-    })
-  );
+  return inputs.map((input) => scoreStoryWithContext(input, profiles, exemplars));
 }

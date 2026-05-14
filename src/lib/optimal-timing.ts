@@ -38,6 +38,17 @@ function emptyGrid(): number[][] {
   return Array.from({ length: 7 }, () => new Array(24).fill(0));
 }
 
+function averageGrid(grid: number[][], counts: number[][]): number[][] {
+  for (let d = 0; d < 7; d++) {
+    for (let h = 0; h < 24; h++) {
+      if (counts[d][h] > 0) {
+        grid[d][h] = grid[d][h] / counts[d][h];
+      }
+    }
+  }
+  return grid;
+}
+
 /**
  * Normalize a grid so max value is 100
  */
@@ -157,8 +168,6 @@ async function getOwnPerformanceGrid(accountId: string): Promise<number[][] | nu
         likes: true,
         retweets: true,
         replies: true,
-        views: true,
-        impressions: true,
       },
     });
 
@@ -175,16 +184,7 @@ async function getOwnPerformanceGrid(accountId: string): Promise<number[][] | nu
       counts[dayOfWeek][hour]++;
     }
 
-    // Average engagement per slot
-    for (let d = 0; d < 7; d++) {
-      for (let h = 0; h < 24; h++) {
-        if (counts[d][h] > 0) {
-          grid[d][h] = grid[d][h] / counts[d][h];
-        }
-      }
-    }
-
-    return normalizeGrid(grid);
+    return normalizeGrid(averageGrid(grid, counts));
   } catch (error) {
     console.error('[Optimal Timing] Own performance data error:', error);
     return null;
@@ -233,16 +233,7 @@ async function getFacebookPostGrid(
       counts[dayOfWeek][hour]++;
     }
 
-    // Average per slot
-    for (let d = 0; d < 7; d++) {
-      for (let h = 0; h < 24; h++) {
-        if (counts[d][h] > 0) {
-          grid[d][h] = grid[d][h] / counts[d][h];
-        }
-      }
-    }
-
-    return normalizeGrid(grid);
+    return normalizeGrid(averageGrid(grid, counts));
   } catch (error) {
     console.error('[Facebook Posts] Error:', error);
     return null;
@@ -338,16 +329,7 @@ async function getUmamiSocialGrid(publishTargetUrl: string): Promise<number[][] 
       }
     }
 
-    // Average per slot
-    for (let d = 0; d < 7; d++) {
-      for (let h = 0; h < 24; h++) {
-        if (counts[d][h] > 0) {
-          grid[d][h] = grid[d][h] / counts[d][h];
-        }
-      }
-    }
-
-    return normalizeGrid(grid);
+    return normalizeGrid(averageGrid(grid, counts));
   } catch (error) {
     console.error('[Umami Social] Error:', error);
     return null;
@@ -373,7 +355,7 @@ async function getCompetitorGrid(platform: string): Promise<number[][] | null> {
     if (competitors.length === 0) return null;
 
     const grid = emptyGrid();
-    let count = 0;
+    const counts = emptyGrid();
 
     for (const comp of competitors) {
       const engagement = comp.avgEngagement as number[][] | null;
@@ -383,21 +365,15 @@ async function getCompetitorGrid(platform: string): Promise<number[][] | null> {
         if (!Array.isArray(engagement[d]) || engagement[d].length !== 24) continue;
         for (let h = 0; h < 24; h++) {
           grid[d][h] += engagement[d][h] ?? 0;
+          counts[d][h]++;
         }
       }
-      count++;
     }
 
-    if (count === 0) return null;
+    const hasData = counts.some(row => row.some(count => count > 0));
+    if (!hasData) return null;
 
-    // Average across competitors
-    for (let d = 0; d < 7; d++) {
-      for (let h = 0; h < 24; h++) {
-        grid[d][h] = grid[d][h] / count;
-      }
-    }
-
-    return normalizeGrid(grid);
+    return normalizeGrid(averageGrid(grid, counts));
   } catch (error) {
     console.error('[Optimal Timing] Competitor data error:', error);
     return null;

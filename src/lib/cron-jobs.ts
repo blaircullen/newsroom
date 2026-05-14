@@ -4,9 +4,11 @@
  * Used by both instrumentation.ts (direct call) and route handlers (HTTP access).
  */
 
+import prisma from '@/lib/prisma';
+
+const SEND_LOCK_TTL_MS = 5 * 60 * 1000;
+
 export async function runPublishScheduled(): Promise<{ processed: number; successful: number }> {
-  // Dynamic import to avoid circular deps and ensure prisma is initialized
-  const { default: prisma } = await import('@/lib/prisma');
   const { publishArticle } = await import('@/lib/publish');
 
   const now = new Date();
@@ -74,11 +76,10 @@ export async function runPublishScheduled(): Promise<{ processed: number; succes
 }
 
 export async function runSendSocial(): Promise<{ processed: number; sent: number; failed: number }> {
-  const { default: prisma } = await import('@/lib/prisma');
   const { sendSocialPost } = await import('@/lib/social-send');
 
   const now = new Date();
-  const fiveMinutesAgo = new Date(now.getTime() - 5 * 60 * 1000);
+  const fiveMinutesAgo = new Date(now.getTime() - SEND_LOCK_TTL_MS);
 
   // Recover stuck posts: SENDING for >5 minutes
   const stuckPosts = await prisma.socialPost.findMany({
@@ -156,7 +157,6 @@ export async function runSendSocial(): Promise<{ processed: number; sent: number
 }
 
 export async function runRefreshTokens(): Promise<{ checked: number; refreshed: number; failed: number }> {
-  const { default: prisma } = await import('@/lib/prisma');
   const { decrypt, encrypt } = await import('@/lib/encryption');
   const { sendEmail } = await import('@/lib/email');
   const { getXAppCredentials } = await import('@/lib/x-oauth');
@@ -329,7 +329,6 @@ export async function runRefreshTokens(): Promise<{ checked: number; refreshed: 
 }
 
 export async function runUpdateOptimalHours(): Promise<{ updated: number }> {
-  const { default: prisma } = await import('@/lib/prisma');
   const { calculatePostingProfile } = await import('@/lib/optimal-timing');
 
   const accounts = await prisma.socialAccount.findMany({
@@ -365,7 +364,6 @@ export async function runUpdateOptimalHours(): Promise<{ updated: number }> {
 }
 
 export async function runFetchSocialMetrics(): Promise<{ updated: number; rateLimited: number; unauthorized: number; errors: number }> {
-  const { default: prisma } = await import('@/lib/prisma');
   const { decrypt } = await import('@/lib/encryption');
   const { raiseAlert, resolveAlert } = await import('@/lib/system-alerts');
 
@@ -469,26 +467,15 @@ export async function runFetchSocialMetrics(): Promise<{ updated: number; rateLi
   return { updated, rateLimited, unauthorized, errors };
 }
 
-export async function runScrapeCompetitors(): Promise<{ updated: number }> {
-  // Scraper is disabled — Cloudflare blocks requests from cloud server IPs
-  return { updated: 0 };
-}
-
 export async function runIngestStories(): Promise<{ success: boolean; created: number; updated: number }> {
-  const { prisma } = await import('@/lib/prisma');
   const { scrapeStoryIdeas } = await import('@/lib/cfp-scraper');
   const { scrapeReddit } = await import('@/lib/reddit-scraper');
-  const { scrapeGoogleTrends } = await import('@/lib/google-trends-scraper');
   const { scoreStory } = await import('@/lib/story-scorer');
-  // X monitoring disabled — twikit scraper container not running (VM 101)
-  // const { monitorXAccounts } = await import('@/lib/x-monitor');
 
   const [storyIdeas, redditPosts] = await Promise.all([
     scrapeStoryIdeas(),
     scrapeReddit(),
-    scrapeGoogleTrends(),
   ]);
-  const xMonitoredStories: any[] = [];
 
   let created = 0;
   const updated = 0;
@@ -505,7 +492,7 @@ export async function runIngestStories(): Promise<{ success: boolean; created: n
       ? idea.sources
       : [{ name: idea.source, url: idea.sourceUrl }];
 
-    const scored = await scoreStory({ headline: idea.headline, sourceUrl: idea.sourceUrl, sources });
+    const scored = await scoreStory({ headline: idea.headline, sources });
 
     await prisma.storyIntelligence.create({
       data: {
@@ -534,7 +521,6 @@ export async function runIngestStories(): Promise<{ success: boolean; created: n
 
     const scored = await scoreStory({
       headline: post.title,
-      sourceUrl: post.redditUrl,
       sources: [{ name: `r/${post.subreddit}`, url: post.redditUrl }],
       platformSignals: { reddit: { score: post.score, velocity: post.velocity, numComments: post.numComments } },
     });
@@ -553,38 +539,6 @@ export async function runIngestStories(): Promise<{ success: boolean; created: n
         platformSignals: {
           reddit: { score: post.score, velocity: post.velocity, numComments: post.numComments, subreddit: post.subreddit, ageMinutes: post.ageMinutes, redditUrl: post.redditUrl },
         },
-      },
-    });
-    created++;
-  }
-
-  // Process X-monitored stories
-  for (const xStory of xMonitoredStories) {
-    const existing = await prisma.storyIntelligence.findFirst({
-      where: { sourceUrl: xStory.sourceUrl },
-      select: { id: true },
-    });
-    if (existing) continue;
-
-    const scored = await scoreStory({
-      headline: xStory.headline,
-      sourceUrl: xStory.sourceUrl,
-      sources: xStory.sources,
-      platformSignals: xStory.platformSignals,
-    });
-
-    await prisma.storyIntelligence.create({
-      data: {
-        headline: xStory.headline,
-        sourceUrl: xStory.sourceUrl,
-        sources: xStory.sources,
-        category: scored.matchedCategory ?? undefined,
-        topicClusterId: scored.topicClusterId ?? undefined,
-        relevanceScore: scored.relevanceScore,
-        velocityScore: scored.velocityScore,
-        alertLevel: scored.alertLevel,
-        verificationStatus: 'UNVERIFIED',
-        platformSignals: xStory.platformSignals,
       },
     });
     created++;
