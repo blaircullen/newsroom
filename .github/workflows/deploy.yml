@@ -60,8 +60,11 @@ jobs:
             # Fix media volume ownership (volume mounts as root, app runs as nextjs)
             docker exec -u root newsroom-app chown -R nextjs:nodejs /data/media 2>/dev/null || true
 
-            # Run database migrations
-            docker compose exec -T app npx prisma migrate deploy
+            # Run database migrations.
+            # Pin the CLI: the prod image strips `prisma` (devDep), so a bare
+            # `npx prisma` pulls latest (v7), which rejects this v5 schema
+            # (datasource `url`). Pin to the version in package.json.
+            docker compose exec -T app npx -y prisma@5.22.0 migrate deploy
 
             # Clean up old images
             docker image prune -f
