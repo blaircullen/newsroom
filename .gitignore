@@ -30,9 +30,6 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
-# prisma
-prisma/migrations/
-
 # local media uploads
 /uploads/
 
