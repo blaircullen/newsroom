@@ -25,7 +25,7 @@ npx prisma generate  # Regenerate client after schema changes
 **Patterns:**
 - All pages `'use client'` — use `layout.tsx` for metadata, `loading.tsx` for loading states. `export const dynamic` is a no-op in client components — never add it there.
 - Article search: PG full-text search (tsvector/tsquery + GIN index) for 3+ chars, ILIKE fallback
-- Prisma migrations dir is gitignored — run SQL manually on production
+- Prisma migrations are tracked in git; `migrate deploy` (pinned `prisma@5.22.0` in deploy.yml) applies them on deploy
 - AI article prompts: no `<strong>`/`<b>` bold, no em dashes (—), no header tags in body
 - Politically explicit prompts cause Claude refusals — keep editorial stance subtle
 - Email templates: `src/lib/email.ts` → `wrapInTemplate()`
@@ -38,12 +38,14 @@ npx prisma generate  # Regenerate client after schema changes
 
 ### Schema Changes (will crash prod if violated)
 
-**Always run migration SQL on production BEFORE pushing.** Auto-deploy starts immediately — missing schema = crash.
+**Migrations are now tracked in git and applied by `migrate deploy` on deploy** (deploy.yml pins `prisma@5.22.0` — a bare `npx prisma` pulls v7 and rejects the v5 schema; prod image strips the prisma CLI). Prod `_prisma_migrations` is baselined (0001_baseline + 0002 applied as of 2026-06-01). Canonical flow:
 
 1. Edit `prisma/schema.prisma`, test locally: `npx prisma db push`
-2. Generate SQL: `npx prisma migrate dev --name <description>`
-3. Run on production: `docker exec newsroom-db-1 psql -U newsroom -d m3newsroom -c "ALTER TABLE ..."`
-4. Verify, **then** `git push origin main`
+2. Generate the migration: `npx prisma migrate dev --name <description>` (creates `prisma/migrations/<ts>_<name>/` — commit it)
+3. `git push origin main` → deploy.yml runs `migrate deploy` → applies the new migration on prod
+4. Verify on prod after deploy.
+
+**Still true:** never push a `schema.prisma` change without a matching committed migration — the app crashes if a column it expects is missing. For a hotfix you can still apply SQL manually (`docker exec newsroom-db-1 psql ...`) then `migrate resolve --applied <name>`. Live prod is **Hetzner** (`newsroom-db-1`), per the HA toggle — not always BuyVM.
 
 **Before ANY push:** Compare schema against prod columns (`\d <table>` on prod). Missing columns cause silent Prisma failures — API errors, "no data found" even though records exist.
 
@@ -139,7 +141,7 @@ DISABLED on main (2026-02-21). `monitorXAccounts()` commented out in `cron-jobs.
 
 - **Env var staleness:** `docker compose up -d --build` does NOT pick up `.env` changes. Must `--force-recreate` to inject new env vars into running containers.
 
-- **Prisma migrations are gitignored** — run SQL manually on production before pushing. Auto-deploy starts immediately; missing schema = crash.
+- **Prisma migrations are tracked in git** (un-gitignored 2026-06-01). `migrate deploy` applies them on deploy via deploy.yml — pinned to `prisma@5.22.0` because the prod image strips the prisma CLI and a bare `npx prisma` pulls v7 (which rejects the v5 `datasource url` schema). Commit the migration with the schema change; never push a schema change without its migration or the app crashes on a missing column.
 
 - **DB is on BuyVM, not Hetzner** (migrated). The production DB container is `newsroom-db-1` on BuyVM `198.98.58.109`.
 
