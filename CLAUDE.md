@@ -84,14 +84,14 @@ docker exec newsroom-db-1 psql -U newsroom -d m3newsroom -c "YOUR_QUERY"
 > **AUTO-DEPLOY IS UNRELIABLE.** After `git push origin main`, always manually deploy:
 
 ```bash
-# Production is on BuyVM (migrated from Hetzner):
-ssh -p 65222 root@198.98.58.109 "cd /opt/newsroom && git pull origin main && docker compose up -d --build"
+# LIVE PRODUCTION IS HETZNER (178.156.143.87), /opt/newsroom:
+ssh root@178.156.143.87 "cd /opt/newsroom && git pull origin main && docker compose up -d --build"
 # Verify:
-ssh -p 65222 root@198.98.58.109 "cd /opt/newsroom && git log --oneline -1 && docker compose ps"
+ssh root@178.156.143.87 "cd /opt/newsroom && git log --oneline -1 && docker compose ps && curl -s -o /dev/null -w '%{http_code}' http://localhost:3000/login"
 ```
 
-**Production:** https://newsroom.m3media.com | **BuyVM 198.98.58.109** | `/opt/newsroom/`
-**User can flip newsroom between BuyVM and Hetzner via a HA toggle** (both environments exist)
+**Production:** https://newsroom.m3media.com | **Hetzner 178.156.143.87** | `/opt/newsroom/`
+**BuyVM is the warm-standby BACKUP** — repo at `/opt/failover/newsroom` (NOT `/opt/newsroom`), runs NO container. A HA toggle can flip envs, but Hetzner is the default live host. Don't deploy to BuyVM expecting it to be visible.
 
 ## Key Components
 
@@ -133,7 +133,7 @@ DISABLED on main (2026-02-21). `monitorXAccounts()` commented out in `cron-jobs.
 
 ## Pitfalls (Things That Have Burned Time)
 
-- **bcrypt hash generation:** `bcryptjs` is NOT available inside `newsroom-app` container (compiled into bundle). Generate from **BuyVM host**: `cd /opt/newsroom && node -e "const b = require('./node_modules/bcryptjs'); b.hash('pwd', 12).then(h => console.log(h));"` — then update via psql.
+- **bcrypt hash generation:** `bcryptjs` is NOT available inside `newsroom-app` container (compiled into bundle). Generate from the **live host (Hetzner)**: `cd /opt/newsroom && node -e "const b = require('./node_modules/bcryptjs'); b.hash('pwd', 12).then(h => console.log(h));"` — then update via psql.
 
 - **Zsh glob quoting in `git add`:** Zsh expands `[id]` in paths. Always quote: `git add "src/app/api/scanner/picks/[id]/decision/route.ts"` — unquoted will silently fail or expand wrong.
 
@@ -143,7 +143,7 @@ DISABLED on main (2026-02-21). `monitorXAccounts()` commented out in `cron-jobs.
 
 - **Prisma migrations are tracked in git** (un-gitignored 2026-06-01). `migrate deploy` applies them on deploy via deploy.yml — pinned to `prisma@5.22.0` because the prod image strips the prisma CLI and a bare `npx prisma` pulls v7 (which rejects the v5 `datasource url` schema). Commit the migration with the schema change; never push a schema change without its migration or the app crashes on a missing column.
 
-- **DB is on BuyVM, not Hetzner** (migrated). The production DB container is `newsroom-db-1` on BuyVM `198.98.58.109`.
+- **DB is on the live host (Hetzner).** The production DB container is `newsroom-db-1` on Hetzner `178.156.143.87`. BuyVM holds only the failover copy (`/opt/failover/newsroom`).
 
 - **Shopify publish target credentials** live in `publish_targets` table on prod DB — not in any `.env` file. Get fresh token via `POST https://<myshopify>/admin/oauth/access_token`.
 
