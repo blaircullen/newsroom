@@ -555,16 +555,13 @@ async function publishToGhost(
     console.log(`[Publish Ghost] Target: ${target.url}`);
     console.log(`[Publish Ghost] Feature image: ${featureImageUrl || '(none)'}`);
 
-    // Generate a slightly different headline for this site
-    const varied = await generateHeadlineVariation(article.headline, article.subHeadline, target.name);
-
     // Generate SEO meta description
     const seo = await generateSeoDescription(article.headline, article.subHeadline, article.body, target.name);
 
     const ghostPost: any = {
       posts: [{
-        title: varied.headline,
-        custom_excerpt: varied.subHeadline || undefined,
+        title: article.headline,
+        custom_excerpt: article.subHeadline || undefined,
         meta_description: seo.description || undefined,
         custom_template: 'custom-post-with-sidebar',
         html: processedHtml,
@@ -759,31 +756,6 @@ async function setWordPressAcfSeo(
   }
 }
 
-// Generate a slightly different headline for a site to avoid duplicate content across sites
-async function generateHeadlineVariation(
-  headline: string,
-  subHeadline: string | null | undefined,
-  siteName: string
-): Promise<{ headline: string; subHeadline: string }> {
-  return generateWithAI({
-    label: `Headline AI ${siteName}`,
-    maxTokens: 150,
-    fallback: { headline, subHeadline: subHeadline || '' },
-    prompt: `Rewrite this news headline and subheadline for ${siteName}. Keep the same meaning and tone but vary the wording so it's not identical to other versions. Do not change the meaning, do not sensationalize, keep a similar length, and do NOT use ALL CAPS.
-
-Headline: ${headline}${subHeadline ? `\nSubheadline: ${subHeadline}` : ''}
-
-Respond with ONLY valid JSON: {"headline":"...","subheadline":"..."}`,
-    parse: (parsed) => {
-      console.log(`[Headline AI] ${siteName}: "${parsed.headline}"`);
-      return {
-        headline: fixAllCapsHeadline(parsed.headline || headline),
-        subHeadline: fixAllCapsHeadline(parsed.subheadline || subHeadline || ''),
-      };
-    },
-  });
-}
-
 // Generate Hannity mantle fields and pick category using a single AI call
 interface HannityAIResult {
   head: string;
@@ -820,15 +792,14 @@ Generate these fields:
    - "subhead": Short punchy phrase, ALL CAPS, max 30 chars. A quoted word, reaction, or key theme. Examples: "INAPPROPRIATE", "WITCH HUNT!", "BREAKING", "83% OF CONTRACTS CANCELED!"
    - "head": Descriptive headline for the mantle. Remove any prefix that became the subhead. Do NOT write in ALL CAPS — use title case.
 
-2. PAGE HEADLINE (article page display):
-   - "page_headline": Rewritten headline, MAX 75 CHARACTERS. Must be concise but capture the story. This is strictly enforced — do not exceed 75 chars. Do NOT write in ALL CAPS — use title case.
+2. PAGE SUB-HEADLINE (article page display):
    - "page_sub_headline": A subtitle that provides additional context or detail not in the headline. 1 sentence, conversational.
 
 3. CATEGORY:
 Pick the single most relevant category_id from this list. If none fit, use 1.
 ${categoryList}
 
-Respond with ONLY valid JSON: {"subhead":"...","head":"...","page_headline":"...","page_sub_headline":"...","category_id":123}`,
+Respond with ONLY valid JSON: {"subhead":"...","head":"...","page_sub_headline":"...","category_id":123}`,
     parse: (parsed) => {
       const categoryId = parsed.category_id && categories.some(c => c.id === parsed.category_id)
         ? parsed.category_id
@@ -836,7 +807,7 @@ Respond with ONLY valid JSON: {"subhead":"...","head":"...","page_headline":"...
       return {
         head: fixAllCapsHeadline(parsed.head || headline),
         subhead: (parsed.subhead || '').slice(0, 30),
-        pageHeadline: fixAllCapsHeadline((parsed.page_headline || headline)).slice(0, 75),
+        pageHeadline: headline.slice(0, 75), // verbatim newsroom title (sliced only if >75 chars)
         pageSubHeadline: parsed.page_sub_headline || '',
         categoryId,
       };
@@ -916,14 +887,9 @@ async function publishToWordPress(
     // Generate SEO meta description for all WordPress sites
     const seo = await generateSeoDescription(article.headline, article.subHeadline, article.body, target.name);
 
-    // Generate varied headline for non-Hannity WordPress sites
-    let wpTitle = article.headline;
-    let wpExcerpt = article.subHeadline || '';
-    if (!isHannity) {
-      const varied = await generateHeadlineVariation(article.headline, article.subHeadline, target.name);
-      wpTitle = varied.headline;
-      wpExcerpt = varied.subHeadline;
-    }
+    // Use the newsroom title verbatim (no per-site AI rewrite)
+    const wpTitle = article.headline;
+    const wpExcerpt = article.subHeadline || '';
 
     // For non-Hannity sites, use SEO description as excerpt if available (theme renders excerpt as meta description)
     const finalExcerpt = (!isHannity && seo.description) ? seo.description : wpExcerpt;
@@ -1106,14 +1072,11 @@ async function publishToShopify(
 
     console.log(`[Publish Shopify] Target: ${target.myshopifyDomain}, Blog ID: ${blogId}`);
 
-    // Generate a slightly different headline for this site
-    const varied = await generateHeadlineVariation(article.headline, article.subHeadline, target.name);
-
     const shopifyArticle: any = {
       article: {
-        title: varied.headline,
+        title: article.headline,
         body_html: processedHtml,
-        summary_html: varied.subHeadline || undefined,
+        summary_html: article.subHeadline || undefined,
         tags: tags || undefined,
         published: true,
         author: 'AIG Staff',
