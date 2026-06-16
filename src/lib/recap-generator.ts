@@ -1,4 +1,5 @@
 import prisma from '@/lib/prisma';
+import { CLAUDE_SONNET } from '@/lib/ai-models';
 
 interface TopArticle {
   id: string;
@@ -288,7 +289,7 @@ Remember: 2-3 sentences MAX. Name-drop the top article and top writer if availab
       'anthropic-version': '2023-06-01',
     },
     body: JSON.stringify({
-      model: 'claude-sonnet-4-20250514',
+      model: CLAUDE_SONNET,
       max_tokens: 300,
       system: 'You are the in-house news anchor for a digital newsroom. You deliver daily performance recaps with the energy of a late-night monologue — sharp, witty, and occasionally self-deprecating about the media industry. Keep it tight (2-3 sentences MAX). Name-drop the top article and top writer. Include exactly one joke or clever observation. No emojis. No hashtags. NEVER start with a greeting like "Good morning" or "Good evening" — jump straight into the recap. Write like you\'re doing a 10-second desk bit before cutting to commercial.',
       messages: [{ role: 'user', content: userPrompt }],

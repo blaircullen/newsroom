@@ -6,6 +6,7 @@ import { generateQuickPreview, generateDeepFingerprint } from '@/lib/exemplar-ai
 import { fixAllCapsHeadline } from '@/lib/utils';
 import { autoSelectGettyImage } from '@/lib/getty-client';
 import { saveMedia } from '@/lib/media';
+import { CLAUDE_SONNET } from '@/lib/ai-models';
 import { extractArticle } from '@/lib/trafilatura-client';
 import fs from 'fs/promises';
 import path from 'path';
@@ -186,7 +187,7 @@ ${sourceLabels.map((s, i) => `   ${i + 1}. ${s}`).join('\n')}
         'anthropic-version': '2023-06-01',
       },
       body: JSON.stringify({
-        model: 'claude-sonnet-4-20250514',
+        model: CLAUDE_SONNET,
         max_tokens: 4000,
         messages: [
           {

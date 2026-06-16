@@ -1,4 +1,5 @@
 import prisma from '@/lib/prisma';
+import { CLAUDE_SONNET } from '@/lib/ai-models';
 
 /**
  * Strip HTML tags from a string and decode HTML entities
@@ -121,7 +122,7 @@ RULES:
     messages: Array<{ role: string; content: string }>;
     system?: string;
   } = {
-    model: 'claude-sonnet-4-20250514',
+    model: CLAUDE_SONNET,
     max_tokens: 500,
     messages: [{ role: 'user', content: userMessage }],
   };

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import prisma from '@/lib/prisma';
+import { CLAUDE_SONNET } from '@/lib/ai-models';
 
 /**
  * Strip HTML tags from a string and decode HTML entities
@@ -202,7 +203,7 @@ Respond in this exact JSON format (no markdown fences):
           'anthropic-version': '2023-06-01',
         },
         body: JSON.stringify({
-          model: 'claude-sonnet-4-20250514',
+          model: CLAUDE_SONNET,
           max_tokens: 2000,
           messages: [{ role: 'user', content: prompt }],
         }),

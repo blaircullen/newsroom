@@ -5,6 +5,7 @@ import { isPrivateUrl } from '@/lib/url-validation';
 import { fixAllCapsHeadline } from '@/lib/utils';
 import { sanitizeArticleHtml } from '@/lib/html-sanitize';
 import { extractArticle, isTrafilaturaAvailable } from '@/lib/trafilatura-client';
+import { CLAUDE_SONNET } from '@/lib/ai-models';
 
 // POST /api/articles/import - Import and rewrite an article from a URL
 export async function POST(request: NextRequest) {
@@ -114,7 +115,7 @@ export async function POST(request: NextRequest) {
       },
       signal: AbortSignal.timeout(60000),
       body: JSON.stringify({
-        model: 'claude-sonnet-4-20250514',
+        model: CLAUDE_SONNET,
         max_tokens: 4000,
         messages: [
           {
