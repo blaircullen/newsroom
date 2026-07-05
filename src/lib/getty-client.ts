@@ -51,7 +51,10 @@ async function gettyFetch(endpoint: string, body: object): Promise<any> {
       method: 'POST',
       headers,
       body: JSON.stringify(body),
-      signal: AbortSignal.timeout(90000), // Getty operations can be slow
+      // Cap below Cloudflare's ~100s proxy limit so a slow worker (e.g. session
+      // re-auth) returns a clean JSON 502 from us rather than letting CF serve an
+      // HTML 524 timeout page the frontend can't parse. Leaves headroom for saveMedia.
+      signal: AbortSignal.timeout(75000),
     });
   } catch (error) {
     const detail = error instanceof Error ? error.message : String(error);

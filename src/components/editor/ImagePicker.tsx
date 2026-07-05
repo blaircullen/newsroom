@@ -104,6 +104,17 @@ export default function ImagePicker({ isOpen, onClose, onSelect, selectedImageId
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ assetId: result.assetId }),
       });
+      // Guard: a non-JSON body means an edge/gateway error page (e.g. Cloudflare 524
+      // timeout HTML), not our API — parsing it as JSON produces a misleading
+      // "Unexpected token '<'" error. Surface the real status instead.
+      const contentType = res.headers.get('content-type') || '';
+      if (!contentType.includes('application/json')) {
+        throw new Error(
+          res.status === 504 || res.status === 524
+            ? 'Getty download timed out at the gateway — try again, or the Getty session may need refreshing.'
+            : `Getty download failed (HTTP ${res.status}).`
+        );
+      }
       const data = await res.json();
       if (!res.ok) {
         throw new Error(data.error || 'Download failed');

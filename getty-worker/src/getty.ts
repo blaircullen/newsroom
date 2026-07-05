@@ -386,20 +386,21 @@ export async function downloadGettyImage(assetId: string): Promise<GettyDownload
       return null;
     }
 
-    // Create download via XHR (Getty uses XHR, not fetch, for this endpoint)
-    const signedUrl = await page.evaluate(
+    // Create download via XHR (Getty uses XHR, not fetch, for this endpoint).
+    // Return status + body snippet (not just the URL) so a failure records WHY —
+    // an expired session, quota, or schema change is otherwise swallowed silently.
+    const createResult = await page.evaluate(
       async (params: { token: string; assetId: string; customerId: number }) => {
-        return new Promise<string | null>((resolve) => {
+        return new Promise<{ url: string | null; status: number; body: string }>((resolve) => {
           const xhr = new XMLHttpRequest();
           xhr.open('POST', '/components/asset-acquisition/api/downloads/create-download');
           xhr.setRequestHeader('Content-Type', 'application/json');
           xhr.onload = () => {
-            try {
-              const data = JSON.parse(xhr.responseText);
-              resolve(data?.singleDownloads?.[0]?.url || null);
-            } catch { resolve(null); }
+            let url: string | null = null;
+            try { url = JSON.parse(xhr.responseText)?.singleDownloads?.[0]?.url || null; } catch { /* non-JSON body */ }
+            resolve({ url, status: xhr.status, body: (xhr.responseText || '').slice(0, 300) });
           };
-          xhr.onerror = () => resolve(null);
+          xhr.onerror = () => resolve({ url: null, status: xhr.status, body: 'XHR network error' });
           xhr.send(JSON.stringify({
             data: {
               tokens: [params.token],
@@ -414,10 +415,11 @@ export async function downloadGettyImage(assetId: string): Promise<GettyDownload
       { token: chosen.downloadToken, assetId, customerId: GETTY_CUSTOMER_ID }
     );
 
-    if (!signedUrl) {
-      log('Create-download API returned no URL');
+    if (!createResult?.url) {
+      log(`Create-download API returned no URL (status=${createResult?.status}, body=${createResult?.body})`);
       return null;
     }
+    const signedUrl = createResult.url;
 
     log('Signed download URL obtained');
 
