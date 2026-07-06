@@ -449,7 +449,6 @@ export default function DashboardPage() {
           <div className="bg-ink-950 min-h-screen px-4 pt-4">
             <HotSection
               hotArticles={hotArticles}
-              storyIdeas={[]}
               showAllHot={showAllHot}
               setShowAllHot={setShowAllHot}
             />

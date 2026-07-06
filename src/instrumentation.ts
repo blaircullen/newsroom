@@ -25,7 +25,6 @@ export async function register() {
     setTimeout(async () => {
       const {
         runPublishScheduled,
-        runIngestStories,
       } = await import('@/lib/cron-jobs');
 
       console.log('[Scheduler] Starting scheduled jobs (direct invocation)');
@@ -40,19 +39,6 @@ export async function register() {
           }
         } catch (err) {
           console.error('[Scheduler] Publish error:', err instanceof Error ? err.message : err);
-        }
-      }, 60 * 1000);
-
-      // 2. Story ingestion (every 60 seconds)
-      console.log('[Scheduler] - Story ingestion (every 60s)');
-      setInterval(async () => {
-        try {
-          const data = await runIngestStories();
-          if (data.created > 0) {
-            console.log(`[Scheduler] Ingested ${data.created} new stories`);
-          }
-        } catch (err) {
-          console.error('[Scheduler] Story ingest error:', err instanceof Error ? err.message : err);
         }
       }, 60 * 1000);
 
