@@ -8,13 +8,9 @@ import {
   HiOutlineExclamationTriangle,
   HiOutlineClock,
   HiOutlineCalendarDays,
-  HiOutlineShare,
-  HiOutlineQueueList,
 } from 'react-icons/hi2';
 import toast from 'react-hot-toast';
-import { etDateString, etDatetimeLocalValue } from '@/lib/date-utils';
-import SocialScheduler from '@/components/dashboard/SocialScheduler';
-import type { PostingProfile } from '@/lib/optimal-timing';
+import { etDateString } from '@/lib/date-utils';
 
 interface PublishTarget {
   id: string;
@@ -29,24 +25,6 @@ interface SiteResult {
   success: boolean;
   url?: string;
   error?: string;
-}
-
-interface SocialAccount {
-  id: string;
-  platform: string;
-  accountName: string;
-  accountHandle: string;
-  publishTargetId: string | null;
-  isActive: boolean;
-  optimalHours: PostingProfile | null;
-}
-
-interface SocialPostDraft {
-  accountId: string;
-  caption: string;
-  scheduledAt: string;
-  articleUrl: string;
-  isGenerating: boolean;
 }
 
 interface PublishModalProps {
@@ -64,13 +42,6 @@ export default function PublishModal({ articleId, onClose, onPublished }: Publis
   const [publishMode, setPublishMode] = useState<'now' | 'schedule'>('now');
   const [scheduledDate, setScheduledDate] = useState('');
   const [scheduledTime, setScheduledTime] = useState('');
-
-  // Social post state
-  const [step, setStep] = useState<'publish' | 'social'>('publish');
-  const [socialAccounts, setSocialAccounts] = useState<SocialAccount[]>([]);
-  const [socialPostDrafts, setSocialPostDrafts] = useState<Map<string, SocialPostDraft>>(new Map());
-  const [isLoadingSocial, setIsLoadingSocial] = useState(false);
-  const [isQueuingPosts, setIsQueuingPosts] = useState(false);
 
   useEffect(() => {
     async function fetchTargets() {
@@ -144,7 +115,6 @@ export default function PublishModal({ articleId, onClose, onPublished }: Publis
         const failures = data.results.filter((r: SiteResult) => !r.success);
         if (successes.length > 0 && failures.length === 0) {
           toast.success('Published to ' + successes.length + ' site' + (successes.length > 1 ? 's' : '') + '!');
-          // Don't auto-close — let user continue to social posts or close manually
         } else if (successes.length > 0) {
           toast.success('Published to ' + successes.length + ', ' + failures.length + ' failed');
         } else {
@@ -158,247 +128,8 @@ export default function PublishModal({ articleId, onClose, onPublished }: Publis
     }
   };
 
-  // Function to load social accounts and generate captions
-  const handleContinueToSocial = async () => {
-    setIsLoadingSocial(true);
-    setStep('social');
-
-    try {
-      // Fetch all social accounts
-      const res = await fetch('/api/social/accounts');
-      if (!res.ok) throw new Error('Failed to load social accounts');
-      const accounts: SocialAccount[] = await res.json();
-
-      setSocialAccounts(accounts.filter(acc => acc.isActive));
-
-      // Get successfully published target IDs and build URL lookup
-      const successfulResults = results?.filter(r => r.success) || [];
-      const successfulTargetIds = successfulResults.map(r => r.targetId);
-      const targetIdToUrl = new Map(successfulResults.map(r => [r.targetId, r.url || '']));
-      const defaultUrl = successfulResults[0]?.url || '';
-
-      // Filter accounts linked to published sites
-      const linkedAccounts = accounts.filter(
-        acc => acc.isActive && acc.publishTargetId && successfulTargetIds.includes(acc.publishTargetId)
-      );
-
-      // Generate captions for linked accounts
-      const draftsMap = new Map<string, SocialPostDraft>();
-
-      for (const account of linkedAccounts) {
-        // Default to the account's linked site URL, fall back to first successful
-        const accountUrl = (account.publishTargetId && targetIdToUrl.get(account.publishTargetId)) || defaultUrl;
-
-        // Set generating state
-        draftsMap.set(account.id, {
-          accountId: account.id,
-          caption: '',
-          scheduledAt: getSuggestedTime(),
-          articleUrl: accountUrl,
-          isGenerating: true,
-        });
-        setSocialPostDrafts(new Map(draftsMap));
-
-        // Generate caption
-        try {
-          const captionRes = await fetch('/api/social/generate-caption', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ articleId, socialAccountId: account.id }),
-          });
-
-          if (!captionRes.ok) throw new Error('Failed to generate caption');
-          const { caption } = await captionRes.json();
-
-          draftsMap.set(account.id, {
-            accountId: account.id,
-            caption,
-            scheduledAt: getSuggestedTime(),
-            articleUrl: accountUrl,
-            isGenerating: false,
-          });
-          setSocialPostDrafts(new Map(draftsMap));
-        } catch (error) {
-          console.error('Caption generation error:', error);
-          draftsMap.set(account.id, {
-            accountId: account.id,
-            caption: 'Failed to generate caption. Please edit manually.',
-            scheduledAt: getSuggestedTime(),
-            articleUrl: accountUrl,
-            isGenerating: false,
-          });
-          setSocialPostDrafts(new Map(draftsMap));
-        }
-      }
-    } catch (error) {
-      toast.error('Failed to load social accounts');
-      console.error('Social accounts error:', error);
-    } finally {
-      setIsLoadingSocial(false);
-    }
-  };
-
-  // Get suggested post time (1 hour from now, in ET)
-  const getSuggestedTime = () => {
-    const date = new Date(Date.now() + 60 * 60 * 1000);
-    return etDatetimeLocalValue(date);
-  };
-
-  // Handle caption change
-  const handleCaptionChange = (accountId: string, caption: string) => {
-    const draft = socialPostDrafts.get(accountId);
-    if (draft) {
-      setSocialPostDrafts(new Map(socialPostDrafts.set(accountId, { ...draft, caption })));
-    }
-  };
-
-  // Handle scheduled time change
-  const handleScheduledAtChange = (accountId: string, scheduledAt: string) => {
-    const draft = socialPostDrafts.get(accountId);
-    if (draft) {
-      setSocialPostDrafts(new Map(socialPostDrafts.set(accountId, { ...draft, scheduledAt })));
-    }
-  };
-
-  // Handle regenerate caption
-  const handleRegenerateCaption = async (accountId: string) => {
-    const draft = socialPostDrafts.get(accountId);
-    if (!draft) return;
-
-    setSocialPostDrafts(new Map(socialPostDrafts.set(accountId, { ...draft, isGenerating: true })));
-
-    try {
-      const res = await fetch('/api/social/generate-caption', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ articleId, socialAccountId: accountId }),
-      });
-
-      if (!res.ok) throw new Error('Failed to generate caption');
-      const { caption } = await res.json();
-
-      setSocialPostDrafts(new Map(socialPostDrafts.set(accountId, { ...draft, caption, isGenerating: false })));
-    } catch (error) {
-      toast.error('Failed to regenerate caption');
-      setSocialPostDrafts(new Map(socialPostDrafts.set(accountId, { ...draft, isGenerating: false })));
-    }
-  };
-
-  // Handle remove post
-  const handleRemovePost = (accountId: string) => {
-    const newDrafts = new Map(socialPostDrafts);
-    newDrafts.delete(accountId);
-    setSocialPostDrafts(newDrafts);
-  };
-
-  // Handle article URL change per account
-  const handleArticleUrlChange = (accountId: string, articleUrl: string) => {
-    const draft = socialPostDrafts.get(accountId);
-    if (draft) {
-      setSocialPostDrafts(new Map(socialPostDrafts.set(accountId, { ...draft, articleUrl })));
-    }
-  };
-
-  // Handle add account
-  const handleAddAccount = async (accountId: string) => {
-    // Default URL: use account's linked site URL if available, otherwise first successful
-    const account = socialAccounts.find(acc => acc.id === accountId);
-    const successfulResults = results?.filter(r => r.success) || [];
-    const targetIdToUrl = new Map(successfulResults.map(r => [r.targetId, r.url || '']));
-    const defaultUrl = successfulResults[0]?.url || '';
-    const accountUrl = (account?.publishTargetId && targetIdToUrl.get(account.publishTargetId)) || defaultUrl;
-
-    // Set generating state
-    const newDraft: SocialPostDraft = {
-      accountId,
-      caption: '',
-      scheduledAt: getSuggestedTime(),
-      articleUrl: accountUrl,
-      isGenerating: true,
-    };
-    setSocialPostDrafts(new Map(socialPostDrafts.set(accountId, newDraft)));
-
-    // Generate caption
-    try {
-      const res = await fetch('/api/social/generate-caption', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ articleId, socialAccountId: accountId }),
-      });
-
-      if (!res.ok) throw new Error('Failed to generate caption');
-      const { caption } = await res.json();
-
-      setSocialPostDrafts(new Map(socialPostDrafts.set(accountId, { ...newDraft, caption, isGenerating: false })));
-    } catch (error) {
-      toast.error('Failed to generate caption');
-      setSocialPostDrafts(new Map(socialPostDrafts.set(accountId, { ...newDraft, isGenerating: false, caption: 'Failed to generate caption. Please edit manually.' })));
-    }
-  };
-
-  // Build available URLs from successful publish results
-  const availableUrls = (results?.filter(r => r.success && r.url) || []).map(r => ({
-    name: r.name,
-    url: r.url!,
-  }));
-
-  // Handle queue all posts
-  const handleQueueAll = async () => {
-    if (socialPostDrafts.size === 0) {
-      toast.error('No posts to queue');
-      return;
-    }
-
-    // Validate all posts
-    const invalidPosts = Array.from(socialPostDrafts.values()).filter(
-      draft => !draft.caption.trim() || !draft.scheduledAt
-    );
-
-    if (invalidPosts.length > 0) {
-      toast.error('Please complete all captions and scheduled times');
-      return;
-    }
-
-    setIsQueuingPosts(true);
-
-    try {
-      // Fetch article to get featured image
-      const articleRes = await fetch(`/api/articles/${articleId}`);
-      if (!articleRes.ok) throw new Error('Failed to fetch article');
-      const article = await articleRes.json();
-
-      // Build posts payload — each draft has its own articleUrl
-      const posts = Array.from(socialPostDrafts.values()).map(draft => ({
-        articleId,
-        socialAccountId: draft.accountId,
-        caption: draft.caption,
-        imageUrl: article.featuredImage || undefined,
-        articleUrl: draft.articleUrl,
-        scheduledAt: new Date(draft.scheduledAt).toISOString(),
-      }));
-
-      const res = await fetch('/api/social/queue', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ posts }),
-      });
-
-      if (!res.ok) throw new Error('Failed to queue posts');
-      const data = await res.json();
-
-      toast.success(`Queued ${data.count} social post${data.count > 1 ? 's' : ''}!`);
-      onClose();
-    } catch (error) {
-      toast.error('Failed to queue social posts');
-      console.error('Queue error:', error);
-    } finally {
-      setIsQueuingPosts(false);
-    }
-  };
-
   const allSelected = targets.length > 0 && selectedTargets.size === targets.length;
   const hasResults = results !== null;
-  const hasSuccessfulPublish = results?.some(r => r.success) || false;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
@@ -411,23 +142,15 @@ export default function PublishModal({ articleId, onClose, onPublished }: Publis
       >
         <div className="flex items-center justify-between px-4 md:px-5 py-5 border-b border-ink-100 dark:border-ink-800">
           <div className="flex items-center gap-3">
-            <div className={`w-9 h-9 rounded-lg flex items-center justify-center ${
-              step === 'social' ? 'bg-blue-50' : 'bg-emerald-50'
-            }`}>
-              {step === 'social' ? (
-                <HiOutlineShare className="w-5 h-5 text-blue-600" />
-              ) : (
-                <HiOutlineGlobeAlt className="w-5 h-5 text-emerald-600" />
-              )}
+            <div className="w-9 h-9 rounded-lg flex items-center justify-center bg-emerald-50">
+              <HiOutlineGlobeAlt className="w-5 h-5 text-emerald-600" />
             </div>
             <div>
               <h3 id="publish-modal-title" className="font-display font-semibold text-lg text-ink-900 dark:text-ink-100">
-                {step === 'social' ? 'Social Posts' : hasResults ? 'Publish Results' : 'Publish Article'}
+                {hasResults ? 'Publish Results' : 'Publish Article'}
               </h3>
               <p className="text-ink-400 text-xs">
-                {step === 'social'
-                  ? 'Review and schedule social media posts'
-                  : hasResults
+                {hasResults
                   ? 'See status for each site below'
                   : 'Select one or more sites to publish to'}
               </p>
@@ -443,21 +166,7 @@ export default function PublishModal({ articleId, onClose, onPublished }: Publis
         </div>
 
         <div className="px-4 md:px-5 py-5 max-h-[60vh] overflow-y-auto">
-          {step === 'social' ? (
-            // Social posts step
-            <SocialScheduler
-              isLoadingSocial={isLoadingSocial}
-              socialAccounts={socialAccounts}
-              socialPostDrafts={socialPostDrafts}
-              availableUrls={availableUrls}
-              onCaptionChange={handleCaptionChange}
-              onScheduledAtChange={handleScheduledAtChange}
-              onArticleUrlChange={handleArticleUrlChange}
-              onRegenerate={handleRegenerateCaption}
-              onRemove={handleRemovePost}
-              onAddAccount={handleAddAccount}
-            />
-          ) : isLoading ? (
+          {isLoading ? (
             <div className="py-8 text-center">
               <div className="animate-spin w-6 h-6 border-2 border-ink-200 border-t-press-500 rounded-full mx-auto" />
             </div>
@@ -493,16 +202,6 @@ export default function PublishModal({ articleId, onClose, onPublished }: Publis
                   </div>
                 </div>
               ))}
-
-              {/* Auto-post confirmation */}
-              {hasSuccessfulPublish && (
-                <div className="flex items-center gap-2 mt-3 px-1">
-                  <HiOutlineQueueList className="w-4 h-4 text-emerald-600 flex-shrink-0" />
-                  <p className="text-xs text-emerald-600">
-                    Social posts auto-scheduled for linked accounts
-                  </p>
-                </div>
-              )}
             </div>
           ) : (
             <div className="space-y-4">
@@ -605,63 +304,27 @@ export default function PublishModal({ articleId, onClose, onPublished }: Publis
         </div>
 
         <div className="flex items-center justify-between gap-3 px-4 md:px-5 py-5 border-t border-ink-100 dark:border-ink-800 bg-paper-50 dark:bg-ink-800/50">
-          {step === 'social' ? (
-            // Social step footer
-            <>
-              <button
-                onClick={onClose}
-                className="px-4 py-2.5 text-sm font-medium text-ink-600 dark:text-ink-300 hover:text-ink-800 dark:hover:text-ink-100 transition-colors"
-              >
-                Skip
-              </button>
-              <button
-                type="button"
-                onClick={handleQueueAll}
-                disabled={socialPostDrafts.size === 0 || isQueuingPosts}
-                className="px-6 py-2.5 text-sm font-semibold text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
-              >
-                {isQueuingPosts
-                  ? 'Queueing...'
-                  : `Queue ${socialPostDrafts.size} Post${socialPostDrafts.size !== 1 ? 's' : ''}`}
-              </button>
-            </>
-          ) : (
-            // Publish step footer
-            <>
-              <button
-                onClick={onClose}
-                className="px-4 py-2.5 text-sm font-medium text-ink-600 dark:text-ink-300 hover:text-ink-800 dark:hover:text-ink-100 transition-colors"
-              >
-                {hasResults ? 'Close' : 'Cancel'}
-              </button>
-              <div className="flex items-center gap-3">
-                {hasResults && hasSuccessfulPublish && (
-                  <button
-                    type="button"
-                    onClick={handleContinueToSocial}
-                    className="px-6 py-2.5 text-sm font-semibold text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-all"
-                  >
-                    Continue to Social Posts
-                  </button>
-                )}
-                {!hasResults && (
-                  <button
-                    type="button"
-                    onClick={handlePublish}
-                    disabled={selectedTargets.size === 0 || (publishMode === 'schedule' && (!scheduledDate || !scheduledTime)) || isPublishing}
-                    className="px-6 py-2.5 text-sm font-semibold text-white bg-emerald-600 rounded-lg hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
-                  >
-                    {isPublishing
-                      ? (publishMode === 'schedule' ? 'Scheduling...' : 'Publishing...')
-                      : publishMode === 'schedule'
-                      ? 'Schedule Publish'
-                      : selectedTargets.size > 1
-                      ? 'Publish to ' + selectedTargets.size + ' Sites'
-                      : 'Publish Now'}
-                  </button>
-                )}
-              </div>
-            </>
+          <button
+            onClick={onClose}
+            className="px-4 py-2.5 text-sm font-medium text-ink-600 dark:text-ink-300 hover:text-ink-800 dark:hover:text-ink-100 transition-colors"
+          >
+            {hasResults ? 'Close' : 'Cancel'}
+          </button>
+          {!hasResults && (
+            <button
+              type="button"
+              onClick={handlePublish}
+              disabled={selectedTargets.size === 0 || (publishMode === 'schedule' && (!scheduledDate || !scheduledTime)) || isPublishing}
+              className="px-6 py-2.5 text-sm font-semibold text-white bg-emerald-600 rounded-lg hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+            >
+              {isPublishing
+                ? (publishMode === 'schedule' ? 'Scheduling...' : 'Publishing...')
+                : publishMode === 'schedule'
+                ? 'Schedule Publish'
+                : selectedTargets.size > 1
+                ? 'Publish to ' + selectedTargets.size + ' Sites'
+                : 'Publish Now'}
+            </button>
           )}
         </div>
       </div>

@@ -35,7 +35,7 @@ import {
   HiOutlineAcademicCap,
 } from 'react-icons/hi2';
 
-type TabId = 'home' | 'hot' | 'analytics' | 'social-queue' | 'profile' | 'training';
+type TabId = 'home' | 'hot' | 'analytics' | 'profile' | 'training';
 
 const FILTERS = [
   { value: '', label: 'All Stories' },
@@ -139,10 +139,6 @@ export default function DashboardPage() {
 
   // Handle tab change — persists active tab in URL search params
   const handleTabChange = (tab: TabId) => {
-    if (tab === 'social-queue') {
-      router.push('/social-queue');
-      return;
-    }
     const params = new URLSearchParams(searchParams.toString());
     params.set('tab', tab);
     router.replace(`${pathname}?${params.toString()}`, { scroll: false });

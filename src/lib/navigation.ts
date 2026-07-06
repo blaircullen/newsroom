@@ -4,9 +4,6 @@ import {
   HiOutlineUserGroup,
   HiOutlineGlobeAlt,
   HiOutlineChartBar,
-  HiOutlineMegaphone,
-  HiOutlineShare,
-  HiOutlineChatBubbleBottomCenterText,
   HiOutlineRss,
 } from 'react-icons/hi2';
 import { IconType } from 'react-icons';
@@ -49,24 +46,6 @@ export const navItems: NavItem[] = [
     label: 'Publish Sites',
     icon: HiOutlineGlobeAlt,
     showFor: (role) => role === 'ADMIN',
-  },
-  {
-    href: '/admin/social-accounts',
-    label: 'Social Accounts',
-    icon: HiOutlineShare,
-    showFor: (role) => role === 'ADMIN',
-  },
-  {
-    href: '/admin/voice-profiles',
-    label: 'Voice Profiles',
-    icon: HiOutlineChatBubbleBottomCenterText,
-    showFor: (role) => role === 'ADMIN',
-  },
-  {
-    href: '/social-queue',
-    label: 'Social Queue',
-    icon: HiOutlineMegaphone,
-    showFor: (role) => ['ADMIN', 'EDITOR'].includes(role),
   },
   {
     href: '/scanner',

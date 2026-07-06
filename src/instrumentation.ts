@@ -25,10 +25,6 @@ export async function register() {
     setTimeout(async () => {
       const {
         runPublishScheduled,
-        runSendSocial,
-        runRefreshTokens,
-        runUpdateOptimalHours,
-        runFetchSocialMetrics,
         runIngestStories,
       } = await import('@/lib/cron-jobs');
 
@@ -47,59 +43,7 @@ export async function register() {
         }
       }, 60 * 1000);
 
-      // 2. Social post sender (every 60 seconds)
-      console.log('[Scheduler] - Social post sender (every 60s)');
-      setInterval(async () => {
-        try {
-          const data = await runSendSocial();
-          if (data.processed > 0) {
-            console.log(`[Scheduler] Sent ${data.sent} of ${data.processed} social post(s)`);
-          }
-        } catch (err) {
-          console.error('[Scheduler] Social send error:', err instanceof Error ? err.message : err);
-        }
-      }, 60 * 1000);
-
-      // 3. Token refresh (every hour)
-      console.log('[Scheduler] - Token refresh (every hour)');
-      setInterval(async () => {
-        try {
-          const data = await runRefreshTokens();
-          if (data.checked > 0) {
-            console.log(`[Scheduler] Refreshed ${data.refreshed} of ${data.checked} token(s)`);
-          }
-        } catch (err) {
-          console.error('[Scheduler] Token refresh error:', err instanceof Error ? err.message : err);
-        }
-      }, 3600 * 1000);
-
-      // 4. Optimal hours update (every 24 hours, runs once on startup then daily)
-      console.log('[Scheduler] - Optimal hours update (every 24h)');
-      const doOptimalHours = async () => {
-        try {
-          const data = await runUpdateOptimalHours();
-          console.log(`[Scheduler] Updated posting profiles for ${data.updated} account(s)`);
-        } catch (err) {
-          console.error('[Scheduler] Optimal hours error:', err instanceof Error ? err.message : err);
-        }
-      };
-      doOptimalHours(); // Run immediately on startup
-      setInterval(doOptimalHours, 86400 * 1000);
-
-      // 5. Social metrics fetch (every 6 hours)
-      console.log('[Scheduler] - Social metrics fetch (every 6h)');
-      setInterval(async () => {
-        try {
-          const data = await runFetchSocialMetrics();
-          if (data.updated > 0) {
-            console.log(`[Scheduler] Updated ${data.updated} social metrics`);
-          }
-        } catch (err) {
-          console.error('[Scheduler] Social metrics error:', err instanceof Error ? err.message : err);
-        }
-      }, 6 * 3600 * 1000);
-
-      // 6. Story ingestion (every 60 seconds)
+      // 2. Story ingestion (every 60 seconds)
       console.log('[Scheduler] - Story ingestion (every 60s)');
       setInterval(async () => {
         try {

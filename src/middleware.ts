@@ -56,7 +56,7 @@ export default async function middleware(req: NextRequest) {
   }
 
   // Auth check for protected page routes
-  const protectedPaths = ['/', '/dashboard', '/editor', '/admin', '/analytics', '/social-queue'];
+  const protectedPaths = ['/', '/dashboard', '/editor', '/admin', '/analytics'];
   const isProtected = protectedPaths.some((p) =>
     pathname === p || pathname.startsWith(p + '/')
   );
@@ -86,7 +86,6 @@ export const config = {
     '/editor/:path*',
     '/admin/:path*',
     '/analytics/:path*',
-    '/social-queue/:path*',
     '/api/articles/search/:path*',
     '/api/auth/:path*',
     '/api/story-intelligence/ingest/:path*',
