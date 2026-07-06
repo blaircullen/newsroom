@@ -3,7 +3,6 @@ import {
   HiOutlineClipboardDocumentCheck,
   HiOutlineUserGroup,
   HiOutlineGlobeAlt,
-  HiOutlineCalendarDays,
   HiOutlineChartBar,
   HiOutlineMegaphone,
   HiOutlineShare,
@@ -31,12 +30,6 @@ export const navItems: NavItem[] = [
     href: '/dashboard?filter=submitted',
     label: 'For Review',
     icon: HiOutlineClipboardDocumentCheck,
-    showFor: (role) => ['ADMIN', 'EDITOR'].includes(role),
-  },
-  {
-    href: '/calendar',
-    label: 'Calendar',
-    icon: HiOutlineCalendarDays,
     showFor: (role) => ['ADMIN', 'EDITOR'].includes(role),
   },
   {

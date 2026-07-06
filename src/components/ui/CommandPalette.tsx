@@ -10,7 +10,6 @@ import {
   HiOutlineHome,
   HiOutlineUserGroup,
   HiOutlineGlobeAlt,
-  HiOutlineCalendarDays,
   HiOutlineChartBar,
   HiOutlineCog6Tooth,
   HiOutlineMoon,
@@ -85,15 +84,6 @@ export default function CommandPalette() {
         icon: HiOutlineDocumentText,
         action: () => router.push('/dashboard?filter=submitted'),
         keywords: ['review', 'submitted', 'pending'],
-        category: 'navigation' as const,
-      },
-      {
-        id: 'calendar',
-        label: 'Editorial Calendar',
-        description: 'View content calendar',
-        icon: HiOutlineCalendarDays,
-        action: () => router.push('/calendar'),
-        keywords: ['schedule', 'calendar', 'plan'],
         category: 'navigation' as const,
       },
       {
