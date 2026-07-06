@@ -18,8 +18,8 @@ npx prisma generate  # Regenerate client after schema changes
 **Analytics:** Umami (self-hosted) via API
 **AI:** Anthropic Claude (claude-sonnet-4-20250514) — assistant prefill (`{`) forces JSON output
 
-**Pages:** `/dashboard`, `/editor/[id]`, `/analytics`, `/calendar`, `/social-queue`, `/scanner`, `/login`
-**API routes:** `/api/articles/*`, `/api/analytics/*`, `/api/social/*`, `/api/cron/*`, `/api/sites/*`, `/api/trending/*`, `/api/scanner/*`
+**Pages:** `/dashboard`, `/editor/[id]`, `/analytics`, `/scanner`, `/login`
+**API routes:** `/api/articles/*`, `/api/analytics/*` (daily-stats, top-articles, revenue, cron, refresh), `/api/cron/*`, `/api/sites/*`, `/api/trending/*`, `/api/scanner/*`
 **Key libs:** `src/lib/auth.ts`, `src/lib/prisma.ts`, `src/lib/email.ts`, `src/lib/publish.ts` (45K, largest), `src/lib/cron-jobs.ts` (20K, 7 exported run* functions), `src/lib/scanner-sse.ts` (in-memory SSE registry), `src/lib/telegram-scanner.ts` (bot alerts)
 
 **Patterns:**
@@ -100,7 +100,6 @@ ssh root@178.156.143.87 "cd /opt/newsroom && git log --oneline -1 && docker comp
 - **Skeleton:** `src/components/ui/Skeleton.tsx` — `Skeleton`, `SkeletonText`, `SkeletonCard`, `SkeletonCardDark`
 - **StatusBadge:** `src/components/ui/StatusBadge.tsx` — STATUS_CONFIG, STATUS_DOT, desktop/mobile variants
 - **Button:** `src/components/ui/Button.tsx` — primary/secondary/danger, sm/md/lg, loading state
-- **SocialScheduler:** `src/components/dashboard/SocialScheduler.tsx` — extracted from PublishModal
 - **Mobile nav:** URL-routed via `?tab=home|hot|analytics`, uses `useSearchParams` + `router.replace`
 - **Editor:** Cmd/Ctrl+S saves, amber dot unsaved indicator, back button on new/edit pages
 
@@ -121,7 +120,6 @@ DISABLED on main (2026-02-21). `monitorXAccounts()` commented out in `cron-jobs.
 | AI article generation | `src/lib/cron-jobs.ts` (`runScanner*`), `src/app/api/scanner/` |
 | Scanner SSE (live progress) | `src/lib/scanner-sse.ts` — in-memory registry, not persisted |
 | Scanner Telegram alerts | `src/lib/telegram-scanner.ts` |
-| Social queue | `src/app/social-queue/`, `src/app/api/social/`, `src/components/social/` |
 | Publishing (WP/Shopify) | `src/lib/publish.ts` (45KB — largest file in repo) |
 | Analytics sync | `src/lib/cron-jobs.ts` (`runAnalyticsSync`), `src/app/analytics/` |
 | Umami integration | `src/lib/umami.ts` — incremental sync via `getArticleAnalyticsIncremental()` |

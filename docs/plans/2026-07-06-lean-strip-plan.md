@@ -62,6 +62,10 @@ Remove:
 
 ## Unit 6 — Schema migration (SEPARATE COMMIT, NOT APPLIED)
 - Remove models: `StoryIntelligence`, `TopicProfile`, `VerificationSource`, `StoryFeedback`, `SocialPost`, `SocialAccount`, `SiteVoiceProfile` + their relation fields/back-references on User/Article/etc.
+- **PRE-STEP (found during U2 gate — these KEPT routes still touch dropped models; U6 MUST remove these code refs FIRST or the build breaks when the model is gone):**
+  - `src/app/api/exemplars/route.ts` (`runDeepAnalysis`, ~lines 30–55) and `src/app/api/exemplars/[id]/route.ts` (~lines 54–70): remove the `prisma.topicProfile.findUnique/findMany/update` keyword-weight-boost blocks. TopicProfile was ONLY read by the now-deleted `story-scorer.ts`; after U2 it is write-only dead state. Exemplar core (submit → fingerprint → ANALYZED, browse) is preserved — only the vestigial scorer-feeding tail goes.
+  - `src/app/api/articles/[id]/route.ts:~291`: remove the `prisma.storyIntelligence.updateMany` FK-nullify block on article delete (CLAUDE.md "Article Delete FK" note becomes obsolete — no StoryIntelligence rows to nullify once the table is dropped). Also update that CLAUDE.md section.
+  - `/api/alerts/telegram` + `src/lib/telegram.ts` — already deleted in U2 (were pure story-intel), so no U6 action needed there.
 - KEEP: `CompetitorAccount` (historical data preserved for Phase 2 idea-gen), `DailyRecap`, `ArticleExemplar`, `ScanRun`, `ScanPick`
 - Write migration SQL by hand under `prisma/migrations/<ts>_lean_strip/migration.sql` (DROP TABLE statements matching removed models) — do NOT run `prisma migrate dev` against any live DB, do NOT `db push`
 - `npx prisma validate` + `npm run build` must pass

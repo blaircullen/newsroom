@@ -2,16 +2,14 @@
 
 export const dynamic = 'force-dynamic';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import AppShell from '@/components/layout/AppShell';
-import WriterLeaderboard from '@/components/dashboard/WriterLeaderboard';
 import Sparkline from '@/components/ui/Sparkline';
 import {
   HiOutlineChartBar,
-  HiOutlineEye,
   HiOutlineUsers,
   HiOutlineDocumentText,
   HiOutlineArrowTrendingUp,
@@ -39,12 +37,6 @@ interface OverviewStats {
   totalPageviews: number;
   totalVisitors: number;
   avgPageviewsPerArticle: number;
-}
-
-interface RealtimeData {
-  activeVisitors: number;
-  totalRecentViews: number;
-  timestamp: number;
 }
 
 interface RevenueSource {
@@ -75,37 +67,8 @@ export default function AnalyticsPage() {
   const [articles, setArticles] = useState<ArticleStats[]>([]);
   const [overview, setOverview] = useState<OverviewStats | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [realtime, setRealtime] = useState<RealtimeData | null>(null);
   const [isRealtime, setIsRealtime] = useState(false);
   const [revenue, setRevenue] = useState<RevenueData | null>(null);
-
-  // Fetch real-time active visitors
-  const fetchRealtime = useCallback(async () => {
-    try {
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 5000);
-      const res = await fetch('/api/analytics/realtime', {
-        signal: controller.signal,
-      });
-      clearTimeout(timeoutId);
-      if (res.ok) {
-        const data = await res.json();
-        setRealtime(data);
-      }
-    } catch (error) {
-      if ((error as Error).name !== 'AbortError') {
-        console.error('Failed to fetch realtime:', error);
-      }
-    }
-  }, []);
-
-  // Poll active visitors every 15 seconds
-  useEffect(() => {
-    if (!session) return;
-    fetchRealtime();
-    const interval = setInterval(fetchRealtime, 15000);
-    return () => clearInterval(interval);
-  }, [session, fetchRealtime]);
 
   // Fetch top articles for the selected period
   useEffect(() => {
@@ -175,8 +138,6 @@ export default function AnalyticsPage() {
 
   if (!session) return null;
 
-  const isLive = realtime && (Date.now() - realtime.timestamp) < 30000;
-
   return (
     <AppShell>
       <div className="max-w-7xl mx-auto">
@@ -191,15 +152,6 @@ export default function AnalyticsPage() {
                 {isRealtime ? 'Live analytics from M3 Analytics' : 'Analytics and insights for your content'}
               </p>
             </div>
-            {isLive && (
-              <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/20">
-                <span className="relative flex h-2 w-2">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                  <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
-                </span>
-                <span className="text-xs font-semibold text-emerald-600 dark:text-emerald-400 uppercase tracking-wider">Live</span>
-              </div>
-            )}
           </div>
           <div className="flex items-center gap-2 bg-white dark:bg-ink-800 rounded-lg border border-ink-200 dark:border-ink-700 p-1 self-start sm:self-auto">
             {([
@@ -230,24 +182,7 @@ export default function AnalyticsPage() {
         ) : (
           <>
             {/* Overview Cards */}
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4 mb-8">
-              {/* Active Visitors - live */}
-              <div className="bg-gradient-to-br from-emerald-500 to-emerald-600 dark:from-emerald-600 dark:to-emerald-700 rounded-xl p-5 relative overflow-hidden">
-                <div className="absolute top-3 right-3">
-                  <span className="relative flex h-2.5 w-2.5">
-                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-white opacity-75"></span>
-                    <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-white"></span>
-                  </span>
-                </div>
-                <div className="w-10 h-10 rounded-lg flex items-center justify-center bg-white/20 mb-3">
-                  <HiOutlineEye className="w-5 h-5 text-white" />
-                </div>
-                <p className="text-2xl font-display font-bold text-white">
-                  {realtime?.activeVisitors ?? '—'}
-                </p>
-                <p className="text-sm text-white/80 mt-0.5">Active Now</p>
-              </div>
-
+            <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
               <OverviewCard
                 icon={HiOutlineDocumentText}
                 label="With Traffic"
@@ -378,8 +313,6 @@ export default function AnalyticsPage() {
 
               {/* Sidebar */}
               <div className="space-y-6">
-                <WriterLeaderboard />
-
                 {/* Quick Stats */}
                 <div className="bg-white dark:bg-ink-900 rounded-xl border border-ink-100 dark:border-ink-800 p-5">
                   <h3 className="font-display font-semibold text-ink-900 dark:text-white mb-4">
