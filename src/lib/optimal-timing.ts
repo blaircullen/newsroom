@@ -209,7 +209,8 @@ async function getFacebookPostGrid(
 
     const response = await fetch(postsUrl.toString());
     if (!response.ok) {
-      console.error(`[Facebook Posts] API error: ${response.status}`);
+      const body = await response.text().catch(() => '<unreadable>');
+      console.error(`[Facebook Posts] API error: ${response.status} ${body.slice(0, 500)}`);
       return null;
     }
 
