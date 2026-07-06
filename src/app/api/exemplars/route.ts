@@ -26,33 +26,6 @@ async function runDeepAnalysis(
         analyzedAt: new Date(),
       },
     });
-
-    // Boost TopicProfile keyword weights for each similarToCategories entry
-    for (const category of fingerprint.similarToCategories) {
-      const profile = await prisma.topicProfile.findUnique({
-        where: { category },
-      });
-
-      if (!profile) continue;
-
-      const weights = (profile.keywordWeights as Record<string, number>) ?? {};
-
-      for (const [keyword, delta] of Object.entries(fingerprint.keywords)) {
-        const current = weights[keyword] ?? 1.0;
-        const isNew = !(keyword in weights);
-        // New keywords start at 1.5, existing get +0.5 of the fingerprint weight delta
-        const boost = isNew ? 1.5 : current + delta * 0.5;
-        weights[keyword] = Math.min(10, Math.max(0.5, boost));
-      }
-
-      await prisma.topicProfile.update({
-        where: { category },
-        data: {
-          keywordWeights: weights,
-          lastUpdated: new Date(),
-        },
-      });
-    }
   } catch (err) {
     console.error('[exemplars] runDeepAnalysis failed', {
       id,

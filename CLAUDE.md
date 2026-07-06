@@ -51,7 +51,7 @@ npx prisma generate  # Regenerate client after schema changes
 
 ### Article Delete FK
 
-Must nullify `StoryIntelligence.articleId` FK before deleting articles (no cascade configured).
+No special handling — the `StoryIntelligence` model (whose `articleId` FK once needed nullifying) was removed in the 2026-07-06 lean strip. Article deletes rely on the remaining cascade FKs.
 
 ### Source Citation
 

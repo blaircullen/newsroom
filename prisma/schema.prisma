@@ -23,8 +23,6 @@ model User {
   articles       Article[]           @relation("AuthoredArticles")
   comments       Comment[]
   reviews        Review[]
-  claimedStories StoryIntelligence[] @relation("ClaimedStories")
-  storyFeedback  StoryFeedback[]     @relation("StoryFeedback")
   submittedExemplars ArticleExemplar[] @relation("SubmittedExemplars")
   scanDecisions  ScanPick[]          @relation("ScanPickDecisions")
 
@@ -65,8 +63,6 @@ model Article {
   author              User              @relation("AuthoredArticles", fields: [authorId], references: [id])
   comments            Comment[]
   reviews             Review[]
-  socialPosts         SocialPost[]
-  storySource         StoryIntelligence? @relation("StorySource")
 
   @@index([authorId])
   @@index([status])
@@ -167,8 +163,6 @@ model PublishTarget {
   blogId          String?  @map("blog_id")
   avatarUrl       String?  @map("avatar_url")
   faviconColor    String?  @map("favicon_color")
-  socialAccounts  SocialAccount[]
-  voiceProfile    SiteVoiceProfile?
 
   @@map("publish_targets")
 }
@@ -202,64 +196,6 @@ model PasswordResetToken {
   @@map("password_reset_tokens")
 }
 
-model SocialAccount {
-  id                    String          @id @default(cuid())
-  platform              SocialPlatform
-  accountName           String          @map("account_name")
-  accountHandle         String          @map("account_handle")
-  accessToken           String          @map("access_token")
-  refreshToken          String?         @map("refresh_token")
-  tokenExpiresAt        DateTime?       @map("token_expires_at")
-  publishTargetId       String?         @map("publish_target_id")
-  isActive              Boolean         @default(true) @map("is_active")
-  optimalHours          Json?           @map("optimal_hours")
-  optimalHoursUpdatedAt DateTime?       @map("optimal_hours_updated_at")
-  avatarUrl             String?         @map("avatar_url")
-  createdAt             DateTime        @default(now()) @map("created_at")
-  updatedAt             DateTime        @updatedAt @map("updated_at")
-  publishTarget         PublishTarget?  @relation(fields: [publishTargetId], references: [id])
-  socialPosts           SocialPost[]
-
-  @@index([platform])
-  @@index([publishTargetId])
-  @@index([isActive])
-  @@unique([platform, accountHandle], name: "platform_accountHandle")
-  @@map("social_accounts")
-}
-
-model SocialPost {
-  id                   String           @id @default(cuid())
-  articleId            String           @map("article_id")
-  socialAccountId      String           @map("social_account_id")
-  caption              String
-  imageUrl             String?          @map("image_url")
-  articleUrl           String           @map("article_url")
-  scheduledAt          DateTime         @map("scheduled_at")
-  sentAt               DateTime?        @map("sent_at")
-  platformPostId       String?          @map("platform_post_id")
-  status               SocialPostStatus @default(PENDING)
-  errorMessage         String?          @map("error_message")
-  sendAttemptId        String?          @map("send_attempt_id")
-  sendAttempts         Int              @default(0) @map("send_attempts")
-  likes                Int?
-  retweets             Int?
-  replies              Int?
-  impressions          Int?
-  views                Int?
-  engagementFetchedAt  DateTime?        @map("engagement_fetched_at")
-  createdAt            DateTime         @default(now()) @map("created_at")
-  updatedAt            DateTime         @updatedAt @map("updated_at")
-  article              Article          @relation(fields: [articleId], references: [id], onDelete: Cascade)
-  socialAccount        SocialAccount    @relation(fields: [socialAccountId], references: [id], onDelete: Cascade)
-
-  @@index([status, scheduledAt])
-  @@index([status, sentAt])
-  @@index([articleId])
-  @@index([socialAccountId])
-  @@index([scheduledAt])
-  @@map("social_posts")
-}
-
 model CompetitorAccount {
   id              String         @id @default(cuid())
   platform        SocialPlatform
@@ -276,33 +212,11 @@ model CompetitorAccount {
   @@map("competitor_accounts")
 }
 
-model SiteVoiceProfile {
-  id               String        @id @default(cuid())
-  publishTargetId  String        @unique @map("publish_target_id")
-  voiceDescription String        @map("voice_description")
-  systemPrompt     String        @map("system_prompt")
-  sampleArticleIds Json          @map("sample_article_ids")
-  customNotes      String?       @map("custom_notes")
-  createdAt        DateTime      @default(now()) @map("created_at")
-  updatedAt        DateTime      @updatedAt @map("updated_at")
-  publishTarget    PublishTarget @relation(fields: [publishTargetId], references: [id])
-
-  @@map("site_voice_profiles")
-}
-
 enum SocialPlatform {
   X
   FACEBOOK
   TRUTHSOCIAL
   INSTAGRAM
-}
-
-enum SocialPostStatus {
-  PENDING
-  APPROVED
-  SENDING
-  SENT
-  FAILED
 }
 
 model SystemAlert {
@@ -369,110 +283,6 @@ model Media {
   @@index([createdAt])
   @@index([tags], type: Gin)
   @@map("media")
-}
-
-enum VerificationStatus {
-  UNVERIFIED
-  VERIFIED
-  PLAUSIBLE
-  DISPUTED
-  FLAGGED
-}
-
-enum AlertLevel {
-  NONE
-  DASHBOARD
-  TELEGRAM
-}
-
-enum StoryOutcome {
-  IGNORED
-  CLAIMED
-  PUBLISHED
-  HIGH_PERFORMER
-}
-
-model StoryIntelligence {
-  id                  String              @id @default(cuid())
-  headline            String
-  sourceUrl           String              @map("source_url")
-  sources             Json                @default("[]")
-  category            String?
-  topicClusterId      String?             @map("topic_cluster_id")
-  relevanceScore      Int                 @default(0) @map("relevance_score")
-  velocityScore       Int                 @default(0) @map("velocity_score")
-  verificationStatus  VerificationStatus  @default(UNVERIFIED) @map("verification_status")
-  verificationNotes   String?             @map("verification_notes")
-  suggestedAngles     Json?               @map("suggested_angles")
-  alertLevel          AlertLevel          @default(NONE) @map("alert_level")
-  alertSentAt         DateTime?           @map("alert_sent_at")
-  firstSeenAt         DateTime            @default(now()) @map("first_seen_at")
-  lastUpdatedAt       DateTime            @updatedAt @map("last_updated_at")
-  claimedById         String?             @map("claimed_by_id")
-  claimedAt           DateTime?           @map("claimed_at")
-  articleId           String?             @unique @map("article_id")
-  outcome             StoryOutcome?
-  outcomePageviews    Int?                @map("outcome_pageviews")
-  platformSignals     Json?               @map("platform_signals")
-  dismissed           Boolean             @default(false)
-
-  claimedBy           User?               @relation("ClaimedStories", fields: [claimedById], references: [id])
-  article             Article?            @relation("StorySource", fields: [articleId], references: [id])
-  verificationSources VerificationSource[]
-  feedback            StoryFeedback[]
-
-  @@index([relevanceScore])
-  @@index([verificationStatus])
-  @@index([firstSeenAt])
-  @@index([topicClusterId])
-  @@index([claimedById])
-  @@index([outcome])
-  @@map("story_intelligence")
-}
-
-model TopicProfile {
-  id             String   @id @default(cuid())
-  category       String   @unique
-  keywordWeights Json     @default("{}") @map("keyword_weights")
-  avgEngagement  Float    @default(0) @map("avg_engagement")
-  articleCount   Int      @default(0) @map("article_count")
-  topPerformers  Json?    @map("top_performers")
-  lastUpdated    DateTime @default(now()) @map("last_updated")
-
-  @@map("topic_profiles")
-}
-
-model VerificationSource {
-  id           String            @id @default(cuid())
-  storyId      String            @map("story_id")
-  sourceName   String            @map("source_name")
-  sourceUrl    String            @map("source_url")
-  corroborates Boolean
-  excerpt      String?
-  checkedAt    DateTime          @default(now()) @map("checked_at")
-
-  story        StoryIntelligence @relation(fields: [storyId], references: [id], onDelete: Cascade)
-
-  @@index([storyId])
-  @@map("verification_sources")
-}
-
-model StoryFeedback {
-  id        String   @id @default(cuid())
-  storyId   String   @map("story_id")
-  userId    String   @map("user_id")
-  rating    Int      // 1-5
-  tags      String[] // GREAT_ANGLE, TIMELY, WOULD_GO_VIRAL, etc.
-  action    String   // QUICK_RATE | CLAIM_FEEDBACK | DISMISS_FEEDBACK
-  createdAt DateTime @default(now()) @map("created_at")
-
-  story StoryIntelligence @relation(fields: [storyId], references: [id], onDelete: Cascade)
-  user  User              @relation("StoryFeedback", fields: [userId], references: [id])
-
-  @@index([storyId])
-  @@index([userId])
-  @@index([createdAt])
-  @@map("story_feedback")
 }
 
 enum ExemplarStatus {
