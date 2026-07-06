@@ -9,7 +9,7 @@ export async function register() {
     }
 
     // Warn about optional but important vars
-    const optional = ['ANTHROPIC_API_KEY', 'STORY_INTELLIGENCE_API_KEY', 'TOKEN_ENCRYPTION_KEY'];
+    const optional = ['ANTHROPIC_API_KEY', 'TOKEN_ENCRYPTION_KEY'];
     const missingOptional = optional.filter((key) => !process.env[key]);
     if (missingOptional.length > 0) {
       console.warn(`[Boot] Missing optional env vars (some features disabled): ${missingOptional.join(', ')}`);

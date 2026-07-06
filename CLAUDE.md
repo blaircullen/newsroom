@@ -20,7 +20,7 @@ npx prisma generate  # Regenerate client after schema changes
 
 **Pages:** `/dashboard`, `/editor/[id]`, `/analytics`, `/scanner`, `/login`
 **API routes:** `/api/articles/*`, `/api/analytics/*` (daily-stats, top-articles, revenue, cron, refresh), `/api/cron/*`, `/api/sites/*`, `/api/trending/*`, `/api/scanner/*`
-**Key libs:** `src/lib/auth.ts`, `src/lib/prisma.ts`, `src/lib/email.ts`, `src/lib/publish.ts` (45K, largest), `src/lib/cron-jobs.ts` (20K, 7 exported run* functions), `src/lib/scanner-sse.ts` (in-memory SSE registry), `src/lib/telegram-scanner.ts` (bot alerts)
+**Key libs:** `src/lib/auth.ts`, `src/lib/prisma.ts`, `src/lib/email.ts`, `src/lib/publish.ts` (45K, largest), `src/lib/cron-jobs.ts` (one export: `runPublishScheduled` — scheduled-article publishing), `src/lib/scanner-sse.ts` (in-memory SSE registry), `src/lib/telegram-scanner.ts` (bot alerts)
 
 **Patterns:**
 - All pages `'use client'` — use `layout.tsx` for metadata, `loading.tsx` for loading states. `export const dynamic` is a no-op in client components — never add it there.
@@ -105,7 +105,7 @@ ssh root@178.156.143.87 "cd /opt/newsroom && git log --oneline -1 && docker comp
 
 ## X Monitoring
 
-DISABLED on main (2026-02-21). `monitorXAccounts()` commented out in `cron-jobs.ts`. Twikit scraper container doesn't exist. Circuit breaker was re-triggering alerts every 30min.
+DISABLED on main (2026-02-21). The `monitorXAccounts()` scheduler is gone from `cron-jobs.ts` (the file now holds only `runPublishScheduled`). Twikit scraper container doesn't exist. Orphaned, unimported dead code remains at `src/lib/x-monitor.ts` / `src/lib/x-scraper.ts` (left in place — pre-existing disabled feature).
 
 ## Publish Targets
 
@@ -117,14 +117,14 @@ DISABLED on main (2026-02-21). `monitorXAccounts()` commented out in `cron-jobs.
 |---------|-----------|
 | Auth / session | `src/lib/auth.ts`, `src/app/api/auth/[...nextauth]/route.ts` |
 | Article CRUD | `src/app/api/articles/`, `src/app/editor/[id]/` |
-| AI article generation | `src/lib/cron-jobs.ts` (`runScanner*`), `src/app/api/scanner/` |
+| AI article generation | `src/app/api/scanner/`, `src/lib/scanner-sse.ts` |
 | Scanner SSE (live progress) | `src/lib/scanner-sse.ts` — in-memory registry, not persisted |
 | Scanner Telegram alerts | `src/lib/telegram-scanner.ts` |
 | Publishing (WP/Shopify) | `src/lib/publish.ts` (45KB — largest file in repo) |
-| Analytics sync | `src/lib/cron-jobs.ts` (`runAnalyticsSync`), `src/app/analytics/` |
+| Analytics sync | `src/app/api/analytics/cron/` + `refresh/`, `src/app/analytics/` |
 | Umami integration | `src/lib/umami.ts` — incremental sync via `getArticleAnalyticsIncremental()` |
 | Email | `src/lib/email.ts` → `wrapInTemplate()` |
-| Cron infrastructure | `src/lib/cron-jobs.ts` (7 exported `run*` functions), `src/instrumentation.ts` |
+| Cron infrastructure | `src/lib/cron-jobs.ts` (`runPublishScheduled`), `src/instrumentation.ts` |
 | Getty image worker | `newsroom-getty-worker` container (Playwright, separate from app) — compose service name is `getty-worker` (use `docker compose up -d --build getty-worker`) |
 | Revenue analytics | `src/app/api/analytics/revenue/` — reads HA sensors, needs `HA_TOKEN` env var |
 | Design tokens | `src/app/globals.css` — `ink-*` / `press-*` / `paper-*` mapped to shadcn CSS vars |
