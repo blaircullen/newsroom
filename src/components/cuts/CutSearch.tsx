@@ -31,6 +31,38 @@ const FILTER_LABELS: Record<keyof CutSearchFilters, string> = {
   timeWindow: 'Time',
 };
 
+/**
+ * Local-state input for the mobile filter sheet -- commits every keystroke
+ * (not onBlur) so a sheet close mid-edit (tap overlay, X, swipe, Esc --
+ * Radix unmounts SheetContent on close with no forceMount) can never lose
+ * what was typed. Local state (not a fully-controlled value={value}) so
+ * backspacing to empty stays responsive; trimmed-empty just skips
+ * propagating upstream rather than clearing the filter -- clearing is the
+ * chip's X button's job, not this field's.
+ */
+function FilterEditInput({
+  id,
+  initialValue,
+  onCommit,
+}: {
+  id: string;
+  initialValue: string;
+  onCommit: (value: string) => void;
+}) {
+  const [value, setValue] = useState(initialValue);
+  return (
+    <Input
+      id={id}
+      value={value}
+      onChange={(e) => {
+        const next = e.target.value;
+        setValue(next);
+        if (next.trim()) onCommit(next);
+      }}
+    />
+  );
+}
+
 export default function CutSearch({ onSearch, isSearching, parsedFilters, onRemoveFilter, onEditFilter }: CutSearchProps) {
   const [query, setQuery] = useState('');
   const [sheetOpen, setSheetOpen] = useState(false);
@@ -147,13 +179,10 @@ export default function CutSearch({ onSearch, isSearching, parsedFilters, onRemo
             {activeFilters.map(([key, value]) => (
               <div key={key} className="space-y-1.5">
                 <Label htmlFor={`filter-${key}`}>{FILTER_LABELS[key]}</Label>
-                <Input
+                <FilterEditInput
                   id={`filter-${key}`}
-                  defaultValue={value}
-                  onBlur={(e) => {
-                    const next = e.target.value.trim();
-                    if (next && next !== value) onEditFilter(key, next);
-                  }}
+                  initialValue={value}
+                  onCommit={(next) => onEditFilter(key, next)}
                 />
               </div>
             ))}
