@@ -22,6 +22,10 @@ export default function CutsPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [pulls, setPulls] = useState<CutPullDTO[]>([]);
   const [sessionExpired, setSessionExpired] = useState(false);
+  // In-flight retry ids -- disables the Retry button per-pull so a double
+  // tap can't race two requests past the (non-transactional) stage check on
+  // both the Newsroom route and the wrapper.
+  const [retryingIds, setRetryingIds] = useState<Set<string>>(new Set());
 
   // Same gate as scanner (src/app/scanner/page.tsx:425-428)
   useEffect(() => {
@@ -175,9 +179,27 @@ export default function CutsPage() {
                 <PullStatusCard
                   key={pull.id}
                   pull={pull}
+                  retrying={retryingIds.has(pull.id)}
                   onRetry={async (id) => {
-                    await fetch(`/api/cuts/pulls/${id}/retry`, { method: 'POST' });
-                    loadPulls();
+                    setRetryingIds((s) => new Set(s).add(id));
+                    try {
+                      const res = await fetch(`/api/cuts/pulls/${id}/retry`, { method: 'POST' });
+                      const data = await res.json().catch(() => ({}));
+                      // The wrapper's real cause (404/409/502) surfaced,
+                      // not silently discarded -- a retry that fails (e.g.
+                      // raced past FAILED, or wrapper down) used to look
+                      // like nothing happened.
+                      if (!res.ok) throw new Error(data.error || `Retry failed (${res.status})`);
+                      await loadPulls();
+                    } catch (err) {
+                      setSearchError(err instanceof Error ? err.message : 'Retry failed');
+                    } finally {
+                      setRetryingIds((s) => {
+                        const next = new Set(s);
+                        next.delete(id);
+                        return next;
+                      });
+                    }
                   }}
                   onSendToTrim={(id) => {
                     const target = pulls.find((p) => p.id === id);

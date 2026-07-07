@@ -2,7 +2,7 @@
 
 import { useState, FormEvent } from 'react';
 import { HiOutlineMagnifyingGlass, HiXMark, HiOutlineAdjustmentsHorizontal } from 'react-icons/hi2';
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetFooter } from '@/components/ui/sheet';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import type { CutSearchFilters } from '@/lib/cuts';
@@ -131,7 +131,16 @@ export default function CutSearch({ onSearch, isSearching, parsedFilters, onRemo
               <span className="text-ink-400">{FILTER_LABELS[key]}:</span>
               <span className="font-medium">{value}</span>
               <button
-                onClick={() => onRemoveFilter(key)}
+                onClick={() => {
+                  onRemoveFilter(key);
+                  // Removing a filter is a discrete, cheap-to-trigger
+                  // action -- unlike per-keystroke edits (search costs
+                  // ~16s, see grabien-client.ts), one removal = one
+                  // re-search is the expected cost. Computed directly
+                  // rather than waiting on the next parsedFilters render,
+                  // since onRemoveFilter's state update hasn't landed yet.
+                  if (query.trim() && !isSearching) onSearch(query.trim(), { ...parsedFilters, [key]: undefined });
+                }}
                 className="p-0.5 rounded-full hover:bg-white/10 text-ink-400 hover:text-white transition-colors
                   focus:outline-none focus:ring-2 focus:ring-press-500/50"
                 aria-label={`Remove ${FILTER_LABELS[key]} filter`}
@@ -187,6 +196,28 @@ export default function CutSearch({ onSearch, isSearching, parsedFilters, onRemo
               </div>
             ))}
           </div>
+          <SheetFooter className="mt-6">
+            {/*
+              Edits already commit to parsedFilters per keystroke (cheap
+              state), but re-running the actual search does NOT fire per
+              keystroke -- it costs ~16s (Grabien + Claude NL parse, see
+              grabien-client.ts). This button is the one deliberate trigger:
+              close the sheet and re-search with whatever's been typed.
+            */}
+            <button
+              type="button"
+              onClick={() => {
+                setSheetOpen(false);
+                if (query.trim() && !isSearching) onSearch(query.trim(), parsedFilters);
+              }}
+              disabled={isSearching}
+              className="w-full px-4 py-2.5 rounded-lg bg-press-500 hover:bg-press-600 text-white text-sm font-semibold
+                disabled:opacity-40 disabled:cursor-not-allowed transition-colors
+                focus:outline-none focus:ring-2 focus:ring-press-500/50"
+            >
+              {isSearching ? 'Searching…' : 'Search with these filters'}
+            </button>
+          </SheetFooter>
         </SheetContent>
       </Sheet>
     </div>

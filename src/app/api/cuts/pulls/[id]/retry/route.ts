@@ -44,7 +44,11 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
     });
     return NextResponse.json({ pull: toDTO(updated, job.queue_position) });
   } catch (error) {
+    // Preserve the wrapper's real status (e.g. 409 if the job raced past our
+    // own stage check above and the wrapper's own guard caught it) instead
+    // of collapsing every wrapper error to 502.
     const message = error instanceof GrabienWrapperError ? error.message : String(error);
-    return NextResponse.json({ error: message }, { status: 502 });
+    const status = error instanceof GrabienWrapperError && error.status ? error.status : 502;
+    return NextResponse.json({ error: message }, { status });
   }
 }

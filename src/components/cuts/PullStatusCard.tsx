@@ -7,6 +7,10 @@ import { PULL_STAGE_CONFIG, PIPELINE_STAGES, formatEt, formatElapsed, formatMs }
 
 interface PullStatusCardProps {
   pull: CutPullDTO;
+  /** True while this pull's retry request is in flight -- disables the
+   * button so a double-tap can't race two retries past the (non-
+   * transactional) stage checks on both the Newsroom route and the wrapper. */
+  retrying: boolean;
   onRetry: (pullId: string) => void;
   onSendToTrim: (pullId: string) => void; // v1: records intent; real trimmer pending (design doc §6)
   onDownloadRaw: (pullId: string) => void;
@@ -65,7 +69,7 @@ function StageRail({ stage }: { stage: PullStage }) {
   );
 }
 
-export default function PullStatusCard({ pull, onRetry, onSendToTrim, onDownloadRaw }: PullStatusCardProps) {
+export default function PullStatusCard({ pull, retrying, onRetry, onSendToTrim, onDownloadRaw }: PullStatusCardProps) {
   const [detailsOpen, setDetailsOpen] = useState(false);
   const cfg = PULL_STAGE_CONFIG[pull.stage];
   const isLive = !['RAW_READY', 'FAILED'].includes(pull.stage);
@@ -100,11 +104,13 @@ export default function PullStatusCard({ pull, onRetry, onSendToTrim, onDownload
             </div>
             <button
               onClick={() => onRetry(pull.id)}
+              disabled={retrying}
               className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-red-500/20 hover:bg-red-500/30
                 text-red-200 text-xs font-semibold transition-colors flex-shrink-0
-                focus:outline-none focus:ring-2 focus:ring-red-400/50"
+                focus:outline-none focus:ring-2 focus:ring-red-400/50
+                disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              <HiOutlineArrowPath className="w-3.5 h-3.5" aria-hidden /> Retry
+              <HiOutlineArrowPath className={`w-3.5 h-3.5 ${retrying ? 'animate-spin' : ''}`} aria-hidden /> {retrying ? 'Retrying…' : 'Retry'}
             </button>
           </div>
         </div>
