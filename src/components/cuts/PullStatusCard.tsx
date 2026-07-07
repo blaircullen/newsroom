@@ -114,7 +114,13 @@ export default function PullStatusCard({ pull, onRetry, onSendToTrim, onDownload
       {isLive && (
         <>
           <StageRail stage={pull.stage} />
-          <p className="mt-2 text-xs text-ink-400">{cfg.hint}</p>
+          <p className="mt-2 text-xs text-ink-400">
+            {pull.stage === 'QUEUED' && pull.queuePosition != null
+              ? pull.queuePosition === 0
+                ? 'Up next — Grabien is a shared line, one pull renders at a time.'
+                : `Queued behind ${pull.queuePosition} other pull${pull.queuePosition === 1 ? '' : 's'}.`
+              : cfg.hint}
+          </p>
         </>
       )}
 

@@ -40,6 +40,8 @@ export interface CutPullDTO {
   stage: PullStage;
   intendedStartMs: number;
   intendedEndMs: number;
+  /** 0-indexed position among still-QUEUED pulls; null once picked up or terminal. Not persisted -- shifts as siblings queue/drain. */
+  queuePosition: number | null;
   rawDurationS: number | null;
   rawUntrimmed: true; // literal: every Grabien pull is raw (backend-confirmed)
   mp4Path: string | null;

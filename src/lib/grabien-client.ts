@@ -44,6 +44,8 @@ export interface GrabienClipJob {
   metadata_path: string | null;
   created_at: number;
   updated_at: number;
+  /** 0-indexed position among still-QUEUED jobs; null once picked up or terminal. */
+  queue_position: number | null;
 }
 
 export interface GrabienHealth {

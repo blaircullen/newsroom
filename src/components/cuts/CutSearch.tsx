@@ -2,6 +2,9 @@
 
 import { useState, FormEvent } from 'react';
 import { HiOutlineMagnifyingGlass, HiXMark, HiOutlineAdjustmentsHorizontal } from 'react-icons/hi2';
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
+import { Label } from '@/components/ui/label';
+import { Input } from '@/components/ui/input';
 import type { CutSearchFilters } from '@/lib/cuts';
 
 const EXAMPLE_QUERIES = [
@@ -16,6 +19,8 @@ interface CutSearchProps {
   /** Filters the server parsed from the last query -- echoed as chips */
   parsedFilters: CutSearchFilters;
   onRemoveFilter: (key: keyof CutSearchFilters) => void;
+  /** Mobile bottom sheet -- correcting a filter's value, not just removing it */
+  onEditFilter: (key: keyof CutSearchFilters, value: string) => void;
 }
 
 const FILTER_LABELS: Record<keyof CutSearchFilters, string> = {
@@ -26,8 +31,9 @@ const FILTER_LABELS: Record<keyof CutSearchFilters, string> = {
   timeWindow: 'Time',
 };
 
-export default function CutSearch({ onSearch, isSearching, parsedFilters, onRemoveFilter }: CutSearchProps) {
+export default function CutSearch({ onSearch, isSearching, parsedFilters, onRemoveFilter, onEditFilter }: CutSearchProps) {
   const [query, setQuery] = useState('');
+  const [sheetOpen, setSheetOpen] = useState(false);
 
   const submit = (e: FormEvent) => {
     e.preventDefault();
@@ -56,6 +62,17 @@ export default function CutSearch({ onSearch, isSearching, parsedFilters, onRemo
             aria-label="Describe the broadcast segment you want"
           />
           <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1.5">
+            {activeFilters.length > 0 && (
+              <button
+                type="button"
+                onClick={() => setSheetOpen(true)}
+                className="sm:hidden p-2 rounded-lg text-ink-300 hover:text-white hover:bg-white/10 transition-colors
+                  focus:outline-none focus:ring-2 focus:ring-press-500/50"
+                aria-label="Edit search filters"
+              >
+                <HiOutlineAdjustmentsHorizontal className="w-5 h-5" />
+              </button>
+            )}
             <button
               type="submit"
               disabled={isSearching || !query.trim()}
@@ -117,14 +134,32 @@ export default function CutSearch({ onSearch, isSearching, parsedFilters, onRemo
         </div>
       )}
 
-      {/*
-        Mobile filter-editing sheet is a deliberate v1 gap: the design doc
-        (§4.2) speaks to a shadcn <Sheet side="bottom"> here, but the filter
-        chips above are already independently removable via their × button
-        on every viewport, which covers the correction use case without the
-        extra sheet UI. Revisit if editing (not just removing) a filter on
-        mobile turns out to matter in practice.
-      */}
+      {/* Mobile filter-editing sheet (§4.2): the chips above already remove a
+          filter on every viewport, but correcting its VALUE (not just
+          clearing it) needed a real input on small screens -- this sheet is
+          that edit surface. Desktop keeps using the chips directly. */}
+      <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
+        <SheetContent side="bottom" className="sm:hidden">
+          <SheetHeader>
+            <SheetTitle>Edit filters</SheetTitle>
+          </SheetHeader>
+          <div className="mt-4 space-y-4">
+            {activeFilters.map(([key, value]) => (
+              <div key={key} className="space-y-1.5">
+                <Label htmlFor={`filter-${key}`}>{FILTER_LABELS[key]}</Label>
+                <Input
+                  id={`filter-${key}`}
+                  defaultValue={value}
+                  onBlur={(e) => {
+                    const next = e.target.value.trim();
+                    if (next && next !== value) onEditFilter(key, next);
+                  }}
+                />
+              </div>
+            ))}
+          </div>
+        </SheetContent>
+      </Sheet>
     </div>
   );
 }

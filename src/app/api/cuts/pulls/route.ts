@@ -83,7 +83,7 @@ export async function POST(request: NextRequest) {
       where: { id: pull.id },
       data: { wrapperJobId: job.id, stage: job.stage },
     });
-    return NextResponse.json({ pull: toDTO(updated) });
+    return NextResponse.json({ pull: toDTO(updated, job.queue_position) });
   } catch (error) {
     // The row already exists (Blair can see it failed, with why) -- never
     // swallow the wrapper's real cause into a generic message.
@@ -92,7 +92,7 @@ export async function POST(request: NextRequest) {
       where: { id: pull.id },
       data: { stage: 'FAILED', errorStage: 'SUBMITTING', errorMessage: message },
     });
-    return NextResponse.json({ pull: toDTO(failed) }, { status: 502 });
+    return NextResponse.json({ pull: toDTO(failed, null) }, { status: 502 });
   }
 }
 
@@ -113,7 +113,7 @@ export async function GET() {
   const health = await getGrabienHealth();
 
   return NextResponse.json({
-    pulls: synced.map(toDTO),
+    pulls: synced.map(({ pull, queuePosition }) => toDTO(pull, queuePosition)),
     grabienSessionExpired: health?.session_expired ?? null, // null = wrapper itself unreachable
   });
 }

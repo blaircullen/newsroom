@@ -137,6 +137,7 @@ export default function CutsPage() {
           isSearching={isSearching}
           parsedFilters={parsedFilters}
           onRemoveFilter={(key) => setParsedFilters((f) => ({ ...f, [key]: undefined }))}
+          onEditFilter={(key, value) => setParsedFilters((f) => ({ ...f, [key]: value }))}
         />
 
         {searchError && (

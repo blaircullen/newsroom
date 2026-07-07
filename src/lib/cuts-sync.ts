@@ -15,10 +15,16 @@ import type { CutPullDTO, PullStage } from '@/lib/cuts';
 
 const TERMINAL_STAGES: PullStage[] = ['RAW_READY', 'FAILED'];
 
+export interface SyncedPull {
+  pull: CutPull;
+  /** Live from the wrapper, never persisted -- shifts as sibling jobs queue/drain. */
+  queuePosition: number | null;
+}
+
 /** Re-fetches wrapper status for a still-in-flight pull and persists it. */
-export async function syncPull(pull: CutPull): Promise<CutPull> {
+export async function syncPull(pull: CutPull): Promise<SyncedPull> {
   if (!pull.wrapperJobId || TERMINAL_STAGES.includes(pull.stage as PullStage)) {
-    return pull;
+    return { pull, queuePosition: null };
   }
 
   let job: GrabienClipJob;
@@ -33,7 +39,7 @@ export async function syncPull(pull: CutPull): Promise<CutPull> {
       // The wrapper genuinely lost the job (e.g. restarted with an
       // in-memory-only store) -- this IS terminal, and must surface as
       // evidence, not silently stay QUEUED forever.
-      return prisma.cutPull.update({
+      const failed = await prisma.cutPull.update({
         where: { id: pull.id },
         data: {
           stage: 'FAILED',
@@ -41,15 +47,16 @@ export async function syncPull(pull: CutPull): Promise<CutPull> {
           errorMessage: `Wrapper no longer knows job ${pull.wrapperJobId} (404) -- it may have restarted.`,
         },
       });
+      return { pull: failed, queuePosition: null };
     }
-    return pull;
+    return { pull, queuePosition: null };
   }
 
   if (job.stage === pull.stage && !job.mp4_path && !job.error_message) {
-    return pull;
+    return { pull, queuePosition: job.queue_position };
   }
 
-  return prisma.cutPull.update({
+  const updated = await prisma.cutPull.update({
     where: { id: pull.id },
     data: {
       stage: job.stage,
@@ -59,9 +66,10 @@ export async function syncPull(pull: CutPull): Promise<CutPull> {
       errorMessage: job.error_message,
     },
   });
+  return { pull: updated, queuePosition: job.queue_position };
 }
 
-export function toDTO(pull: CutPull): CutPullDTO {
+export function toDTO(pull: CutPull, queuePosition: number | null = null): CutPullDTO {
   const candidate = pull.candidateJson as unknown as CutPullDTO['candidate'];
   return {
     id: pull.id,
@@ -69,6 +77,7 @@ export function toDTO(pull: CutPull): CutPullDTO {
     stage: pull.stage as PullStage,
     intendedStartMs: pull.intendedStartMs,
     intendedEndMs: pull.intendedEndMs,
+    queuePosition,
     rawDurationS: pull.rawDurationS,
     rawUntrimmed: true,
     mp4Path: pull.mp4Path,

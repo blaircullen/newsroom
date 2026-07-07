@@ -42,7 +42,7 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
         metadataPath: null,
       },
     });
-    return NextResponse.json({ pull: toDTO(updated) });
+    return NextResponse.json({ pull: toDTO(updated, job.queue_position) });
   } catch (error) {
     const message = error instanceof GrabienWrapperError ? error.message : String(error);
     return NextResponse.json({ error: message }, { status: 502 });

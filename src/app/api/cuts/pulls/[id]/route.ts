@@ -20,6 +20,6 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
     return NextResponse.json({ error: 'Pull not found' }, { status: 404 });
   }
 
-  const synced = await syncPull(pull);
-  return NextResponse.json({ pull: toDTO(synced) });
+  const { pull: synced, queuePosition } = await syncPull(pull);
+  return NextResponse.json({ pull: toDTO(synced, queuePosition) });
 }
