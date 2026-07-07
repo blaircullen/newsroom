@@ -103,3 +103,24 @@ export function formatEt(iso: string): string {
     }) + ' ET'
   );
 }
+
+/** Live mm:ss elapsed since an ISO timestamp -- the Pull Rail's studio clock. */
+export function formatElapsed(fromIso: string): string {
+  const s = Math.max(0, Math.floor((Date.now() - new Date(fromIso).getTime()) / 1000));
+  const mm = String(Math.floor(s / 60)).padStart(2, '0');
+  const ss = String(s % 60).padStart(2, '0');
+  return `${mm}:${ss}`;
+}
+
+/**
+ * mm:ss from a millisecond OFFSET (e.g. intendedStartMs/intendedEndMs) --
+ * distinct from formatElapsed, which measures from an ISO timestamp to now.
+ * The design doc's prototype (§4.4) abused formatElapsed for this; this is
+ * the real helper it flagged as a follow-up.
+ */
+export function formatMs(ms: number): string {
+  const s = Math.max(0, Math.floor(ms / 1000));
+  const mm = String(Math.floor(s / 60)).padStart(2, '0');
+  const ss = String(s % 60).padStart(2, '0');
+  return `${mm}:${ss}`;
+}

@@ -215,6 +215,7 @@ export default function Sidebar() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const [reviewCount, setReviewCount] = useState<number | null>(null);
+  const [activeCutPulls, setActiveCutPulls] = useState<number>(0);
 
   // Build full path with query string for active link detection
   const search = searchParams.toString();
@@ -234,6 +235,28 @@ export default function Sidebar() {
     };
     fetchCount();
     const interval = setInterval(fetchCount, 60 * 1000);
+    return () => clearInterval(interval);
+  }, [session]);
+
+  // Live in-flight Cuts pull count -- same mechanic as reviewCount above.
+  // Swaps the static BETA badge for a pulsing crimson count when a pull is
+  // actually rendering (live activity beats a static label).
+  useEffect(() => {
+    if (!session || session.user.role !== 'ADMIN') return;
+    const fetchActivePulls = async () => {
+      try {
+        const res = await fetch('/api/cuts/pulls');
+        if (res.ok) {
+          const data = await res.json();
+          const active = (data.pulls || []).filter(
+            (p: { stage: string }) => !['RAW_READY', 'FAILED'].includes(p.stage)
+          ).length;
+          setActiveCutPulls(active);
+        }
+      } catch { /* ignore -- next tick recovers */ }
+    };
+    fetchActivePulls();
+    const interval = setInterval(fetchActivePulls, 60 * 1000);
     return () => clearInterval(interval);
   }, [session]);
 
@@ -280,6 +303,21 @@ export default function Sidebar() {
                     {reviewCount}
                   </span>
                 )}
+                {item.href === '/cuts' && activeCutPulls > 0 ? (
+                  <span className="ml-auto text-[10px] font-bold bg-press-500/20 text-press-400 px-1.5 py-0.5 rounded-full motion-safe:animate-pulse">
+                    {activeCutPulls}
+                  </span>
+                ) : item.badge ? (
+                  <span
+                    className={`ml-auto text-[9px] font-bold tracking-wide px-1.5 py-0.5 rounded flex-shrink-0 border border-dashed ${
+                      item.badge.variant === 'beta'
+                        ? 'text-amber-300 bg-amber-500/15 border-amber-400/50'
+                        : 'text-press-400 bg-press-500/15 border-press-400/50'
+                    }`}
+                  >
+                    {item.badge.label}
+                  </span>
+                ) : null}
               </Link>
             );
           })}

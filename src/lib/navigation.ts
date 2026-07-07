@@ -5,8 +5,14 @@ import {
   HiOutlineGlobeAlt,
   HiOutlineChartBar,
   HiOutlineRss,
+  HiOutlineScissors,
 } from 'react-icons/hi2';
 import { IconType } from 'react-icons';
+
+export interface NavBadge {
+  label: string; // 'BETA' | 'NEW' -- display text
+  variant: 'new' | 'beta'; // 'new' = press crimson, 'beta' = amber (experimental)
+}
 
 export interface NavItem {
   href: string;
@@ -14,6 +20,8 @@ export interface NavItem {
   icon: IconType;
   /** Function to determine if this item should be shown */
   showFor: (role: string) => boolean;
+  /** Optional new/experimental marker, rendered by Sidebar + BottomNav */
+  badge?: NavBadge;
 }
 
 export const navItems: NavItem[] = [
@@ -52,6 +60,13 @@ export const navItems: NavItem[] = [
     label: 'News Scanner',
     icon: HiOutlineRss,
     showFor: (role) => role === 'ADMIN',
+  },
+  {
+    href: '/cuts',
+    label: 'Broadcast Cuts',
+    icon: HiOutlineScissors,
+    showFor: (role) => role === 'ADMIN', // shared single-seat Grabien account = admin-only for v1
+    badge: { label: 'BETA', variant: 'beta' },
   },
 ];
 

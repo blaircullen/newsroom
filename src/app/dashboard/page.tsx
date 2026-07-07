@@ -470,7 +470,7 @@ export default function DashboardPage() {
         )}
 
         {/* Mobile Bottom Nav - consistent dark nav across all tabs */}
-        <BottomNav activeTab={activeTab} onTabChange={handleTabChange} />
+        <BottomNav activeTab={activeTab} onTabChange={handleTabChange} showCuts={session?.user?.role === 'ADMIN'} />
       </div>
 
       {/* Desktop View */}
