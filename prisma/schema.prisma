@@ -25,6 +25,7 @@ model User {
   reviews        Review[]
   submittedExemplars ArticleExemplar[] @relation("SubmittedExemplars")
   scanDecisions  ScanPick[]          @relation("ScanPickDecisions")
+  cutPulls       CutPull[]
 
   @@index([role, isActive])
   @@map("users")
@@ -370,4 +371,33 @@ model AuditLog {
   @@index([resourceType, resourceId])
   @@index([createdAt])
   @@map("audit_logs")
+}
+
+// "Broadcast Cuts" -- Grabien NewsBase clip pulls. See
+// docs/grabien-clipper-feature-design.md §5/§6. One row per clip render
+// request submitted to the grabien-api wrapper service; `stage` mirrors the
+// wrapper's ClipJob.stage vocabulary exactly (QUEUED/SUBMITTING/RENDERING/
+// DOWNLOADING/RAW_READY/FAILED) so no translation layer is needed between
+// the two sides.
+model CutPull {
+  id               String   @id @default(cuid())
+  wrapperJobId     String?  @map("wrapper_job_id")
+  stage            String   @default("QUEUED") // QUEUED | SUBMITTING | RENDERING | DOWNLOADING | RAW_READY | FAILED
+  candidateJson    Json     @map("candidate_json") // CutCandidate snapshot (station/show/airDate/headline/summary/thumb)
+  intendedStartMs  Int      @map("intended_start_ms")
+  intendedEndMs    Int      @map("intended_end_ms")
+  rawDurationS     Int?     @map("raw_duration_s")
+  mp4Path          String?  @map("mp4_path")
+  metadataPath     String?  @map("metadata_path")
+  errorStage       String?  @map("error_stage")
+  errorMessage     String?  @db.Text @map("error_message") // verbatim backend cause -- never collapsed to a generic
+  trimIntentJson   Json?    @map("trim_intent_json") // v1 stub: recorded "sent to trim" + intended bounds (§6 item 8)
+  createdById      String   @map("created_by_id")
+  createdBy        User     @relation(fields: [createdById], references: [id])
+  createdAt        DateTime @default(now()) @map("created_at")
+  updatedAt        DateTime @updatedAt @map("updated_at")
+
+  @@index([stage])
+  @@index([createdAt])
+  @@map("cut_pulls")
 }
