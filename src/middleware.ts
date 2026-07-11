@@ -9,6 +9,80 @@ const RATE_LIMITS: Record<string, { max: number; windowMs: number }> = {
   '/api/auth': { max: 10, windowMs: 60_000 },
 };
 
+function isServerActionRequest(req: NextRequest): boolean {
+  return req.method === 'POST' && req.headers.has('next-action');
+}
+
+function staleServerActionResponse() {
+  return new NextResponse(
+    `<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Reload NewsRoom</title>
+    <style>
+      body {
+        align-items: center;
+        background: #f8f9fa;
+        color: #111827;
+        display: flex;
+        font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        justify-content: center;
+        margin: 0;
+        min-height: 100vh;
+        padding: 24px;
+      }
+
+      main {
+        max-width: 420px;
+        text-align: center;
+      }
+
+      h1 {
+        font-size: 24px;
+        line-height: 1.2;
+        margin: 0 0 12px;
+      }
+
+      p {
+        color: #4b5563;
+        font-size: 15px;
+        line-height: 1.5;
+        margin: 0 0 20px;
+      }
+
+      button {
+        background: #d42b2b;
+        border: 0;
+        border-radius: 8px;
+        color: #fff;
+        cursor: pointer;
+        font: inherit;
+        font-weight: 600;
+        padding: 10px 16px;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>A new version of NewsRoom is available</h1>
+      <p>This tab is using an older site bundle. Reload to continue with the latest version.</p>
+      <button type="button" onclick="location.reload()">Reload</button>
+    </main>
+  </body>
+</html>`,
+    {
+      status: 409,
+      headers: {
+        'Cache-Control': 'no-store, max-age=0',
+        'Content-Type': 'text/html; charset=utf-8',
+        'X-Newsroom-Stale-Action': '1',
+      },
+    }
+  );
+}
+
 function checkRateLimit(key: string, max: number, windowMs: number): { allowed: boolean; retryAfter: number } {
   const now = Date.now();
   const entry = rateLimitMap.get(key);
@@ -36,6 +110,10 @@ setInterval(() => {
 
 export default async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
+
+  if (isServerActionRequest(req)) {
+    return staleServerActionResponse();
+  }
 
   // Rate limiting for API routes
   for (const [route, limits] of Object.entries(RATE_LIMITS)) {
@@ -80,12 +158,6 @@ export default async function middleware(req: NextRequest) {
 
 export const config = {
   matcher: [
-    '/',
-    '/dashboard/:path*',
-    '/editor/:path*',
-    '/admin/:path*',
-    '/analytics/:path*',
-    '/api/articles/search/:path*',
-    '/api/auth/:path*',
+    '/((?!_next/static|_next/image|favicon.svg|manifest.json|apple-touch-icon.png).*)',
   ],
 };
