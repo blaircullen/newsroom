@@ -4,6 +4,7 @@ import { load } from 'cheerio';
 import { authOptions } from '@/lib/auth';
 import prisma from '@/lib/prisma';
 import { generateQuickPreview, generateDeepFingerprint } from '@/lib/exemplar-ai';
+import { BlockedUrlError, safeFetch } from '@/lib/url-validation';
 
 // ---------------------------------------------------------------------------
 // Background deep analysis (fire-and-forget)
@@ -98,7 +99,10 @@ export async function POST(request: NextRequest) {
 
   try {
     const controller = AbortSignal.timeout(15_000);
-    const fetchRes = await fetch(normalizedUrl, {
+    // safeFetch, not fetch: this route previously had no SSRF guard at all, so
+    // an editor could point it at loopback or a cloud metadata endpoint and get
+    // the response stored as exemplar content.
+    const fetchRes = await safeFetch(normalizedUrl, {
       signal: controller,
       headers: {
         'User-Agent':
@@ -142,6 +146,13 @@ export async function POST(request: NextRequest) {
         .trim();
     }
   } catch (err) {
+    // A blocked URL is a rejection, not a transient fetch failure — do not let
+    // the manual-content fallback quietly accept a submission whose URL we
+    // refused to visit.
+    if (err instanceof BlockedUrlError) {
+      console.warn('[exemplars] blocked URL', { url: normalizedUrl, reason: err.message });
+      return NextResponse.json({ error: err.message }, { status: 400 });
+    }
     // Fall back to manual content on fetch error too
     if (manualContent.length >= 100) {
       rawContent = manualContent;

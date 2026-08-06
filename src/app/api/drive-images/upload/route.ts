@@ -3,12 +3,15 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { uploadImageToDrive } from '@/lib/drive';
 
+// SVG intentionally excluded — same-origin stored XSS risk. An SVG uploaded
+// here is served back inline by /api/drive-images/[id]/raw with its own
+// Content-Type, so scripts inside it would execute on the app origin.
+// Matches the allowlist in src/lib/media.ts.
 const ALLOWED_TYPES = [
   'image/jpeg',
   'image/png',
   'image/gif',
   'image/webp',
-  'image/svg+xml',
 ];
 
 const MAX_FILE_SIZE = 20 * 1024 * 1024; // 20MB
@@ -33,7 +36,7 @@ export async function POST(request: NextRequest) {
 
     if (!ALLOWED_TYPES.includes(file.type)) {
       return NextResponse.json(
-        { error: 'Invalid file type. Allowed: JPEG, PNG, GIF, WebP, SVG' },
+        { error: 'Invalid file type. Allowed: JPEG, PNG, GIF, WebP' },
         { status: 400 }
       );
     }

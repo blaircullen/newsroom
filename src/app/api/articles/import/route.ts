@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
-import { isPrivateUrl } from '@/lib/url-validation';
+import { assertPublicUrl, BlockedUrlError, safeFetch } from '@/lib/url-validation';
 import { fixAllCapsHeadline } from '@/lib/utils';
 import { sanitizeArticleHtml } from '@/lib/html-sanitize';
 import { extractArticle, isTrafilaturaAvailable } from '@/lib/trafilatura-client';
@@ -42,12 +42,16 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  // Block SSRF — prevent fetching internal/private network resources
-  if (isPrivateUrl(url)) {
-    return NextResponse.json(
-      { error: 'URLs pointing to private or internal networks are not allowed' },
-      { status: 400 }
-    );
+  // Block SSRF — resolves DNS and revalidates every redirect hop below via
+  // safeFetch. The old string-only isPrivateUrl check could not see a public
+  // hostname resolving to a private address, nor a redirect into one.
+  try {
+    await assertPublicUrl(url);
+  } catch (err) {
+    if (err instanceof BlockedUrlError) {
+      return NextResponse.json({ error: err.message }, { status: 400 });
+    }
+    throw err;
   }
 
   const anthropicApiKey = process.env.ANTHROPIC_API_KEY;
@@ -60,7 +64,7 @@ export async function POST(request: NextRequest) {
 
   try {
     // Step 1: Fetch the article content from the URL
-    const articleResponse = await fetch(url, {
+    const articleResponse = await safeFetch(url, {
       headers: {
         'User-Agent': 'Mozilla/5.0 (compatible; NewsRoom/1.0)',
         'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',

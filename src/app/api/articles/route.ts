@@ -4,6 +4,7 @@ import { authOptions } from '@/lib/auth';
 import prisma from '@/lib/prisma';
 import slugify from 'slugify';
 import { ArticleStatus, Prisma } from '@prisma/client';
+import { sanitizeArticleHtml } from '@/lib/html-sanitize';
 import { z } from 'zod';
 
 // Valid article statuses for validation
@@ -214,7 +215,10 @@ export async function POST(request: NextRequest) {
       headline,
       subHeadline: subHeadline || null,
       body: bodyContent,
-      bodyHtml: bodyHtml || null,
+      // Sanitize server-side: bodyHtml is publishable HTML that goes out to
+      // WordPress/Ghost/Shopify verbatim (publish.ts preparePublishHtml does
+      // not sanitize). The import route already does this; POST/PUT must too.
+      bodyHtml: bodyHtml ? sanitizeArticleHtml(bodyHtml) : null,
       slug,
       featuredImage: featuredImage || null,
       featuredImageId: featuredImageId || null,

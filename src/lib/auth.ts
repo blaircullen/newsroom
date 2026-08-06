@@ -5,6 +5,10 @@ import prisma from './prisma';
 import { isValidEmail } from './validation';
 // Type augmentation is in src/types/index.ts
 
+// How often a live session re-checks the user row for deactivation / role
+// changes. Trades a bounded staleness window against one indexed lookup.
+const REVALIDATE_INTERVAL_MS = 60_000;
+
 export const authOptions: NextAuthOptions = {
   providers: [
     CredentialsProvider({
@@ -84,7 +88,46 @@ export const authOptions: NextAuthOptions = {
         token.id = user.id;
         token.role = user.role;
         token.name = user.name; // FIX: Add name to token
+        token.revalidatedAt = Date.now();
+        return token;
       }
+
+      // Re-read the user periodically so deactivation and role changes take
+      // effect without waiting out the 14-day token. Throttled because this
+      // callback runs on every session read.
+      const age = Date.now() - (token.revalidatedAt ?? 0);
+      if (age < REVALIDATE_INTERVAL_MS || !token.id) return token;
+
+      try {
+        const current = await prisma.user.findUnique({
+          where: { id: token.id },
+          select: { id: true, name: true, role: true, isActive: true },
+        });
+
+        if (!current || !current.isActive) {
+          // Throwing here is deliberate: next-auth's session route catches a
+          // jwt-callback throw and clears the session cookies
+          // (node_modules/next-auth/core/routes/session.js — JWT_SESSION_ERROR
+          // branch calls sessionStore.clean()). That is the only clean way to
+          // invalidate a JWT session, and it fails closed.
+          throw new Error(`[AUTH] Session revoked for user ${token.id}: account missing or inactive`);
+        }
+
+        token.role = current.role;
+        token.name = current.name;
+        token.revalidatedAt = Date.now();
+      } catch (err) {
+        if (err instanceof Error && err.message.startsWith('[AUTH] Session revoked')) throw err;
+        // A transient database failure must not log out the whole newsroom.
+        // Leave the token untouched and leave revalidatedAt stale so the very
+        // next request retries rather than waiting out the interval.
+        console.error('[AUTH] Failed to revalidate session', {
+          userId: token.id,
+          error: err instanceof Error ? err.message : 'Unknown error',
+          timestamp: new Date().toISOString(),
+        });
+      }
+
       return token;
     },
     async session({ session, token }) {

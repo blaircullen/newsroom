@@ -68,12 +68,30 @@ export async function POST(request: NextRequest) {
     // Clean up temp file
     await fs.unlink(tmpPath).catch(() => {});
 
-    // Fire-and-forget: trigger AI analysis
+    // Fire-and-forget: trigger AI analysis.
+    // The analyze route checks INTERNAL_API_SECRET — sending NEXTAUTH_SECRET
+    // here made every Getty analysis 401, and the bare `.catch(() => {})`
+    // below hid it. Log the status so the next mismatch is visible.
     const baseUrl = request.nextUrl.origin;
     fetch(`${baseUrl}/api/media/${media.id}/analyze`, {
       method: 'POST',
-      headers: { 'x-internal-secret': process.env.NEXTAUTH_SECRET || '' },
-    }).catch(() => {});
+      headers: { 'x-internal-secret': process.env.INTERNAL_API_SECRET || '' },
+    })
+      .then(async (res) => {
+        if (!res.ok) {
+          const body = await res.text().catch(() => '<unreadable>');
+          console.error(
+            `[Getty Download] Analysis trigger failed for media ${media.id}: ` +
+              `${res.status} ${res.statusText} — ${body.slice(0, 200)}`
+          );
+        }
+      })
+      .catch((err) => {
+        console.error(
+          `[Getty Download] Failed to trigger analysis for media ${media.id}:`,
+          err instanceof Error ? err.message : err
+        );
+      });
 
     return NextResponse.json({
       success: true,

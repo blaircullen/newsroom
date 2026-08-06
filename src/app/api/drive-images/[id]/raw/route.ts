@@ -25,6 +25,14 @@ function getDrive(): drive_v3.Drive {
   }
 }
 
+// Inert raster types only — see the check in GET below.
+const SERVEABLE_MIME_TYPES = new Set([
+  'image/jpeg',
+  'image/png',
+  'image/gif',
+  'image/webp',
+]);
+
 // Validate file ID format to prevent injection
 function isValidFileId(id: string): boolean {
   // Google Drive file IDs are typically alphanumeric with dashes/underscores
@@ -64,9 +72,16 @@ export async function GET(
 
     const mimeType = meta.data.mimeType || 'image/jpeg';
 
-    // Validate that it's actually an image
-    if (!mimeType.startsWith('image/')) {
-      return NextResponse.json({ error: 'Not an image file' }, { status: 400 });
+    // Serve only inert raster types. `startsWith('image/')` used to be the
+    // whole check, which let image/svg+xml through — and an SVG served inline
+    // from this origin with its own Content-Type executes its scripts here.
+    // nosniff does not help when the declared type is the dangerous one.
+    // Matches the upload allowlist and src/lib/media.ts.
+    if (!SERVEABLE_MIME_TYPES.has(mimeType)) {
+      return NextResponse.json(
+        { error: `Unsupported image type: ${mimeType}` },
+        { status: 400 }
+      );
     }
 
     const buffer = Buffer.from(response.data as ArrayBuffer);

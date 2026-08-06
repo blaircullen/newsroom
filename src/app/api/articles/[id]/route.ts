@@ -5,6 +5,7 @@ import prisma from '@/lib/prisma';
 import slugify from 'slugify';
 import { sendDeletionNotification } from '@/lib/email';
 import { incrementUsageCount, decrementUsageCount } from '@/lib/media';
+import { sanitizeArticleHtml } from '@/lib/html-sanitize';
 import { z } from 'zod';
 
 // Input validation constants (same as POST endpoint)
@@ -127,7 +128,8 @@ export async function PUT(
   }
   if (subHeadline !== undefined) updateData.subHeadline = subHeadline?.trim() || null;
   if (bodyContent !== undefined) updateData.body = bodyContent.trim();
-  if (bodyHtml !== undefined) updateData.bodyHtml = bodyHtml || null;
+  // Sanitize server-side — see the matching note in the POST handler.
+  if (bodyHtml !== undefined) updateData.bodyHtml = bodyHtml ? sanitizeArticleHtml(bodyHtml) : null;
   if (featuredImage !== undefined) updateData.featuredImage = featuredImage || null;
   if (featuredImageId !== undefined) updateData.featuredImageId = featuredImageId || null;
   if (featuredMediaId !== undefined) updateData.featuredMediaId = featuredMediaId || null;
