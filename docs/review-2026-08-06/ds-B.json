@@ -1,0 +1,178 @@
+[
+  {
+    "id": "DATA-01",
+    "severity": "CRITICAL",
+    "category": "data",
+    "file": "prisma/schema.prisma",
+    "line": 1,
+    "title": "Missing CronLock, ConservativeSpotlightRun, StoryIntelligence models — runtime crashes on all untracked feature code",
+    "evidence": "src/lib/cron-lock.ts:62: `await prisma.cronLock.deleteMany({ where: { jobName, holder } })` — no CronLock model exists in schema.prisma. src/app/api/spotlight/route.ts:25: `prisma.conservativeSpotlightRun.findMany(...)` — no ConservativeSpotlightRun model exists. src/lib/conservative-spotlight-service.ts:471: `prisma.storyIntelligence.findMany(...)` — StoryIntelligence was removed from schema in the 2026-07-06 lean strip (per CLAUDE.md). All three models are referenced in active code but none appear in prisma/schema.prisma.",
+    "failure_scenario": "Any API call or cron that touches cron-lock, spotlight, or conservative-spotlight code will throw a PrismaClientValidationError at runtime. The cron lock infrastructure (used by instrumentation.ts) is silently dead — scheduled-publish and any other cron-lock-gated job will fail to acquire and return null without running.",
+    "fix": "Either add the missing models to prisma/schema.prisma with matching migrations, or remove the untracked code that references them. At minimum: add `model CronLock { jobName String @id ... }`, `model ConservativeSpotlightRun { ... }`, and `model StoryIntelligence { ... }` to schema.prisma with a matching Prisma migration."
+  },
+  {
+    "id": "DATA-02",
+    "severity": "CRITICAL",
+    "category": "correctness",
+    "file": "src/lib/publish.ts",
+    "line": 1201,
+    "title": "Race condition: concurrent publishes to the same article overwrite publishedUrl/publishedSite",
+    "evidence": "Line 1146 reads `article` with a snapshot of `publishedSite` for the duplicate-publish guard (line 1168-1172). After the publish call returns (line 1189-1198), line 1202-1205 re-reads the article to get the latest `publishedUrl`/`publishedSite`. But the duplicate-publish guard at line 1168-1170 used the STALE snapshot from line 1146, not the re-read. Two concurrent publishes both see `article.publishedSite` as null (first publish), both pass the guard, both post to the target, both succeed, and both call `prisma.article.update` at line 1210 — the second update's `publishedUrl` array wins and the first publish's URL is lost.",
+    "failure_scenario": "Two users (or one user + cron) publish article #1 to different targets at roughly the same time. Both read `publishedSite: null` at line 1168, skip the duplicate guard. Both succeed in posting. The first to line 1202 reads the current state correctly, but the second then overwrites with its own joined list. The first target's URL is dropped from the publishedUrl column.",
+    "fix": "Wrap lines 1201-1218 in a Prisma transaction. Inside the transaction, re-read the article with `SELECT ... FOR UPDATE` (via `$queryRaw`) or use an optimistic lock: `prisma.article.updateMany({ where: { id, publishedSite: current?.publishedSite }, data: { ... } })` and check affected rows. Also re-check the duplicate-publish guard AFTER the re-read at line 1202 before updating."
+  },
+  {
+    "id": "DATA-03",
+    "severity": "HIGH",
+    "category": "data",
+    "file": "src/app/api/analytics/cron/route.ts",
+    "line": 35,
+    "title": "Unbounded findMany in analytics cron — no take limit on published articles query",
+    "evidence": "`const articles = await prisma.article.findMany({ where, select: { ... } })` — when mode='old', this loads ALL published articles older than 7 days with no LIMIT. The result is paginated in-memory with batch processing (line 46-48), but the database query itself has no bound.",
+    "failure_scenario": "A site with 50,000+ published articles triggers the 'old' mode cron. The query loads all 50,000 rows into memory at once, then iterates in batches — memory pressure and query latency grow unbounded with article count.",
+    "fix": "Add pagination to the query itself: use `skip`/`take` in the findMany and loop externally, or at minimum add `take: 1000` as a safety bound with cursor-based pagination."
+  },
+  {
+    "id": "DATA-04",
+    "severity": "HIGH",
+    "category": "data",
+    "file": "src/app/api/analytics/refresh/route.ts",
+    "line": 25,
+    "title": "Unbounded findMany in analytics refresh — loads all published articles without take",
+    "evidence": "`await prisma.article.findMany({ where: { status: 'PUBLISHED', publishedUrl: { not: null } }, select: { ... } })` — no `take` limit. Returns every published article row.",
+    "failure_scenario": "Admin triggers analytics refresh. The DB returns every published article (potentially thousands), all loaded into memory before batch processing begins. Memory pressure and query time grow linearly with article count.",
+    "fix": "Add `take` with cursor-based pagination, or at minimum cap with `take: 500`."
+  },
+  {
+    "id": "DATA-05",
+    "severity": "HIGH",
+    "category": "data",
+    "file": "src/app/api/analytics/top-articles/route.ts",
+    "line": 111,
+    "title": "Unbounded findMany in top-articles route — loads all published articles without limit",
+    "evidence": "`const publishedArticles = await prisma.article.findMany({ where: { status: 'PUBLISHED', publishedUrl: { not: null } }, select: { ... } })` — returns every published article row. Results are sliced to 50 in-memory at line 211, but the DB query has no limit.",
+    "failure_scenario": "Dashboard loads the top-articles view. As the article count grows to thousands, the DB returns all rows, the server maps and sorts them in memory, then returns only the first 50. Query cost and memory scale with total article count, not with the response size.",
+    "fix": "Add `take: 200` to the Prisma query, or use `orderBy: { totalPageviews: 'desc' }` with `take: 50` to push sorting and limiting to the database instead of in-memory."
+  },
+  {
+    "id": "DATA-06",
+    "severity": "HIGH",
+    "category": "data",
+    "file": "prisma/schema.prisma",
+    "line": 276,
+    "title": "Missing index on Media.aiStatus — analyze-backfill full-scans the media table",
+    "evidence": "No index on `aiStatus` column. src/app/api/media/analyze-backfill/route.ts:17-27 queries `where: { OR: [{ aiStatus: 'pending' }, { aiStatus: null }], mimeType: { not: 'image/svg+xml' } }` with a `take` limit but no index support — PostgreSQL must seq-scan the table to find rows matching `aiStatus`.",
+    "failure_scenario": "Media table grows to 10,000+ rows. The backfill query takes increasingly longer to find unanalyzed images, CPU spikes on every backfill run from full table scans.",
+    "fix": "Add `@@index([aiStatus])` to the Media model in schema.prisma, then create a migration."
+  },
+  {
+    "id": "DATA-07",
+    "severity": "HIGH",
+    "category": "data",
+    "file": "prisma/schema.prisma",
+    "line": 334,
+    "title": "Missing composite index on ScanPick(scanRunId, priority) — ingest route sequential filter",
+    "evidence": "src/app/api/scanner/ingest/route.ts:78: `prisma.scanPick.findMany({ where: { scanRunId: scanRun.id, priority: 'high' } })` — the `ScanPick` model has `@@index([scanRunId])` but no composite index covering both columns. The priority filter is applied as a post-index filter (an index-scan + filter).",
+    "failure_scenario": "Each scan ingest (dozens per day) queries high-priority picks by (scanRunId, priority). Without the composite index, PostgreSQL either scans the scanRunId index then filters priority in-memory, or (if the run has many picks) may choose a seq-scan. Either way, it's an avoidable inefficiency.",
+    "fix": "Add `@@index([scanRunId, priority])` to the ScanPick model in schema.prisma."
+  },
+  {
+    "id": "DATA-08",
+    "severity": "HIGH",
+    "category": "correctness",
+    "file": "src/lib/recap-generator.ts",
+    "line": 81,
+    "title": "Swallowed error in fetchSitePageviews — Umami failures silently return 0 pageviews",
+    "evidence": "```typescript\n  } catch {\n    return 0;\n  }\n``` — the catch block on line 81 swallows any error (network timeout, auth failure, API error) and silently returns 0. The caller at line 183-184 sums all zeroes without knowing the data is missing.",
+    "failure_scenario": "Umami is down or the token is stale. The recap shows 0 total pageviews and `previousPeriodPageviews: 0` — the change percent (line 259) computes as null (no comparison data). The recap text says 'no comparison data' instead of surfacing that the analytics source is unavailable. Editors get a misleading 'no traffic' report.",
+    "fix": "Log the error before returning 0: `catch (err) { console.error('[Recap] fetchSitePageviews failed:', err); return 0; }`. Consider returning a sentinel like `-1` or a separate health flag so the caller can distinguish 'zero traffic' from 'data unavailable'."
+  },
+  {
+    "id": "DATA-09",
+    "severity": "MEDIUM",
+    "category": "data",
+    "file": "prisma/schema.prisma",
+    "line": 382,
+    "title": "Missing onDelete cascade on CutPull.createdBy — user deletion blocked by FK constraint",
+    "evidence": "Line 396: `createdBy User @relation(fields: [createdById], references: [id])` — no `onDelete` action specified. Prisma defaults to `NoAction`, which means PostgreSQL rejects any `DELETE FROM users WHERE id = X` if that user has any CutPull rows.",
+    "failure_scenario": "Admin tries to delete a user who has pulled Grabien clips. PostgreSQL returns a foreign key violation: `update or delete on table \"users\" violates foreign key constraint on table \"cut_pulls\"`.",
+    "fix": "Add `onDelete: Cascade` or `onDelete: SetNull` to the relation. If clip history must survive user deletion, use `onDelete: SetNull` and make `createdById` nullable."
+  },
+  {
+    "id": "DATA-10",
+    "severity": "MEDIUM",
+    "category": "data",
+    "file": "prisma/schema.prisma",
+    "line": 295,
+    "title": "Missing onDelete cascade on ArticleExemplar.submittedBy — user deletion blocked by FK constraint",
+    "evidence": "Line 313: `submittedBy User @relation(\"SubmittedExemplars\", fields: [submittedById], references: [id])` — no `onDelete` action specified. Prisma defaults to `NoAction`.",
+    "failure_scenario": "Admin tries to delete a user who has submitted article exemplars. PostgreSQL rejects with a foreign key violation on `article_exemplars`.",
+    "fix": "Add `onDelete: Cascade` — since `submittedById` is non-nullable, Cascade is the cleanest option."
+  },
+  {
+    "id": "DATA-11",
+    "severity": "MEDIUM",
+    "category": "correctness",
+    "file": "src/lib/cron-jobs.ts",
+    "line": 44,
+    "title": "Sequential publish loop — scheduled articles published one at a time, no parallelism",
+    "evidence": "```typescript\nfor (const article of scheduledArticles) {\n  ...\n  const result = await publishArticle(article.id, targetId, article.author.id);\n  ...\n}\n``` — each article is published sequentially with `await`. If 10 articles are scheduled for the same minute, publish #10 starts only after #1-#9 complete (each potentially 30s+ for image uploads).",
+    "failure_scenario": "Cron fires at the scheduled minute. 8 articles are due. `publishArticle` takes 45s each (image download + upload to WP). Total wall-clock time: 6 minutes. The last article publishes 6 minutes late. More critically, if any publish hangs on the external API, all subsequent publishes are blocked indefinitely.",
+    "fix": "Use `Promise.allSettled(articles.map(a => publishArticle(...)))` for parallel execution, or wrap each iteration in `Promise.race` with a hard per-article deadline beyond the existing internal `AbortSignal.timeout(API_TIMEOUT)`."
+  },
+  {
+    "id": "DATA-12",
+    "severity": "MEDIUM",
+    "category": "data",
+    "file": "prisma/schema.prisma",
+    "line": 382,
+    "title": "Missing index on CutPull.createdById — user-scoped queries do a full scan",
+    "evidence": "The CutPull model has indexes on `stage` and `createdAt` but not `createdById`. If any query filters by user, it triggers a seq-scan on cut_pulls.",
+    "failure_scenario": "A dashboard widget showing 'my recent cuts' queries `where: { createdById: userId }`. Without the index, PostgreSQL scans every CutPull row sequentially.",
+    "fix": "Add `@@index([createdById])` or `@@index([createdById, createdAt])` to the CutPull model."
+  },
+  {
+    "id": "DATA-13",
+    "severity": "MEDIUM",
+    "category": "data",
+    "file": "prisma/schema.prisma",
+    "line": 295,
+    "title": "Missing index on ArticleExemplar.submittedById",
+    "evidence": "No index on `submittedById` in the ArticleExemplar model. Any per-user exemplar query does a full table scan.",
+    "failure_scenario": "Querying 'exemplars submitted by user X' scans the full article_exemplars table.",
+    "fix": "Add `@@index([submittedById])` to the ArticleExemplar model."
+  },
+  {
+    "id": "DATA-14",
+    "severity": "MEDIUM",
+    "category": "correctness",
+    "file": "src/lib/cron-jobs.ts",
+    "line": 17,
+    "title": "Bulk cleanup unsafely strips scheduledPublishAt from non-APPROVED articles without audit",
+    "evidence": "```typescript\nawait prisma.article.updateMany({\n  where: {\n    scheduledPublishAt: { not: null },\n    status: { notIn: ['APPROVED'] },\n  },\n  data: { scheduledPublishAt: null, scheduledPublishTargetId: null },\n});\n``` — this unconditionally zeros out scheduled-publish fields for any article whose status is no longer APPROVED. If a SUBMITTED article had a schedule set (edge case via API), it is silently wiped every cron tick.",
+    "failure_scenario": "An editor sets a scheduled publish, then moves the article back to DRAFT for revisions (meaning to re-schedule later). The next cron tick wipes `scheduledPublishAt` silently — the editor loses their scheduling intent with no warning.",
+    "fix": "Log the article IDs being cleaned up, or at minimum: `console.log('[Scheduled Publish] Cleaned N stale schedules')`. Consider only clearing schedules for articles in DRAFT/REJECTED status — SUBMITTED articles should keep their schedule."
+  },
+  {
+    "id": "DATA-15",
+    "severity": "LOW",
+    "category": "footprint",
+    "file": "src/lib/publish.ts",
+    "line": 458,
+    "title": "Redundant URL object inside loop in processBodyImages — compute once before the loop",
+    "evidence": "```typescript\nif (originalSrc.includes(new URL(config.targetUrl).hostname)) {\n``` — `new URL(config.targetUrl)` is called per image inside the for loop (line 446-501). `config.targetUrl` never changes across iterations.",
+    "failure_scenario": "An article with 15 inline images creates 15 redundant URL objects. Low impact, but visible in CPU profiles on publish-heavy workloads.",
+    "fix": "Compute `const targetHostname = new URL(config.targetUrl).hostname` once before the loop at line 446, use the cached string inside the loop."
+  },
+  {
+    "id": "DATA-16",
+    "severity": "LOW",
+    "category": "footprint",
+    "file": "src/lib/recap-generator.ts",
+    "line": 24,
+    "title": "Duplicate getWebsiteConfigs defined identically in 3 files — single point of change needed",
+    "evidence": "`getWebsiteConfigs()` is defined in `recap-generator.ts:24-31`, `top-articles/route.ts:14-21`, and `hot-today/route.ts:42-49`. The Umami auth token cache pattern is also duplicated across all three. Adding a site requires editing all three copies.",
+    "failure_scenario": "A new site is added to one file's config but missed in the other two. Recap says 3 sites, analytics says 4. Hard to notice until someone compares numbers.",
+    "fix": "Extract `getWebsiteConfigs()` and the Umami auth token cache into `src/lib/umami.ts` (which already exists) and import from all three consumers."
+  }
+]
