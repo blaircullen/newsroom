@@ -4,6 +4,10 @@ import { authOptions } from '@/lib/auth';
 import prisma from '@/lib/prisma';
 import { getArticleAnalyticsIncremental } from '@/lib/umami';
 
+// Most articles one call may refresh. Each row costs a provider round-trip, so
+// this bounds both wall-clock and memory. Callers repeat until `remaining` is 0.
+const REFRESH_BATCH_LIMIT = 200;
+
 export async function POST(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
@@ -28,6 +32,12 @@ export async function POST(request: NextRequest) {
             publishedUrl: { not: null },
           },
           select: { id: true, publishedUrl: true, analyticsUpdatedAt: true, totalPageviews: true, totalUniqueVisitors: true },
+          // Bounded: this used to load every published article into one request
+          // and make a provider call per row, so cost grew with the archive
+          // until the request timed out. Stalest first, so repeated runs walk
+          // the whole set instead of re-doing the same head every time.
+          orderBy: { analyticsUpdatedAt: { sort: 'asc', nulls: 'first' } },
+          take: REFRESH_BATCH_LIMIT,
         });
 
     let updated = 0;
@@ -84,11 +94,27 @@ export async function POST(request: NextRequest) {
       });
     }
 
+    // A bounded run must tell the caller whether work is left, otherwise a
+    // partial refresh is indistinguishable from a complete one.
+    const remaining = articleId
+      ? 0
+      : Math.max(
+          0,
+          (await prisma.article.count({
+            where: { status: 'PUBLISHED', publishedUrl: { not: null } },
+          })) - articles.length
+        );
+
     return NextResponse.json({
       success: true,
       updated,
       failed,
-      message: `Updated analytics for ${updated} articles${failed > 0 ? `, ${failed} failed` : ''}`
+      remaining,
+      batchLimit: articleId ? null : REFRESH_BATCH_LIMIT,
+      message:
+        `Updated analytics for ${updated} articles` +
+        (failed > 0 ? `, ${failed} failed` : '') +
+        (remaining > 0 ? `. ${remaining} not yet refreshed — run again.` : ''),
     });
 
   } catch (error) {

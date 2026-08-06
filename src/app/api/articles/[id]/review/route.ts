@@ -60,24 +60,27 @@ export async function POST(
     rejected: 'REJECTED',
   };
 
-  // Create review record
-  await prisma.review.create({
-    data: {
-      articleId: params.id,
-      reviewerId: session.user.id,
-      decision: decision as string,
-      notes,
-    },
-  });
+  // One transaction: recording the decision and moving the article must both
+  // happen or neither. Previously a failure between them left a Review row
+  // against an article still sitting in SUBMITTED/IN_REVIEW.
+  const updated = await prisma.$transaction(async (tx) => {
+    await tx.review.create({
+      data: {
+        articleId: params.id,
+        reviewerId: session.user.id,
+        decision: decision as string,
+        notes,
+      },
+    });
 
-  // Update article status
-  const updated = await prisma.article.update({
-    where: { id: params.id },
-    data: { status: statusMap[decision as string] },
-    include: {
-      author: { select: { id: true, name: true, email: true, avatarUrl: true } },
-      tags: { include: { tag: true } },
-    },
+    return tx.article.update({
+      where: { id: params.id },
+      data: { status: statusMap[decision as string] },
+      include: {
+        author: { select: { id: true, name: true, email: true, avatarUrl: true } },
+        tags: { include: { tag: true } },
+      },
+    });
   });
 
   // Send email to writer

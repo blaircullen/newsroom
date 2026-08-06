@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import prisma from '@/lib/prisma';
+import { Prisma } from '@prisma/client';
 import slugify from 'slugify';
 import { sendDeletionNotification } from '@/lib/email';
 import { incrementUsageCount, decrementUsageCount } from '@/lib/media';
@@ -163,7 +164,9 @@ export async function PUT(
   }
 
   // Update tags if provided (with validation consistent with POST)
-  // Optimized to reduce N+1 queries by batching operations
+  // Optimized to reduce N+1 queries by batching operations.
+  // Built here, executed inside the same transaction as the article update.
+  let tagWork: ((tx: Prisma.TransactionClient) => Promise<void>) | null = null;
   if (tags) {
     // Dedupe tags, prepare slugs (Zod already validated types and limits)
     const uniqueTags = Array.from(new Set(
@@ -178,8 +181,7 @@ export async function PUT(
       })
       .filter((t): t is { name: string; slug: string } => t !== null);
 
-    // Use transaction to batch all tag operations
-    await prisma.$transaction(async (tx) => {
+    tagWork = async (tx: Prisma.TransactionClient) => {
       // Remove existing tags
       await tx.articleTag.deleteMany({
         where: { articleId: params.id },
@@ -206,19 +208,27 @@ export async function PUT(
           skipDuplicates: true,
         });
       }
-    });
+    };
   }
 
-  const updated = await prisma.article.update({
-    where: { id: params.id },
-    data: updateData,
-    include: {
-      author: {
-        select: { id: true, name: true, email: true, avatarUrl: true },
+  // Tag replacement and the article update commit together. Previously the tag
+  // transaction committed first, so a failing article update (duplicate slug,
+  // deleted row, transient error) returned an error while its tag changes
+  // stayed applied.
+  const updated = await prisma.$transaction(async (tx) => {
+    if (tagWork) await tagWork(tx);
+
+    return tx.article.update({
+      where: { id: params.id },
+      data: updateData,
+      include: {
+        author: {
+          select: { id: true, name: true, email: true, avatarUrl: true },
+        },
+        tags: { include: { tag: true } },
+        featuredMedia: true,
       },
-      tags: { include: { tag: true } },
-      featuredMedia: true,
-    },
+    });
   });
 
   // Persist image credit tied to the Drive file for reuse

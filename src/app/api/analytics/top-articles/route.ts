@@ -11,6 +11,10 @@ const TOKEN_TTL = 50 * 60 * 1000;
 const cache: Record<string, { timestamp: number; data: unknown }> = {};
 const CACHE_TTL = 10 * 60 * 1000;
 
+// Bounds for the candidate set matched against Umami metrics. See the query.
+const CANDIDATE_WINDOW_DAYS = 180;
+const CANDIDATE_LIMIT = 2000;
+
 function getWebsiteConfigs(): Record<string, string> {
   return {
     'lizpeek.com': process.env.UMAMI_LIZPEEK_WEBSITE_ID || '',
@@ -107,12 +111,21 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    // Get all published articles from DB
+    // Candidate set for matching against Umami paths. This used to load every
+    // published article ever, plus its author relation, to produce a short
+    // ranking — cost grew with the archive on every request. Bounded to a
+    // recent window and a hard cap; an article older than the window can no
+    // longer appear here, which is the intended trade for a "what's hot now"
+    // view. Widen CANDIDATE_WINDOW_DAYS if you want deeper back-catalogue.
+    const windowStart = new Date(Date.now() - CANDIDATE_WINDOW_DAYS * 24 * 60 * 60 * 1000);
     const publishedArticles = await prisma.article.findMany({
       where: {
         status: 'PUBLISHED',
         publishedUrl: { not: null },
+        publishedAt: { gte: windowStart },
       },
+      orderBy: { publishedAt: 'desc' },
+      take: CANDIDATE_LIMIT,
       select: {
         id: true,
         headline: true,
