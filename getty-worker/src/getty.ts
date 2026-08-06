@@ -1,14 +1,18 @@
-import type { BrowserContext, Page } from 'playwright';
-/* eslint-disable @typescript-eslint/no-require-imports */
-// playwright-extra doesn't ship TypeScript declarations; require() bypasses module resolution
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const chromiumExtra: any = require('playwright-extra').chromium;
-chromiumExtra.use(require('puppeteer-extra-plugin-stealth')());
-/* eslint-enable @typescript-eslint/no-require-imports */
+import type { Page } from 'playwright';
 import fs from 'fs';
 import path from 'path';
 import https from 'https';
 import http from 'http';
+import { getContext, closeContext as closeSessionContext, getSession, invalidateSession } from './session';
+import {
+  fastSearch,
+  fastAssetDetail,
+  fastDownload,
+  FastPathAuthError,
+  FastPathBotWallError,
+  FastPathHttpError,
+  FastPathShapeError,
+} from './fast-path';
 
 // ─── Config ───────────────────────────────────────────────────────────────────
 
@@ -18,6 +22,28 @@ const GETTY_CUSTOMER_ID = Number(process.env.GETTY_CUSTOMER_ID || '9871544');
 const GETTY_STATE_DIR = process.env.GETTY_STATE_DIR || '/data/getty-state';
 const MEDIA_TMP_DIR = process.env.MEDIA_TMP_DIR || '/data/media/tmp';
 const COOKIES_PATH = path.join(GETTY_STATE_DIR, 'cookies.json');
+
+function fastPathEnabled(): boolean {
+  return process.env.GETTY_FAST_PATH !== 'off';
+}
+
+// Silent fallback per the settled decision (ADR 0001) — logs status+detail so a failure
+// records WHY (error-evidence rule), never pages/alerts.
+function recordFallback(op: string, err: unknown): void {
+  if (err instanceof FastPathAuthError) {
+    invalidateSession();
+    log(`FALLBACK ${op}: auth — ${err.message}`);
+  } else if (err instanceof FastPathBotWallError) {
+    log(`FALLBACK ${op}: bot-wall — ${err.message}`);
+  } else if (err instanceof FastPathHttpError) {
+    log(`FALLBACK ${op}: http ${err.status} — ${err.bodySnippet}`);
+  } else if (err instanceof FastPathShapeError) {
+    log(`FALLBACK ${op}: shape-mismatch — ${err.message}`);
+  } else {
+    const detail = err instanceof Error ? `${err.name}: ${err.message}` : String(err);
+    log(`FALLBACK ${op}: unexpected — ${detail}`);
+  }
+}
 
 export class GettyConfigurationError extends Error {
   constructor(message: string) {
@@ -69,86 +95,11 @@ function assertGettyConfigured(): void {
   }
 }
 
-// ─── Browser Context Management ──────────────────────────────────────────────
-
-let _context: BrowserContext | null = null;
+// ─── Login (browser context management moved to session.ts) ──────────────────
 
 // Login mutex — prevents concurrent authentication attempts.
 // Stores the login promise so waiters get the same success/failure result.
 let _loginLock: Promise<void> | null = null;
-
-interface PlaywrightCookie {
-  name: string; value: string; domain: string; path: string;
-  expires: number; httpOnly: boolean; secure: boolean;
-  sameSite: 'Strict' | 'Lax' | 'None';
-}
-
-// Convert Cookie Editor JSON format → Playwright cookie format
-function loadCookiesFromFile(): PlaywrightCookie[] {
-  if (!fs.existsSync(COOKIES_PATH)) return [];
-  try {
-    const raw = JSON.parse(fs.readFileSync(COOKIES_PATH, 'utf8'));
-    return raw.map((c: Record<string, unknown>) => {
-      const sameSiteMap: Record<string, 'Strict' | 'Lax' | 'None'> = {
-        strict: 'Strict',
-        lax: 'Lax',
-        no_restriction: 'None',
-      };
-      const sameSiteRaw = typeof c.sameSite === 'string' ? c.sameSite.toLowerCase() : '';
-      return {
-        name: c.name as string,
-        value: c.value as string,
-        domain: c.domain as string,
-        path: (c.path as string) || '/',
-        expires: c.session ? -1 : Math.floor((c.expirationDate as number) ?? -1),
-        httpOnly: Boolean(c.httpOnly),
-        secure: Boolean(c.secure),
-        sameSite: sameSiteMap[sameSiteRaw] ?? 'None',
-      };
-    });
-  } catch (err) {
-    log(`Failed to load cookies from ${COOKIES_PATH}: ${err}`);
-    return [];
-  }
-}
-
-async function getContext(): Promise<BrowserContext> {
-  if (_context) return _context;
-
-  fs.mkdirSync(GETTY_STATE_DIR, { recursive: true });
-
-  _context = await chromiumExtra.launchPersistentContext(GETTY_STATE_DIR, {
-    headless: true,
-    args: [
-      '--no-sandbox',
-      '--disable-setuid-sandbox',
-      '--disable-dev-shm-usage',
-      '--disable-blink-features=AutomationControlled',
-      '--disable-infobars',
-      '--no-first-run',
-    ],
-    userAgent:
-      'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
-    viewport: { width: 1280, height: 800 },
-    locale: 'en-US',
-    timezoneId: 'America/New_York',
-  });
-
-  await _context!.addInitScript(() => {
-    Object.defineProperty(navigator, 'webdriver', { get: () => undefined });
-    Object.defineProperty(navigator, 'plugins', { get: () => [1, 2, 3] });
-    Object.defineProperty(navigator, 'languages', { get: () => ['en-US', 'en'] });
-  });
-
-  // Inject saved session cookies so we skip the login/bot-wall entirely
-  const cookies = loadCookiesFromFile();
-  if (cookies.length > 0) {
-    await _context!.addCookies(cookies);
-    log(`Loaded ${cookies.length} cookies from ${COOKIES_PATH}`);
-  }
-
-  return _context!;
-}
 
 async function doLogin(page: Page, label: string): Promise<void> {
   if (_loginLock) {
@@ -243,6 +194,27 @@ export async function searchGetty(
   assertGettyConfigured();
   log(`Searching for: "${keywords}" (limit: ${limit})`);
 
+  if (fastPathEnabled()) {
+    const session = await getSession();
+    if (session) {
+      const t0 = Date.now();
+      try {
+        const results = await fastSearch(session, keywords, limit);
+        log(`fast-path search ok — ${results.length} results in ${Date.now() - t0}ms (session=${session.source})`);
+        return results;
+      } catch (err) {
+        recordFallback('search', err);
+      }
+    }
+  }
+
+  return searchGettyViaBrowser(keywords, limit);
+}
+
+async function searchGettyViaBrowser(
+  keywords: string,
+  limit: number = 20
+): Promise<GettySearchResult[]> {
   const context = await getContext();
   const page = await context.newPage();
 
@@ -336,6 +308,35 @@ export async function downloadGettyImage(assetId: string): Promise<GettyDownload
   assertGettyConfigured();
   log(`Downloading asset: ${assetId}`);
 
+  if (fastPathEnabled()) {
+    const session = await getSession();
+    if (session) {
+      const t0 = Date.now();
+      fs.mkdirSync(MEDIA_TMP_DIR, { recursive: true });
+      const finalFilename = `getty-${assetId}.jpg`;
+      const finalPath = path.join(MEDIA_TMP_DIR, finalFilename);
+      // Write under a per-request unique name, then rename into place on success. Two
+      // concurrent downloads of the same assetId (or a racing browser-path retry) would
+      // otherwise write/truncate the same file, and a failed request's cleanup could delete
+      // a sibling request's in-progress or just-completed download.
+      const workingPath = path.join(MEDIA_TMP_DIR, `.getty-${assetId}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}.tmp`);
+      try {
+        const detail = await fastAssetDetail(session, assetId);
+        await fastDownload(session, assetId, GETTY_CUSTOMER_ID, workingPath);
+        fs.renameSync(workingPath, finalPath);
+        log(`fast-path download ok — ${finalPath} (${fs.statSync(finalPath).size} bytes, ${Date.now() - t0}ms)`);
+        return { filePath: `tmp/${finalFilename}`, credit: detail.credit, title: detail.title, assetId };
+      } catch (err) {
+        try { if (fs.existsSync(workingPath)) fs.unlinkSync(workingPath); } catch { /* best effort */ }
+        recordFallback('download', err);
+      }
+    }
+  }
+
+  return downloadGettyImageViaBrowser(assetId);
+}
+
+async function downloadGettyImageViaBrowser(assetId: string): Promise<GettyDownloadResult | null> {
   const context = await getContext();
   const page = await context.newPage();
 
@@ -446,9 +447,4 @@ export async function downloadGettyImage(assetId: string): Promise<GettyDownload
 
 // ─── Cleanup ─────────────────────────────────────────────────────────────────
 
-export async function closeContext(): Promise<void> {
-  if (_context) {
-    await _context.close();
-    _context = null;
-  }
-}
+export { closeSessionContext as closeContext };
